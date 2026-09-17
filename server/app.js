@@ -1,13 +1,13 @@
 import express, { json, urlencoded } from "express";
 import dotenv from "dotenv";
 import dbConnect from "./config/db.js";
-import userRouter from "./routes/userRoutes.js"
+import userRouter from "./routes/user.route.js"
 const app = express();
 
 dotenv.config()
 
-app.use(urlencoded({extended:true}))
-app.use(json())
+app.use(express.urlencoded({extended:true}))
+app.use(express.json())
 
 app.use("/api/user/",userRouter)
 
