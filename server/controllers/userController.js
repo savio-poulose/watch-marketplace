@@ -40,26 +40,17 @@ export const userLogin  = async (req,res) =>{
         const {userName,password} = req.body
         const user = await User.findOne({userName:userName})
 
-        if(user){
-            const isMatch = await bcrypt.compare(password,user.password)
-
-        if(isMatch){
-            res.status(200).json({
-                message:"login succesfull",
-            })
-            console.log("login succesfull")
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(401).json({ 
+                error: 'Invalid username or password.' 
+            });
         }else{
-            res.status(401).json({
-                message:"login failed"
-            })
-            console.log("login failed");
-        }
-        }
-        else{
-            res.status(404).json({
-                message:"login failed"
+            res.status(200).json({
+                message:"login succesfull"
             })
         }
+
+        
         // console.log(user.password)
         
 
