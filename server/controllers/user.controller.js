@@ -1,14 +1,16 @@
 import User from "../models/user.model.js";
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+// import bcrypt from "bcrypt";
+// import jwt from "jsonwebtoken";
 
 import { registerUser,LoginUser } from "../services/user.service.js";
 
 export const userRegister = async (req, res) => {
   try {
+    
     const { userName, email, password } = req.body;
+    console.log("userRegister controller req.body"+userName+email+password)
     const user = await registerUser(userName,email,password)
-
+    console.log(user)
     res.status(201).json({
       message:"user registerd succesfully",
       user

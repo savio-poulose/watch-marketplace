@@ -1,15 +1,9 @@
-import { useState } from "react";
+// import { useState } from "react";
 import axios from "axios";
 
 const Register = () => {
-  const [formData, setFormData] = useState({
-    username: "",
-    email: "",
-    password: "",
-    confirmPasswrd: "",
-  });
-
-  function handleSubmit(event) {
+  
+  async function handleSubmit(event) {
     console.log("handlesubmit");
     event.preventDefault();
     //    console.log(event.target)
@@ -19,6 +13,18 @@ const Register = () => {
     const data = Object.fromEntries(formData);
 
     console.log(data);
+
+    if(data.password !== data.confirmPassword){
+      throw new Error("password doesnt match confirm password")
+    }
+
+    try{
+      const response = await axios.post("http://localhost:3000/api/user/register",data)
+      console.log(response.data)
+
+    }catch(error){
+      console.log(error.message)
+    }
   }
 
   return (
@@ -42,7 +48,7 @@ const Register = () => {
 
               <input
                 type="text"
-                name="name"
+                name="userName"
                 placeholder="William"
                 className="w-full h-11 bg-gray-100 px-3 text-sm outline-none border border-transparent focus:border-[#b79b62]"
               />

@@ -10,14 +10,16 @@ import {
 
 const Navbar = () => {
   return (
-    <nav className="w-full bg-white border-b border-slate-300 sticky top-0 z-50">
+    <nav className="w-full bg-white border-b border-slate-300 sticky top-0 ">
 
       {/* TOP NAVBAR */}
-      <div className="h-16 px-5 md:px-8 flex items-center justify-between gap-5 border-b border-slate-300 shadow-md">
+      <div className="h-16 px-5 md:px-8 flex items-center justify-between gap-5 border-b border-slate-300 bg-white shadow-md z-50">
 
         {/* LOGO */}
         <div >
+          <Link to="/">
           <img src={logo} alt="" className="h-16 cursor-pointer "/>
+          </Link>
         </div>
 
         {/* SEARCH */}
@@ -30,7 +32,7 @@ const Navbar = () => {
         </div>
 
         {/* RIGHT SIDE */}
-        <div className="hidden md:flex items-center gap-6 text-gray-700">
+        <div className="hidden md:flex items-center gap-6 text-gray-700 z-0">
 
           
 
@@ -95,7 +97,7 @@ const Navbar = () => {
           ABOUT
         </a>
 
-        <a href="#" className="text-orange-600">
+        <a href="#" className="text-[#9A7B3F]">
           OFFERS
         </a>
 
