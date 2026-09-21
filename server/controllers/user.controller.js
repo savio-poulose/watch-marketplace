@@ -25,10 +25,16 @@ export const userRegister = async (req, res) => {
 
 export const userLogin = async (req, res) => {
   try {
+    
     const { email, password } = req.body;
-   
+  //  console.log(email+password+"req.body")
     const token = await LoginUser(email,password)
 
+    if (!token) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
     
     res.status(200).json({
       message: "login succesfull",

@@ -1,29 +1,48 @@
 // import { useState } from "react";
 import axios from "axios";
+import { useNavigate,Link } from "react-router-dom";
+
 
 const Register = () => {
-  
+  const navigate = useNavigate();
+
   async function handleSubmit(event) {
     console.log("handlesubmit");
     event.preventDefault();
     //    console.log(event.target)
     const formData = new FormData(event.target);
-    console.log(formData)
+    console.log(formData);
 
     const data = Object.fromEntries(formData);
 
     console.log(data);
 
-    if(data.password !== data.confirmPassword){
-      throw new Error("password doesnt match confirm password")
+    const userName = data.userName.trim();
+    if (userName === "") {
+      alert("enter username");
+      return;
     }
 
-    try{
-      const response = await axios.post("http://localhost:3000/api/user/register",data)
-      console.log(response.data)
+    if (data.password !== data.confirmPassword) {
+      alert("password doesnt match confirm password");
+      return;
+    }
 
-    }catch(error){
-      console.log(error.message)
+    try {
+      const response = await axios.post(
+        "http://localhost:3000/api/user/register",
+        data,
+      );
+      console.log(response.data);
+      navigate("/user/login");
+    } catch (error) {
+      console.log(error.message);
+
+      if (error.response) {
+        alert(error.response.data.message);
+      } else {
+        alert("Something went wrong. Please try again.");
+      }
     }
   }
 
@@ -123,12 +142,14 @@ const Register = () => {
             Already have an account?
           </p>
 
+          <Link to="/user/login">
           <button
             type="button"
             className="text-sm font-semibold cursor-pointer text-gray-900 mt-1 hover:text-[#b79b62]"
           >
             SIGN IN
           </button>
+          </Link>
         </div>
       </div>
     </div>
