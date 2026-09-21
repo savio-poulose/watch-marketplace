@@ -76,7 +76,7 @@ const AdminCategory = () => {
           },
         );
 
-        console.log(response.data.categories);
+        // console.log(response.data.categories);
         setCategoryList(response.data.categories);
       } catch (err) {
         console.log(err.message);
@@ -84,14 +84,15 @@ const AdminCategory = () => {
     }
 
     fetchCategories();
-  }, [categoryList]);
+  }, []);
 
 
   async function handleDelete(category){
 
       try{
+        console.log(category._id)
         const token = localStorage.getItem("adminToken");
-        const response = await axios.put(
+        const response = await axios.delete(
         `http://localhost:3000/api/admin/category/${category._id}`,
         {
           headers: {
@@ -99,7 +100,11 @@ const AdminCategory = () => {
           },
         }
       )
-      alert(response.data.message)
+         setCategoryList((prev) =>
+      prev.filter((item) => item._id !== category._id)
+    );
+      alert("deleted succesfully")
+      console.log(response)
       }catch(err){
         alert(err.message)
       }

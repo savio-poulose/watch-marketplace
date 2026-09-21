@@ -46,7 +46,11 @@ export const editCategory = async (req,res)=>{
 
 export const deleteCategory = async (req,res)=>{
     try{
+        console.log(req.params)
         const category = await categoryDelete(req.params)
+        res.status(200).json({
+            message:"succesfully deleted"
+        })
     }catch(err){
         res.status(404).json({
             message:err.message

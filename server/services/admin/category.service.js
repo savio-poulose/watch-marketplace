@@ -16,13 +16,13 @@ export const getCategoryAll = async ()=>{
 
 // getAllCategory()
 
-export const categoryEdit = async (data,query) =>{
+export const categoryEdit = async (data,params) =>{
     //  console.log(data)
     // console.log(query.id)
 
 
     const {name,image,description} = data
-    const category = await Category.updateOne({_id:query.id},{
+    const category = await Category.updateOne({_id:params.id},{
         name:name,
         image:image,
         description:description
@@ -31,7 +31,8 @@ export const categoryEdit = async (data,query) =>{
     return category
 }
 
-export const categoryDelete = async (query) =>{
-    const category = await Category.deleteOne({_id:query.id})
+export const categoryDelete = async (params) =>{
+    const category = await Category.deleteOne({_id:params.id})
+    
     return category
 }
