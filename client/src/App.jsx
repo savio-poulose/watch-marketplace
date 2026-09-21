@@ -4,6 +4,7 @@ import Home from './pages/user/Home.jsx';
 import Login from './pages/user/Login.jsx';
 import AdminLogin from './pages/admin/AdminLogin.jsx';
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
+import AdminProduct from './pages/admin/AdminProduct.jsx';
 
 function App() {
   return(
@@ -15,6 +16,7 @@ function App() {
         <Route path="/user/login" element={<Login/>}/>
         <Route path='/admin/login' element={<AdminLogin/>}/>
         <Route path='/admin/dashboard' element={<AdminDashboard/>}/>
+        <Route path='/admin/product' element={<AdminProduct/>}/>
       </Routes>
     </BrowserRouter>
     </>
