@@ -6,7 +6,9 @@ import MainLayout from "../../components/admin/MainLayout";
 
 const AdminCategory = () => {
   const [showForm, setShowForm] = useState(false);
-  const [categoryList,setCategoryList] = useState([]);
+  const [categoryList, setCategoryList] = useState([]);
+  const [editingCategory, setEditingCategory] = useState(null);
+//   const [deleteCategory,setDeleteCategory] = useState(null)
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -17,24 +19,38 @@ const AdminCategory = () => {
     // console.log(data);
 
     try {
-
-        const token = localStorage.getItem("adminToken");
-// console.log("TOKEN:", token); 
-      const response = await axios.post(
-        "http://localhost:3000/api/admin/category",
+      const token = localStorage.getItem("adminToken");
+      // console.log("TOKEN:", token);
+      if(editingCategory){
+             const response = await axios.put(
+        `http://localhost:3000/api/admin/category/${editingCategory._id}`,
         data,
         {
-            headers:{
-                Authorization: `Bearer ${token}`
-            }
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
       
-      event.target.reset(); // clears all form fields
-setShowForm(false);
-        alert(response.data)
-        console.log(response.data)
+      alert("Category updated successfully");
+      console.log(response.data)
+      }
+      else{
+        const response = await axios.post(
+        "http://localhost:3000/api/admin/category",
+        data,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
+      event.target.reset(); // clears all form fields
+      setShowForm(false);
+      alert("added succesfully");
+      console.log(response.data)
+      }
     } catch (err) {
       console.log(err);
 
@@ -46,32 +62,49 @@ setShowForm(false);
     }
   }
 
-
- useEffect(() => {
-  async function fetchCategories() {
-    try {
-
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
         const token = localStorage.getItem("adminToken");
 
-      const response = await axios.get(
-        "http://localhost:3000/api/admin/category",
+        const response = await axios.get(
+          "http://localhost:3000/api/admin/category",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+        console.log(response.data.categories);
+        setCategoryList(response.data.categories);
+      } catch (err) {
+        console.log(err.message);
+      }
+    }
+
+    fetchCategories();
+  }, [categoryList]);
+
+
+  async function handleDelete(category){
+
+      try{
+        const token = localStorage.getItem("adminToken");
+        const response = await axios.put(
+        `http://localhost:3000/api/admin/category/${category._id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         }
-      );
-
-      console.log(response.data.categories);
-      setCategoryList(response.data.categories)
-    } catch (err) {
-      console.log(err.message);
-    }
+      )
+      alert(response.data.message)
+      }catch(err){
+        alert(err.message)
+      }
   }
-
-  fetchCategories();
-}, []);
-
+  
 
   return (
     <MainLayout>
@@ -120,6 +153,7 @@ setShowForm(false);
               <input
                 type="text"
                 name="name"
+                defaultValue={editingCategory?.name || ""}
                 placeholder="Enter category name"
                 className="w-full border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#9A7B3F]"
               />
@@ -134,6 +168,7 @@ setShowForm(false);
               <input
                 type="text"
                 name="image"
+                defaultValue={editingCategory?.image || ""}
                 placeholder="Enter image URL"
                 className="w-full border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#9A7B3F]"
               />
@@ -147,6 +182,7 @@ setShowForm(false);
 
               <textarea
                 name="description"
+                defaultValue={editingCategory?.description || ""}
                 rows="4"
                 placeholder="Enter category description"
                 className="w-full border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#9A7B3F]"
@@ -167,7 +203,7 @@ setShowForm(false);
               type="submit"
               className="px-5 py-3 text-sm bg-[#111827] text-white"
             >
-              Add Category
+              {editingCategory ? "Edit Category" : "Add Category"}
             </button>
           </div>
         </form>
@@ -227,68 +263,71 @@ setShowForm(false);
               </tr>
             </thead>
 
-<tbody>
-  {categoryList.map((category) => (
-    <tr
-      key={category._id}
-      className="border-b border-gray-100 hover:bg-gray-50"
-    >
-      {/* Image */}
-      <td className="px-6 py-4">
-        <img
-          src={category.image}
-          alt={category.name}
-          className="w-12 h-12 object-cover"
-        />
-      </td>
+            <tbody>
+              {categoryList.map((category) => (
+                <tr
+                  key={category._id}
+                  className="border-b border-gray-100 hover:bg-gray-50"
+                >
+                  {/* Image */}
+                  <td className="px-6 py-4">
+                    <img
+                      src={category.image}
+                      alt={category.name}
+                      className="w-12 h-12 object-cover"
+                    />
+                  </td>
 
-      {/* Name */}
-      <td className="px-6 py-4">
-        <p className="text-sm font-medium text-[#111827]">
-          {category.name}
-        </p>
-      </td>
+                  {/* Name */}
+                  <td className="px-6 py-4">
+                    <p className="text-sm font-medium text-[#111827]">
+                      {category.name}
+                    </p>
+                  </td>
 
-      {/* Description */}
-      <td className="px-6 py-4">
-        <p className="text-sm text-gray-500 max-w-md">
-          {category.description}
-        </p>
-      </td>
+                  {/* Description */}
+                  <td className="px-6 py-4">
+                    <p className="text-sm text-gray-500 max-w-md">
+                      {category.description}
+                    </p>
+                  </td>
 
-      {/* Status */}
-      <td className="px-6 py-4">
-        <span
-          className={`px-3 py-1 text-xs ${
-            category.isActive
-              ? "bg-green-50 text-green-700"
-              : "bg-red-50 text-red-700"
-          }`}
-        >
-          {category.isActive ? "Active" : "Inactive"}
-        </span>
-      </td>
+                  {/* Status */}
+                  <td className="px-6 py-4">
+                    <span
+                      className={`px-3 py-1 text-xs ${
+                        category.isActive
+                          ? "bg-green-50 text-green-700"
+                          : "bg-red-50 text-red-700"
+                      }`}
+                    >
+                      {category.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </td>
 
-      {/* Actions */}
-      <td className="px-6 py-4">
-        <div className="flex items-center gap-4">
-          <button
-            className="text-gray-500 hover:text-[#9A7B3F]"
-          >
-            <FaEdit />
-          </button>
+                  {/* Actions */}
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={() => {
+                          setEditingCategory(category);
+                          setShowForm(true);
+                        }}
+                        className="text-gray-500 hover:text-[#9A7B3F]"
+                      >
+                        <FaEdit />
+                      </button>
 
-          <button
-            className="text-gray-500 hover:text-red-600"
-          >
-            <FaTrash />
-          </button>
-        </div>
-      </td>
-    </tr>
-  ))}
-</tbody>
-            
+                      <button
+                      onClick={() => handleDelete(category)}
+                       className="text-gray-500 hover:text-red-600">
+                        <FaTrash />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
       </div>

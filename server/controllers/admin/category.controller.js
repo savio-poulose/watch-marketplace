@@ -1,5 +1,5 @@
 
-import { categoryAdd ,getCategoryAll} from "../../services/admin/category.service.js";
+import { categoryAdd ,getCategoryAll,categoryEdit,categoryDelete} from "../../services/admin/category.service.js";
 
 export const addCategory = async (req,res) =>{
     try{
@@ -25,6 +25,31 @@ export const getAllCategory = async(req,res)=>{
     }catch(error){
         res.status(404).json({
             message:error.message
+        })
+    }
+}
+
+export const editCategory = async (req,res)=>{
+    try{
+        
+        const category = categoryEdit(req.body,req.params)
+        res.status(200).json({
+            message:"category updated succesfully"
+        })
+
+    }catch(err){
+        res.status(404).json({
+            message:err.message
+        })
+    }
+}
+
+export const deleteCategory = async (req,res)=>{
+    try{
+        const category = await categoryDelete(req.params)
+    }catch(err){
+        res.status(404).json({
+            message:err.message
         })
     }
 }
