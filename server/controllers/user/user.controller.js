@@ -1,8 +1,8 @@
-import User from "../models/user.model.js";
+import User from "../../models/user.model.js";
 // import bcrypt from "bcrypt";
 // import jwt from "jsonwebtoken";
 
-import { registerUser,LoginUser } from "../services/user.service.js";
+import { registerUser,LoginUser } from "../../services/user/user.service.js";
 
 export const userRegister = async (req, res) => {
   try {

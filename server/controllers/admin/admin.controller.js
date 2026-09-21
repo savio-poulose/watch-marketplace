@@ -1,4 +1,4 @@
-import {loginAdmin} from "../services/admin.service.js"
+import {loginAdmin} from "../../services/admin/admin.service.js"
 
 export const adminLogin = async(req,res)=>{
     

@@ -1,8 +1,8 @@
 import express, { json, urlencoded } from "express";
 import dotenv from "dotenv";
 import dbConnect from "./config/db.js";
-import userRouter from "./routes/user.route.js"
-import adminRouter from "./routes/admin.route.js"
+import userRouter from "./routes/user/user.route.js"
+import adminRouter from "./routes/admin/admin.route.js"
 
 import cors from "cors"
 
