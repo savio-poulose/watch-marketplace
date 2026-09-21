@@ -1,9 +1,9 @@
 
-import { categoryAdd } from "../../services/admin/category.service.js";
+import { categoryAdd ,getCategoryAll} from "../../services/admin/category.service.js";
 
 export const addCategory = async (req,res) =>{
     try{
-        const category = categoryAdd(req.body)
+        const category = await categoryAdd(req.body)
 
         res.status(201).json({
             message:"category created"
@@ -14,4 +14,17 @@ export const addCategory = async (req,res) =>{
         })
     }
 
+}
+
+export const getAllCategory = async(req,res)=>{
+    try{
+        const categories = await getCategoryAll()
+        res.status(200).json({
+            categories
+        })
+    }catch(error){
+        res.status(404).json({
+            message:error.message
+        })
+    }
 }

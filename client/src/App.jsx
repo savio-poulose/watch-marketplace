@@ -5,6 +5,7 @@ import Login from './pages/user/Login.jsx';
 import AdminLogin from './pages/admin/AdminLogin.jsx';
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
 import AdminProduct from './pages/admin/AdminProduct.jsx';
+import AdminCategory from './pages/admin/AdminCategory.jsx';
 
 function App() {
   return(
@@ -17,6 +18,7 @@ function App() {
         <Route path='/admin/login' element={<AdminLogin/>}/>
         <Route path='/admin/dashboard' element={<AdminDashboard/>}/>
         <Route path='/admin/product' element={<AdminProduct/>}/>
+        <Route path='/admin/categories' element={<AdminCategory/>}/>
       </Routes>
     </BrowserRouter>
     </>

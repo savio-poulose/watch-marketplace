@@ -2,6 +2,13 @@ import jwt from "jsonwebtoken";
 
 export const authMiddleware = async (req, res, next) => {
   const header = req.headers["authorization"];
+
+  if (!header) {
+    return res.status(401).json({
+      error: "Access denied. No token provided",
+    });
+  }
+
   const token = header.split(" ")[1];
   // console.log(token)
   if (!token) {
@@ -22,8 +29,8 @@ export const authMiddleware = async (req, res, next) => {
 };
 
 export const adminAuth = async (req, res, next) => {
-  const authHeader = req.header.uthorization;
-  console.log(authHeader)
+  const authHeader = req.headers.authorization;
+  // console.log("AUTH HEADER:", authHeader);
   if (!authHeader) {
     return res.status(401).json({
       message: "Authentication required",
@@ -34,11 +41,11 @@ export const adminAuth = async (req, res, next) => {
 
   if (!token) {
     return res.status(401).json({
-      message: "Authentication required",
+      message: "Authentication required", 
     });
   }
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.SECRET_KEY);
 
     if (decoded.role !== "admin") {
       return res.status(403).json({

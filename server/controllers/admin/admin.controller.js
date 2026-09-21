@@ -9,19 +9,19 @@ export const adminLogin = async(req,res)=>{
     const token = await loginAdmin(email,password)
     
     if(!token){
-        res.status(401).json({
+        return res.status(401).json({
             message:"invalid email or password"
         })
     }
 
-    res.status(200).json({
+    return res.status(200).json({
         message:"login succesfull",
         token
     })
     console.log("login succesfull")
 
     }catch(error){
-        res.status(404).json({
+        return res.status(404).json({
             message:error.message
         })
     }

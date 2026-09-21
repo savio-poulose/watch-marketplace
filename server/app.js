@@ -17,10 +17,11 @@ app.use(express.urlencoded({extended:true}))
 app.use(express.json()) 
 
 
-app.use("/api/user/",userRouter)
-app.use("/api/admin/",adminRouter) 
-app.use("/api/admin/product",productRouter)
-app.use("/api/category",categoryRouter)
+app.use("/api/user/", userRouter);
+
+app.use("/api/admin/product", productRouter);
+app.use("/api/admin/category", categoryRouter);
+app.use("/api/admin/", adminRouter);
 //admin@watchstore.com
 
 

@@ -10,7 +10,7 @@ export const loginAdmin = async(email,password) =>{
     }
 
     const payload = {
-        id: admin._id, email: admin.email
+        id: admin._id, email: admin.email,role: admin.role,
     }
 
     const token = jwt.sign(payload,process.env.SECRET_KEY,{
