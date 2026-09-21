@@ -4,7 +4,7 @@ export const adminLogin = async(req,res)=>{
     
     try{
         const {email,password} = req.body
-    console.log(email+password+"req.body")
+    // console.log(email+password+"req.body")
 
     const token = await loginAdmin(email,password)
     
@@ -15,7 +15,8 @@ export const adminLogin = async(req,res)=>{
     }
 
     res.status(200).json({
-        message:"login succesfull"
+        message:"login succesfull",
+        token
     })
     console.log("login succesfull")
 

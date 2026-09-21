@@ -9,10 +9,10 @@ const AdminLogin = () => {
     event.preventDefault();
 
     const formData = new FormData(event.target);
-    console.log(formData);
+    // console.log(formData);
 
     const data = Object.fromEntries(formData);
-    console.log(data);
+    // console.log(data);
 
     try {
       const response = await axios.post(
@@ -21,6 +21,8 @@ const AdminLogin = () => {
       );
 
       console.log(response.data);
+
+      localStorage.setItem("adminToken", response.data.token);
 
       // alert("login succesfull")
       navigate("/admin/dashboard")

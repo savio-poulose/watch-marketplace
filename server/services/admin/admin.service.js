@@ -17,6 +17,8 @@ export const loginAdmin = async(email,password) =>{
         expiresIn:"1hr"
     })
 
+    // console.log(token)
+
     return token
 
 }
