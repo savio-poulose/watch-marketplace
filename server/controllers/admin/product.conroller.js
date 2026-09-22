@@ -1,20 +1,26 @@
 import { productAdd } from "../../services/admin/product.service.js";
 import { variantAdd } from "../../services/admin/variant.service.js";
+import {uploadImages } from "../../services/image.service.js"
 
 export const addProduct = async (req, res) => {
   try {
+    
     const { name, brand, gender, categoryId, description, image, variants } =
       req.body;
     //   console.log(name)
+
+    const imageUrls = await uploadImages(req.files)
+    console.log(imageUrls)
     const productData = {
       name: name,
       brand: brand,
       gender: gender,
       categoryId: categoryId,
       description: description,
-      image: image,
+      image: imageUrls,
     };
 
+    // console.log(req.files)
     const product = await productAdd(productData);
 
     
@@ -33,6 +39,7 @@ export const addProduct = async (req, res) => {
       message: "product added succesfully",
     });
   } catch (err) {
+     console.log("product controller:", err);
     res.status(400).json({
       message: err.message,
     });

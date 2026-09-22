@@ -56,27 +56,42 @@ const AdminProduct = () => {
     // console.log(formData);
 
     formData.append("variants", JSON.stringify(variants));
+    // console.log("Images:", formData.getAll("images"));
 
-    const data = Object.fromEntries(formData);
+    // const data = Object.fromEntries(formData);
     // console.log("product :" , data);
     // console.log("Variants:", variants);
 
     try {
+      const token = localStorage.getItem("adminToken");
 
-      const token = localStorage.getItem("adminToken")
-
-      const response = await axios.post("http://localhost:3000/api/admin/product",
-        data,
+      const response = await axios.post(
+        "http://localhost:3000/api/admin/product",
+        formData,
         {
-          headers:{
-            Authorization:`Bearer ${token}`
-          }
-        }
-      )
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
       // console.log(response.data)
-      alert(response.data)
+      alert(response.data.message);
+      event.target.reset();
 
+      // Clear variants
+      setVariants([
+        {
+          size: "",
+          material: "",
+          color: "",
+          price: "",
+          quantity: "",
+        },
+      ]);
+
+      // Clear images
+      setImages([]);
     } catch (err) {
       alert(err.message);
     }
@@ -236,7 +251,7 @@ const AdminProduct = () => {
 
                   <input
                     type="file"
-                    name="image"
+                    name="images"
                     accept="image/*"
                     className="hidden"
                     onChange={(e) => {
