@@ -8,22 +8,10 @@ const productSchema = new mongoose.Schema(
       trim: true,
     },
 
-    price: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-
     gender: {
       type: String,
       enum: ["Men", "Women", "Unisex"],
       required: true,
-    },
-
-    quantity: {
-      type: Number,
-      required: true,
-      min: 0,
     },
 
     description: {
@@ -44,7 +32,7 @@ const productSchema = new mongoose.Schema(
       trim: true,
     },
 
-    
+    images: [{ type: String }],
 
     isActive: {
       type: Boolean,

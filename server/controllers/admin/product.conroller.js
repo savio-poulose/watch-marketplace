@@ -1,17 +1,42 @@
-import { productAdd } from "../../services/admin/product.service.js"
+import { productAdd } from "../../services/admin/product.service.js";
+import { variantAdd } from "../../services/admin/variant.service.js";
 
-export const addProduct = async (req,res)=>{
-    try{
-        
+export const addProduct = async (req, res) => {
+  try {
+    const { name, brand, gender, categoryId, description, image, variants } =
+      req.body;
+    //   console.log(name)
+    const productData = {
+      name: name,
+      brand: brand,
+      gender: gender,
+      categoryId: categoryId,
+      description: description,
+      image: image,
+    };
 
-        const product = await productAdd(req.body)
+    const product = await productAdd(productData);
 
-        res.status(201).json({ 
-            message:"product added"
-        })
-    }catch(err){
-        res.status(400).json({
-            message:err.message
-        })
-    }
-}
+    
+    const parsedVariants = JSON.parse(variants);
+
+    const variantData = parsedVariants.map((variant)=>({
+        ...variant,
+        productId:product._id
+    }))
+
+    
+
+    const variant = await variantAdd(variantData);
+
+    res.status(201).json({
+      message: "product added succesfully",
+    });
+  } catch (err) {
+    res.status(400).json({
+      message: err.message,
+    });
+  }
+
+  // console.log(req.body)
+};

@@ -19,6 +19,7 @@ app.use(express.json())
 
 app.use("/api/user/", userRouter);
 
+
 app.use("/api/admin/product", productRouter);
 app.use("/api/admin/category", categoryRouter);
 app.use("/api/admin/", adminRouter);
