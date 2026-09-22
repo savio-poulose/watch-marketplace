@@ -6,3 +6,9 @@ export const productAdd = async (data) =>{
     return product
     
 } 
+
+export const productGetAll = async () =>{
+    const product = await Product.find().populate("categoryId", "name");
+
+    return product
+}

@@ -19,6 +19,7 @@ const AdminProduct = () => {
   ]);
   const [categoryList, setCategoryList] = useState([]);
   const [images, setImages] = useState([]);
+  const [products, setProducts] = useState([]);
 
   useEffect(() => {
     async function fetchCategory() {
@@ -96,6 +97,32 @@ const AdminProduct = () => {
       alert(err.message);
     }
   }
+
+  useEffect(() => {
+    async function getAllProduct() {
+      try {
+        const token = localStorage.getItem("adminToken");
+
+        const response = await axios.get(
+          "http://localhost:3000/api/admin/product",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+        setProducts(response.data.response);
+      } catch (err) {
+        console.log(err.message);
+      }
+    }
+    getAllProduct();
+  }, []);
+
+  useEffect(() => {
+    console.log(products);
+  }, [products]);
 
   return (
     <MainLayout>
@@ -475,7 +502,6 @@ const AdminProduct = () => {
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-sm font-semibold text-[#111827]">Product List</h2>
         </div>
-
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -511,57 +537,79 @@ const AdminProduct = () => {
             </thead>
 
             <tbody>
-              {/* Example product */}
+              {products.map((product) => (
+                <tr
+                  key={product._id}
+                  className="border-b border-gray-100 hover:bg-gray-50"
+                >
+                  {/* PRODUCT */}
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-4">
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="w-12 h-12 object-cover"
+                      />
 
-              <tr className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-4">
-                    <img
-                      src="https://example.com/watch.jpg"
-                      alt="Watch"
-                      className="w-12 h-12 object-cover"
-                    />
-
-                    <div>
-                      <p className="text-sm font-medium text-[#111827]">
-                        Seamaster Diver 300M
-                      </p>
-
-                      <p className="text-xs text-gray-400">SKU: OCE-001</p>
+                      <div>
+                        <p className="text-sm font-medium text-[#111827]">
+                          {product.name}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </td>
+                  </td>
 
-                <td className="px-6 py-4 text-sm text-gray-600">Omega</td>
+                  {/* BRAND */}
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {product.brand}
+                  </td>
 
-                <td className="px-6 py-4 text-sm text-gray-600">Luxury</td>
+                  {/* CATEGORY */}
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {product.category}
+                  </td>
 
-                <td className="px-6 py-4 text-sm text-gray-700">₹6,50,000</td>
+                  {/* PRICE */}
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    ₹{product.price}
+                  </td>
 
-                <td className="px-6 py-4 text-sm text-gray-600">10</td>
+                  {/* STOCK */}
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {product.stock}
+                  </td>
 
-                <td className="px-6 py-4">
-                  <span className="px-3 py-1 text-xs bg-green-50 text-green-700">
-                    Active
-                  </span>
-                </td>
+                  {/* STATUS */}
+                  <td className="px-6 py-4">
+                    <span
+                      className={`px-3 py-1 text-xs ${
+                        product.isActive
+                          ? "bg-green-50 text-green-700"
+                          : "bg-red-50 text-red-700"
+                      }`}
+                    >
+                      {product.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </td>
 
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <button className="text-gray-500 hover:text-[#111827]">
-                      <FaEye />
-                    </button>
+                  {/* ACTIONS */}
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <button className="text-gray-500 hover:text-[#111827]">
+                        <FaEye />
+                      </button>
 
-                    <button className="text-gray-500 hover:text-[#9A7B3F]">
-                      <FaEdit />
-                    </button>
+                      <button className="text-gray-500 hover:text-[#9A7B3F]">
+                        <FaEdit />
+                      </button>
 
-                    <button className="text-gray-500 hover:text-red-600">
-                      <FaTrash />
-                    </button>
-                  </div>
-                </td>
-              </tr>
+                      <button className="text-gray-500 hover:text-red-600">
+                        <FaTrash />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
