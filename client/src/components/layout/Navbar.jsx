@@ -45,7 +45,7 @@ const Navbar = () => {
 
           {/* ACCOUNT */}
           <div className="text-center cursor-pointer">
-            <Link to="/profile">
+            <Link to="/user/profile">
             <HiOutlineUser className="h-5 w-5"/>
             </Link>
           </div>
@@ -95,6 +95,10 @@ const Navbar = () => {
 
         <a href="#" className="hover:text-gray-500">
           ABOUT
+        </a>
+
+         <a href="#" className="hover:text-gray-500">
+          MY ORDERS
         </a>
 
         <a href="#" className="text-[#9A7B3F]">

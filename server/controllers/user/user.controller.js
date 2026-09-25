@@ -2,7 +2,7 @@ import User from "../../models/user.model.js";
 // import bcrypt from "bcrypt";
 // import jwt from "jsonwebtoken";
 
-import { registerUser,LoginUser } from "../../services/user/user.service.js";
+import { registerUser,LoginUser,googleLoginUser, profileGet } from "../../services/user/user.service.js";
 
 export const userRegister = async (req, res) => {
   try {
@@ -51,9 +51,39 @@ export const userLogin = async (req, res) => {
 
 
 export const getProfile= async (req,res) =>{
-  const name = "spiderman"
-  const user = await User.findOne({userName:name})
-  res.json({
-    user:user
-  })
+  // console.log(req.params)
+  try{
+    const user = await profileGet(req.params.id)
+    // console.log(user)
+    res.status(200).json({
+      user:user
+    })
+  }catch(err){
+    res.status(404).json({
+      message:err.message
+    })
+  }
+
+
 }
+
+
+export const googleLogin = async (req, res) => {
+  try {
+    const { credential } = req.body;
+
+    const token = await googleLoginUser(credential);
+
+    res.status(200).json({
+      message: "Google login successful",
+      token
+    });
+
+  } catch (err) {
+    console.log(err);
+
+    res.status(401).json({
+      message: err.message
+    });
+  }
+};

@@ -6,6 +6,7 @@ import AdminLogin from "./pages/admin/AdminLogin.jsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import AdminProduct from "./pages/admin/AdminProduct.jsx";
 import AdminCategory from "./pages/admin/AdminCategory.jsx";
+import Profile from "./pages/user/Profile.jsx";
 
 import ProtectedRoute from "./components/user/ProtectedRoute.jsx";
 import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute.jsx";
@@ -21,7 +22,8 @@ function App() {
            <Route path="/admin/login" element={<AdminLogin />} />
 
           <Route element={<ProtectedRoute />}>
-            <Route path="/user" element={<Home />} />
+            <Route path="/user/dashboard" element={<Home />} />
+            <Route path="/user/profile" element={<Profile />} />
           </Route>
 
           <Route element={<ProtectedAdminRoute/>}>

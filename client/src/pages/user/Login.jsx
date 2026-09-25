@@ -1,14 +1,58 @@
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
-import { useState } from "react";
-
+import { useState, useEffect } from "react";
 
 const Login = () => {
   const navigate = useNavigate();
 
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  useEffect(() => {
+    const script = document.createElement("script");
+
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+
+    script.onload = () => {
+      window.google.accounts.id.initialize({
+        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+
+        callback: async (response) => {
+          try {
+            const result = await axios.post(
+              "http://localhost:3000/api/user/google-login",
+              {
+                credential: response.credential,
+              },
+            );
+
+            // console.log("BACKEND RESPONSE:", result.data);
+            localStorage.setItem("userToken", result.data.token);
+            navigate("/user/dashboard");
+          } catch (error) {
+            console.log("GOOGLE LOGIN ERROR:", error);
+          }
+        },
+      });
+
+      window.google.accounts.id.renderButton(
+        document.getElementById("googleSignIn"),
+        {
+          theme: "outline",
+          size: "large",
+          text: "continue_with",
+        },
+      );
+    };
+
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -29,7 +73,7 @@ const Login = () => {
 
       localStorage.setItem("userToken", response.data.token);
 
-      navigate("/user");
+      navigate("/user/dashboard");
     } catch (err) {
       console.log(err);
 
@@ -73,7 +117,7 @@ const Login = () => {
               Password
             </label>
 
-           <div className="relative">
+            <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
                 name="password"
@@ -99,6 +143,18 @@ const Login = () => {
           >
             LOGIN
           </button>
+
+          {/* Google Login */}
+
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px bg-gray-200"></div>
+
+            <span className="text-xs text-gray-400">OR</span>
+
+            <div className="flex-1  h-px bg-gray-200"></div>
+          </div>
+
+          <div id="googleSignIn" className="flex  justify-center"></div>
         </form>
 
         {/* register */}
