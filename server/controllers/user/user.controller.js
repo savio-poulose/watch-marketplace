@@ -8,7 +8,7 @@ export const userRegister = async (req, res) => {
   try {
     
     const { userName, email, password } = req.body;
-    console.log("userRegister controller req.body"+userName+email+password)
+    // console.log("userRegister controller req.body"+userName+email+password)
     const user = await registerUser(userName,email,password)
     console.log(user)
     res.status(201).json({

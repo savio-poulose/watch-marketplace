@@ -104,7 +104,7 @@ const AdminCategory = () => {
       prev.filter((item) => item._id !== category._id)
     );
       alert("deleted succesfully")
-      console.log(response)
+      console.log(response) 
       }catch(err){
         alert(err.message)
       }

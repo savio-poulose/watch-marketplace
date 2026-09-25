@@ -1,3 +1,4 @@
+import { useNavigate  } from "react-router-dom";
 import { NavLink } from "react-router-dom";
 import {
   FaTachometerAlt,
@@ -10,6 +11,14 @@ import {
 } from "react-icons/fa";
 
 const Sidebar = () => {
+
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    localStorage.removeItem("adminToken");
+    navigate("/admin/login");
+  };
+
   return (
     <aside className="w-64 min-h-screen bg-[#111827] text-white flex flex-col">
       {/* Logo */}
@@ -113,7 +122,10 @@ const Sidebar = () => {
 
       {/* Logout */}
       <div className="p-4 border-t border-gray-700">
-        <button className="w-full flex items-center gap-3 px-3 py-3 text-gray-300 hover:text-[#9A7B3F] text-sm">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3 py-3 text-gray-300 hover:text-[#9A7B3F] text-sm"
+        >
           <FaSignOutAlt className="text-xs" />
           Logout
         </button>

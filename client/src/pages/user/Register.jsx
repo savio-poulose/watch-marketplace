@@ -1,10 +1,14 @@
 // import { useState } from "react";
 import axios from "axios";
-import { useNavigate,Link } from "react-router-dom";
-
+import { useNavigate, Link } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
 
 const Register = () => {
   const navigate = useNavigate();
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   async function handleSubmit(event) {
     console.log("handlesubmit");
@@ -15,11 +19,25 @@ const Register = () => {
 
     const data = Object.fromEntries(formData);
 
-    console.log(data);
+    // console.log(data);
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
     const userName = data.userName.trim();
     if (userName === "") {
       alert("enter username");
+      return;
+    }
+
+    if (data.password === "") {
+      alert("password cant be empty");
+      return;
+    }
+
+    if (!passwordRegex.test(data.password)) {
+      alert(
+        "Password must be at least 8 characters and contain uppercase, lowercase, number and special character.",
+      );
       return;
     }
 
@@ -94,13 +112,23 @@ const Register = () => {
               Password
             </label>
 
-            <input
-              type="password"
-              name="password"
-              placeholder="Enter your password"
-              autoComplete="new-password"
-              className="w-full h-11 bg-gray-100 px-3 text-sm outline-none border border-transparent focus:border-[#b79b62]"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Enter your password"
+                autoComplete="new-password"
+                className="w-full h-11 bg-gray-100 px-3 pr-11 text-sm outline-none border border-transparent focus:border-[#b79b62]"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-800"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           {/* Confirm Password */}
@@ -109,18 +137,28 @@ const Register = () => {
               Confirm Password
             </label>
 
-            <input
-              type="password"
-              name="confirmPassword"
-              placeholder="Confirm your password"
-              autoComplete="new-password"
-              className="w-full h-11 bg-gray-100 px-3 text-sm outline-none border border-transparent focus:border-[#b79b62]"
-            />
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                name="confirmPassword"
+                placeholder="Confirm your password"
+                autoComplete="new-password"
+                className="w-full h-11 bg-gray-100 px-3 pr-11 text-sm outline-none border border-transparent focus:border-[#b79b62]"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-800"
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           {/* Terms */}
           <div className="flex items-start gap-2">
-            <input type="checkbox" className="mt-1" />
+            <input type="checkbox" name="terms" required className="mt-1" />
 
             <p className="text-xs text-gray-500">
               I agree to the Terms and Conditions and Privacy Policy.
@@ -143,12 +181,12 @@ const Register = () => {
           </p>
 
           <Link to="/user/login">
-          <button
-            type="button"
-            className="text-sm font-semibold cursor-pointer text-gray-900 mt-1 hover:text-[#b79b62]"
-          >
-            SIGN IN
-          </button>
+            <button
+              type="button"
+              className="text-sm font-semibold cursor-pointer text-gray-900 mt-1 hover:text-[#b79b62]"
+            >
+              SIGN IN
+            </button>
           </Link>
         </div>
       </div>

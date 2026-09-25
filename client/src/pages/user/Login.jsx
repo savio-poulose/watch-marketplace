@@ -1,9 +1,14 @@
 import axios from "axios";
-import { useNavigate,Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
+
 
 const Login = () => {
+  const navigate = useNavigate();
 
-    const navigate = useNavigate()
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -21,18 +26,18 @@ const Login = () => {
       );
 
       console.log(response.data);
-      if (response) {
-        navigate("/user");
-      }
+
+      localStorage.setItem("userToken", response.data.token);
+
+      navigate("/user");
     } catch (err) {
       console.log(err);
 
-      if(err.response){
-        alert(err.response.data.message)
-      }else{
-        alert("something went wrong")
+      if (err.response) {
+        alert(err.response.data.message);
+      } else {
+        alert("something went wrong");
       }
-
     }
   }
 
@@ -68,13 +73,23 @@ const Login = () => {
               Password
             </label>
 
-            <input
-              type="password"
-              name="password"
-              placeholder="Enter your password"
-              autoComplete="new-password"
-              className="w-full h-11 bg-gray-100 px-3 text-sm outline-none border border-transparent focus:border-[#b79b62]"
-            />
+           <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Enter your password"
+                autoComplete="new-password"
+                className="w-full h-11 bg-gray-100 px-3 pr-11 text-sm outline-none border border-transparent focus:border-[#b79b62]"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-800"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           {/* Register Button */}
@@ -89,9 +104,9 @@ const Login = () => {
         {/* register */}
         <div className="text-center mt-6">
           <Link to="/user/register">
-          <p className="text-sm text-gray-500 cursor-pointer">
-            Dont have an account?
-          </p>
+            <p className="text-sm text-gray-500 cursor-pointer">
+              Dont have an account?
+            </p>
           </Link>
         </div>
       </div>

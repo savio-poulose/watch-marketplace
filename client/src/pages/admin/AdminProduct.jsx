@@ -20,6 +20,7 @@ const AdminProduct = () => {
   const [categoryList, setCategoryList] = useState([]);
   const [images, setImages] = useState([]);
   const [products, setProducts] = useState([]);
+  
 
   useEffect(() => {
     async function fetchCategory() {

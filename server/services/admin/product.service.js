@@ -12,3 +12,14 @@ export const productGetAll = async () =>{
 
     return product
 }
+
+export const productGet = async (id) =>{
+    const product = await findOne({_id:id})
+    return product
+}
+
+
+// export const productEdit = asycn (data,params) =>{
+
+
+// }

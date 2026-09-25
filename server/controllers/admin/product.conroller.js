@@ -75,6 +75,7 @@ export const getAllProduct = async (req,res) =>{
             
 
          return {
+            id:product._id,
             name:product.name,
             image:product.images[0],
             category:product.categoryId.name,
@@ -99,4 +100,8 @@ export const getAllProduct = async (req,res) =>{
             message:err.message
         })
     }
+}
+
+export const getProduct = async (req,res) =>{
+       console.log(req.params)
 }
