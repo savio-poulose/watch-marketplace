@@ -19,13 +19,16 @@ export const authMiddleware = async (req, res, next) => {
 
   try {
     const verifyToken = jwt.verify(token, process.env.SECRET_KEY);
+
+     req.user = verifyToken;
+    next();
   } catch (err) {
     res.status(403).json({
       error: "invalid or expired token",
     });
   }
 
-  next();
+  
 };
 
 export const adminAuth = async (req, res, next) => {

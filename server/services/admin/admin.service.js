@@ -14,7 +14,7 @@ export const loginAdmin = async(email,password) =>{
     }
 
     const token = jwt.sign(payload,process.env.SECRET_KEY,{
-        expiresIn:"5hr"
+        expiresIn:"1d"
     })
 
     // console.log(token)

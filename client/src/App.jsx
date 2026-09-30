@@ -7,9 +7,14 @@ import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import AdminProduct from "./pages/admin/AdminProduct.jsx";
 import AdminCategory from "./pages/admin/AdminCategory.jsx";
 import Profile from "./pages/user/Profile.jsx";
+import ChangePassword from "./pages/user/ChangePassword .jsx";
+import ForgetPassword from "./pages/user/ForgetPassword.jsx";
+import VerifyResetOTP from "./pages/user/VerifyResetOTP.jsx";
+import ResetPassword from "./pages/user/ResetPassword.jsx"
 
 import ProtectedRoute from "./components/user/ProtectedRoute.jsx";
 import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute.jsx";
+
 
 function App() {
   return (
@@ -24,6 +29,11 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/user/dashboard" element={<Home />} />
             <Route path="/user/profile" element={<Profile />} />
+            <Route path="/user/change-password" element={<ChangePassword />} />
+            <Route path="/user/forget-password" element={<ForgetPassword />} />
+            <Route path="/user/verify-reset-otp" element={<VerifyResetOTP />} />
+            <Route path="/user/reset-password" element={<ResetPassword />} />
+            
           </Route>
 
           <Route element={<ProtectedAdminRoute/>}>
