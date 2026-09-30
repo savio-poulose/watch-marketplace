@@ -3,7 +3,8 @@ import {
   productGetAll,
   productGet,
   productUpdate,
-  ProductDelete
+  ProductDelete,
+  statusToggle
 } from "../../services/admin/product.service.js";
 import {
   variantAdd,
@@ -91,7 +92,7 @@ export const getAllProduct = async (req, res) => {
         id: product._id,
         name: product.name,
         image: product.images[0],
-        category: product.categoryId.name,
+        category: product.categoryId?.name || "Uncategorized",
         price: `${Math.min(...prices)} - ${Math.max(...prices)}`,
         stock: stock,
         isActive: product.isActive,
@@ -235,3 +236,23 @@ export const deleteProduct = async(req,res)=>{
 
 
 }
+
+export const toggleStatus = async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    // console.log("ID:", id);
+
+    const status = await statusToggle(id);
+
+    res.status(200).json({
+      message: "isActive toggled successfully",
+      product: status,
+    });
+
+  } catch (err) {
+    res.status(400).json({
+      message: err.message,
+    });
+  }
+};

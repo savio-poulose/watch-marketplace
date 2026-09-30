@@ -1,10 +1,4 @@
-import {
-  FaPlus,
-  FaSearch,
-  FaEdit,
-  FaTrash,
-  FaSpinner,
-} from "react-icons/fa";
+import { FaPlus, FaSearch, FaEdit, FaTrash, FaSpinner } from "react-icons/fa";
 
 import MainLayout from "../../components/admin/MainLayout";
 import { useState } from "react";
@@ -45,6 +39,10 @@ const AdminProduct = () => {
   });
   const [existingImages, setExistingImages] = useState([]);
   const [deleteProductId, setDeleteProductId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [statusProduct, setStatusProduct] = useState(null);
 
   useEffect(() => {
     async function fetchCategory() {
@@ -70,7 +68,6 @@ const AdminProduct = () => {
     }
     fetchCategory();
   }, []);
-
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -216,8 +213,6 @@ const AdminProduct = () => {
     getAllProduct();
   }, []);
 
-
-
   const handleEdit = async (id) => {
     try {
       setLoading(true);
@@ -303,11 +298,7 @@ const AdminProduct = () => {
   };
 
   async function handleDeleteProduct() {
-
-    try{
-
-      
-
+    try {
       const token = localStorage.getItem("adminToken");
 
       const response = await axios.delete(
@@ -319,17 +310,71 @@ const AdminProduct = () => {
         },
       );
 
-      console.log(response)
- 
-      
-      
-
-    }catch(err){
-      console.log(err.message)
-      alert(err.message)
+      console.log(response);
+    } catch (err) {
+      console.log(err.message);
+      alert(err.message);
     }
-
   }
+
+  const handleToggleStatus = async () => {
+  if (!statusProduct) return;
+
+  try {
+    const token = localStorage.getItem("adminToken");
+
+    const newStatus = !statusProduct.isActive;
+
+    await axios.patch(
+      `http://localhost:3000/api/admin/product/status/${statusProduct.id}`,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    setProducts((prevProducts) =>
+      prevProducts.map((product) => {
+        if (product.id === statusProduct.id) {
+          return {
+            ...product,
+            isActive: newStatus,
+          };
+        }
+
+        return product;
+      })
+    );
+
+    setStatusProduct(null);
+  } catch (err) {
+    console.log(err);
+    alert(
+      err.response?.data?.message ||
+        "Failed to update product status"
+    );
+  }
+};
+
+  const filteredProducts = products.filter((product) => {
+    const search = searchTerm.toLowerCase().trim();
+
+    const matchesSearch =
+      product.name?.toLowerCase().includes(search) ||
+      product.brand?.toLowerCase().includes(search);
+
+    const matchesCategory =
+      selectedCategory === "" || product.category === selectedCategory;
+
+    const matchesStatus =
+      selectedStatus === "" ||
+      (selectedStatus === "active" && product.isActive === true) ||
+      (selectedStatus === "inactive" && product.isActive === false);
+
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
 
   return (
     <MainLayout>
@@ -910,6 +955,8 @@ const AdminProduct = () => {
 
             <input
               type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search products..."
               className="w-full border border-gray-200 pl-11 pr-4 py-3 text-sm outline-none focus:border-[#9A7B3F]"
             />
@@ -917,11 +964,15 @@ const AdminProduct = () => {
 
           {/* Category */}
 
-          <select className="border border-gray-200 px-4 py-3 text-sm text-gray-600 outline-none">
-            <option>All Categories</option>
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="border border-gray-200 px-4 py-3 text-sm text-gray-600 outline-none"
+          >
+            <option value="">All Categories</option>
 
             {categoryList.map((category) => (
-              <option key={category._id} value={category._id}>
+              <option key={category._id} value={category.name}>
                 {category.name}
               </option>
             ))}
@@ -929,12 +980,14 @@ const AdminProduct = () => {
 
           {/* Status */}
 
-          <select className="border border-gray-200 px-4 py-3 text-sm text-gray-600 outline-none">
-            <option>All Status</option>
-
-            <option>Active</option>
-
-            <option>Inactive</option>
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="border border-gray-200 px-4 py-3 text-sm text-gray-600 outline-none"
+          >
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
           </select>
         </div>
       </div>
@@ -980,7 +1033,7 @@ const AdminProduct = () => {
             </thead>
 
             <tbody>
-              {products.map((product) => (
+              {filteredProducts.map((product) => (
                 <tr
                   key={product._id}
                   className="border-b border-gray-100 hover:bg-gray-50"
@@ -1024,11 +1077,23 @@ const AdminProduct = () => {
 
                   {/* STATUS */}
                   <td className="px-6 py-4">
+                    <button
+                      type="button"
+                      onClick={() => setStatusProduct(product)}
+                      className={`relative inline-flex h-6 w-11 items-center cursor-pointer rounded-full transition ${
+                        product.isActive ? "bg-green-600" : "bg-gray-300"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                          product.isActive ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+
                     <span
-                      className={`px-3 py-1 text-xs ${
-                        product.isActive
-                          ? "bg-green-50 text-green-700"
-                          : "bg-red-50 text-red-700"
+                      className={`ml-3 text-xs ${
+                        product.isActive ? "text-green-700" : "text-red-700"
                       }`}
                     >
                       {product.isActive ? "Active" : "Inactive"}
@@ -1038,8 +1103,6 @@ const AdminProduct = () => {
                   {/* ACTIONS */}
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      
-
                       <button
                         className="text-gray-500 hover:text-[#9A7B3F]"
                         type="button"
@@ -1089,7 +1152,7 @@ const AdminProduct = () => {
               <button
                 type="button"
                 onClick={() => {
-                  handleDeleteProduct()
+                  handleDeleteProduct();
                   console.log("Delete:", deleteProductId);
 
                   setDeleteProductId(null);
@@ -1097,6 +1160,48 @@ const AdminProduct = () => {
                 className="px-5 py-2.5 text-sm bg-red-600 text-white hover:bg-red-700"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {statusProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-[#111827]">
+              {statusProduct.isActive
+                ? "Deactivate Product"
+                : "Activate Product"}
+            </h2>
+
+            <p className="mt-3 text-sm text-gray-500">
+              {statusProduct.isActive
+                ? "This product will no longer be available to customers."
+                : "This product will become available to customers."}
+            </p>
+
+            <div className="flex justify-end gap-3 mt-6">
+              {/* Cancel */}
+              <button
+                type="button"
+                onClick={() => setStatusProduct(null)}
+                className="px-5 py-2.5 text-sm border border-gray-200 text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+
+              {/* Confirm */}
+              <button
+                type="button"
+                onClick={handleToggleStatus}
+                className={`px-5 py-2.5 text-sm text-white ${
+                  statusProduct.isActive
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-green-600 hover:bg-green-700"
+                }`}
+              >
+                {statusProduct.isActive ? "Deactivate" : "Activate"}
               </button>
             </div>
           </div>

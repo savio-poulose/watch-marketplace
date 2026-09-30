@@ -35,3 +35,19 @@ export const ProductDelete = async(id)=>{
     return await Product.deleteOne({_id:id})
     
 }
+
+
+
+export const statusToggle = async (id) => {
+  const product = await Product.findById(id);
+
+  if (!product) {
+    throw new Error("Product not found");
+  }
+
+  product.isActive = !product.isActive;
+
+  await product.save();
+
+  return product;
+};
