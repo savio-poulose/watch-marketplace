@@ -1,13 +1,18 @@
 import {
   productAdd,
   productGetAll,
+  productGet,
+  productUpdate,
+  ProductDelete
 } from "../../services/admin/product.service.js";
 import {
   variantAdd,
   variantGetAll,
+  variantGetByProductId,
+  variantDeleteByProductId
 } from "../../services/admin/variant.service.js";
 import { uploadImages } from "../../services/image.service.js";
-import { offerAdd } from "../../services/admin/offer.service.js";
+import { offerAdd,offerGetByProductId,offerDelete,offerUpdate } from "../../services/admin/offer.service.js";
 
 export const addProduct = async (req, res) => {
   try {
@@ -109,5 +114,124 @@ export const getAllProduct = async (req, res) => {
 };
 
 export const getProduct = async (req, res) => {
-  console.log(req.params);
+  try {
+    const { id } = req.params;
+
+    const product = await productGet(id);
+    const variants = await variantGetByProductId(id);
+    const offer = await offerGetByProductId(id);
+
+    // console.log("product:"+product)
+    // console.log("variants:"+variants)
+    // console.log("offer:"+offer)
+
+    res.status(200).json({
+      product,
+      variants,
+      offer,
+    });
+  } catch (err) {
+    console.log("get product controller:", err);
+
+    res.status(404).json({
+      message: err.message,
+    });
+  }
 };
+
+
+
+export const updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const {
+      name,
+      brand,
+      gender,
+      categoryId,
+      description,
+      variants,
+      offer,
+      existingImages,
+    } = req.body;
+
+    // Parse JSON data from FormData
+    const parsedVariants = JSON.parse(variants || "[]");
+    const parsedOffer = JSON.parse(offer || "{}");
+    const parsedExistingImages = JSON.parse(existingImages || "[]");
+
+   
+    let newImageUrls = [];
+
+    if (req.files && req.files.length > 0) {
+      newImageUrls = await uploadImages(req.files);
+    }
+
+    // Keep old images + add new images
+    const finalImages = [
+      ...parsedExistingImages,
+      ...newImageUrls,
+    ];
+
+    // Update product
+    await productUpdate(id, {
+      name,
+      brand,
+      gender,
+      categoryId,
+      description,
+      images: finalImages,
+    });
+
+    // Replace old variants
+    await variantDeleteByProductId(id);
+
+    const variantData = parsedVariants.map((variant) => ({
+      ...variant,
+      productId: id,
+    }));
+
+    await variantAdd(variantData);
+
+    // Update / create / delete offer
+    if (parsedOffer.isActive) {
+      await offerUpdate(id, parsedOffer);
+    } else {
+      await offerDelete(id);
+    }
+
+    res.status(200).json({
+      message: "Product updated successfully",
+    });
+
+  } catch (err) {
+    console.log("Update Product Error:", err);
+
+    res.status(400).json({
+      message: err.message,
+    });
+  }
+};
+
+
+
+export const deleteProduct = async(req,res)=>{
+  
+  try{
+    const {id} = req.params
+    await ProductDelete(id)
+    await variantDeleteByProductId(id); 
+    await offerDelete(id);
+
+    res.status(200).json({
+      message:"product deleted succesfully"
+    })
+  }catch(err){
+    res.status(404).json({
+      message:err.message
+    })
+}
+
+
+}

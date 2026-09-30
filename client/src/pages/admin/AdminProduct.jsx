@@ -1,4 +1,10 @@
-import { FaPlus, FaSearch, FaEdit, FaTrash, FaEye,FaSpinner } from "react-icons/fa";
+import {
+  FaPlus,
+  FaSearch,
+  FaEdit,
+  FaTrash,
+  FaSpinner,
+} from "react-icons/fa";
 
 import MainLayout from "../../components/admin/MainLayout";
 import { useState } from "react";
@@ -28,6 +34,17 @@ const AdminProduct = () => {
     endDate: "",
   });
   const [loading, setLoading] = useState(false);
+  const [editingProductId, setEditingProductId] = useState(null);
+  console.log(editingProductId);
+  const [productData, setProductData] = useState({
+    name: "",
+    brand: "",
+    gender: "",
+    categoryId: "",
+    description: "",
+  });
+  const [existingImages, setExistingImages] = useState([]);
+  const [deleteProductId, setDeleteProductId] = useState(null);
 
   useEffect(() => {
     async function fetchCategory() {
@@ -54,67 +71,126 @@ const AdminProduct = () => {
     fetchCategory();
   }, []);
 
-  useEffect(() => {
-    // console.log(categoryList);
-  }, [categoryList]);
 
   async function handleSubmit(event) {
     event.preventDefault();
-    setLoading(true);
+    const token = localStorage.getItem("adminToken");
+    if (editingProductId) {
+      setLoading(true);
 
-    const formData = new FormData(event.target);
-    // console.log(formData);
+      const formData = new FormData(event.target);
 
-    formData.append("variants", JSON.stringify(variants));
+      formData.append("variants", JSON.stringify(variants));
+      formData.append("offer", JSON.stringify(offer));
+      formData.append("existingImages", JSON.stringify(existingImages));
 
-    formData.append("offer", JSON.stringify(offer));
-    // console.log("Images:", formData.getAll("images"));
-
-    // const data = Object.fromEntries(formData);
-    // console.log("product :" , data);
-    // console.log("Variants:", variants);
-
-    try {
-      const token = localStorage.getItem("adminToken");
-
-      const response = await axios.post(
-        "http://localhost:3000/api/admin/product",
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
+      try {
+        const response = await axios.put(
+          `http://localhost:3000/api/admin/product/${editingProductId}`,
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
           },
-        },
-      );
+        );
 
-      // console.log(response.data)
-      alert(response.data.message);
-      event.target.reset();
+        alert(response.data.message);
 
-      // Clear variants
-      setVariants([
-        {
-          size: "",
-          material: "",
-          color: "",
-          price: "",
-          quantity: "",
-        },
-      ]);
+        event.target.reset();
 
-      // Clear images
-      setImages([]);
-      setOffer({
-        isActive: false,
-        discountType: "percentage",
-        discountValue: "",
-        startDate: "",
-        endDate: "",
-      });
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setLoading(false);
+        // Clear edit mode
+        setEditingProductId(null);
+
+        // Clear form
+        setProductData({
+          name: "",
+          brand: "",
+          gender: "",
+          categoryId: "",
+          description: "",
+        });
+
+        setVariants([
+          {
+            size: "",
+            material: "",
+            color: "",
+            price: "",
+            quantity: "",
+          },
+        ]);
+
+        setImages([]);
+        setExistingImages([]);
+
+        setOffer({
+          isActive: false,
+          discountType: "percentage",
+          discountValue: "",
+          startDate: "",
+          endDate: "",
+        });
+      } catch (err) {
+        alert(err.response?.data?.message || err.message);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setLoading(true);
+
+      const formData = new FormData(event.target);
+      // console.log(formData);
+
+      formData.append("variants", JSON.stringify(variants));
+
+      formData.append("offer", JSON.stringify(offer));
+      // console.log("Images:", formData.getAll("images"));
+
+      // const data = Object.fromEntries(formData);
+      // console.log("product :" , data);
+      // console.log("Variants:", variants);
+
+      try {
+        const response = await axios.post(
+          "http://localhost:3000/api/admin/product",
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+        // console.log(response.data)
+        alert(response.data.message);
+        event.target.reset();
+
+        // Clear variants
+        setVariants([
+          {
+            size: "",
+            material: "",
+            color: "",
+            price: "",
+            quantity: "",
+          },
+        ]);
+
+        // Clear images
+        setImages([]);
+        setOffer({
+          isActive: false,
+          discountType: "percentage",
+          discountValue: "",
+          startDate: "",
+          endDate: "",
+        });
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        setLoading(false);
+      }
     }
   }
 
@@ -140,9 +216,120 @@ const AdminProduct = () => {
     getAllProduct();
   }, []);
 
-  useEffect(() => {
-    console.log(products);
-  }, [products]);
+
+
+  const handleEdit = async (id) => {
+    try {
+      setLoading(true);
+      setEditingProductId(id);
+
+      const token = localStorage.getItem("adminToken");
+
+      const response = await axios.get(
+        `http://localhost:3000/api/admin/product/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      console.log("Edit product data:", response.data);
+
+      const { product, variants, offer } = response.data;
+
+      // Store ID so submit knows this is an edit
+      setEditingProductId(id);
+
+      // Product fields
+      setProductData({
+        name: product.name || "",
+        brand: product.brand || "",
+        gender: product.gender || "",
+        categoryId: product.categoryId?._id || product.categoryId || "",
+        description: product.description || "",
+      });
+
+      setExistingImages(product.images || []);
+
+      // Variants
+      setVariants(
+        variants.map((variant) => ({
+          size: variant.size || "",
+          material: variant.material || "",
+          color: variant.color || "",
+          price: variant.price || "",
+          quantity: variant.quantity || "",
+        })),
+      );
+
+      // Offer
+      if (offer) {
+        setOffer({
+          isActive: offer.isActive,
+          discountType: offer.discountType,
+          discountValue: offer.discountValue,
+          startDate: formatDateTimeLocal(offer.startDate),
+          endDate: formatDateTimeLocal(offer.endDate),
+        });
+      } else {
+        setOffer({
+          isActive: false,
+          discountType: "percentage",
+          discountValue: "",
+          startDate: "",
+          endDate: "",
+        });
+      }
+
+      setShowForm(true);
+    } catch (err) {
+      console.log(err);
+      alert(err.response?.data?.message || "Failed to get product");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDateTimeLocal = (date) => {
+    if (!date) return "";
+
+    const d = new Date(date);
+
+    const offset = d.getTimezoneOffset();
+    const localDate = new Date(d.getTime() - offset * 60000);
+
+    return localDate.toISOString().slice(0, 16);
+  };
+
+  async function handleDeleteProduct() {
+
+    try{
+
+      
+
+      const token = localStorage.getItem("adminToken");
+
+      const response = await axios.delete(
+        `http://localhost:3000/api/admin/product/${deleteProductId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      console.log(response)
+ 
+      
+      
+
+    }catch(err){
+      console.log(err.message)
+      alert(err.message)
+    }
+
+  }
 
   return (
     <MainLayout>
@@ -161,7 +348,39 @@ const AdminProduct = () => {
         </div>
 
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            setEditingProductId(null);
+            setShowForm(true);
+
+            setProductData({
+              name: "",
+              brand: "",
+              gender: "",
+              categoryId: "",
+              description: "",
+            });
+
+            setVariants([
+              {
+                size: "",
+                material: "",
+                color: "",
+                price: "",
+                quantity: "",
+              },
+            ]);
+
+            setImages([]);
+            setExistingImages([]);
+
+            setOffer({
+              isActive: false,
+              discountType: "percentage",
+              discountValue: "",
+              startDate: "",
+              endDate: "",
+            });
+          }}
           className="flex items-center gap-2 bg-[#111827] text-white px-5 py-3 text-sm hover:bg-gray-800 transition"
         >
           <FaPlus className="text-xs" />
@@ -193,6 +412,13 @@ const AdminProduct = () => {
               <input
                 type="text"
                 name="name"
+                value={productData.name}
+                onChange={(e) =>
+                  setProductData({
+                    ...productData,
+                    name: e.target.value,
+                  })
+                }
                 placeholder="Enter product name"
                 className="w-full border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#9A7B3F]"
               />
@@ -206,6 +432,13 @@ const AdminProduct = () => {
               <input
                 type="text"
                 name="brand"
+                value={productData.brand}
+                onChange={(e) =>
+                  setProductData({
+                    ...productData,
+                    brand: e.target.value,
+                  })
+                }
                 placeholder="Enter brand"
                 className="w-full border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#9A7B3F]"
               />
@@ -218,7 +451,13 @@ const AdminProduct = () => {
 
               <select
                 name="gender"
-                className="w-full border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#9A7B3F]"
+                value={productData.gender}
+                onChange={(e) =>
+                  setProductData({
+                    ...productData,
+                    gender: e.target.value,
+                  })
+                }
               >
                 <option value="">Select gender</option>
 
@@ -239,7 +478,13 @@ const AdminProduct = () => {
 
               <select
                 name="categoryId"
-                className="w-full border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#9A7B3F]"
+                value={productData.categoryId}
+                onChange={(e) =>
+                  setProductData({
+                    ...productData,
+                    categoryId: e.target.value,
+                  })
+                }
               >
                 <option value="">Select category</option>
 
@@ -260,9 +505,14 @@ const AdminProduct = () => {
 
               <textarea
                 name="description"
+                value={productData.description}
+                onChange={(e) =>
+                  setProductData({
+                    ...productData,
+                    description: e.target.value,
+                  })
+                }
                 rows="4"
-                placeholder="Enter product description"
-                className="w-full border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#9A7B3F]"
               />
             </div>
           </div>
@@ -275,22 +525,62 @@ const AdminProduct = () => {
             </label>
 
             <div className="grid grid-cols-3 gap-4">
-              {/* Selected Images */}
+              {/* Existing Cloudinary images */}
+              {existingImages.map((image, index) => (
+                <div
+                  key={`existing-${index}`}
+                  className="relative border border-gray-200 p-2"
+                >
+                  <img
+                    src={image}
+                    alt={`Product ${index + 1}`}
+                    className="w-full h-40 object-cover"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExistingImages(
+                        existingImages.filter(
+                          (_, imageIndex) => imageIndex !== index,
+                        ),
+                      );
+                    }}
+                    className="absolute top-2 right-2 bg-white text-red-500 w-7 h-7 flex items-center justify-center shadow"
+                  >
+                    <FaTrash className="text-xs" />
+                  </button>
+                </div>
+              ))}
+
+              {/* New uploaded images */}
               {images.map((image, index) => (
                 <div
-                  key={index}
+                  key={`new-${index}`}
                   className="relative border border-gray-200 p-2"
                 >
                   <img
                     src={URL.createObjectURL(image)}
-                    alt={`Product ${index + 1}`}
+                    alt={`New product ${index + 1}`}
                     className="w-full h-40 object-cover"
                   />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImages(
+                        images.filter((_, imageIndex) => imageIndex !== index),
+                      );
+                    }}
+                    className="absolute top-2 right-2 bg-white text-red-500 w-7 h-7 flex items-center justify-center shadow"
+                  >
+                    <FaTrash className="text-xs" />
+                  </button>
                 </div>
               ))}
 
-              {/* Add Image Button */}
-              {images.length < 3 && (
+              {/* Add image */}
+              {existingImages.length + images.length < 3 && (
                 <label className="border border-dashed border-gray-300 p-6 text-center cursor-pointer flex flex-col items-center justify-center h-44">
                   <FaPlus className="text-gray-400 mb-2" />
 
@@ -308,6 +598,8 @@ const AdminProduct = () => {
                         ...prevImages,
                         ...selectedFiles,
                       ]);
+
+                      e.target.value = "";
                     }}
                   />
                 </label>
@@ -447,7 +739,7 @@ const AdminProduct = () => {
                 {/* Delete */}
                 <button
                   type="button"
-                  className="flex items-center justify-center text-gray-400 hover:text-red-600"
+                  className="flex cursor-pointer items-center justify-center text-gray-400 hover:text-red-600"
                 >
                   <FaTrash />
                 </button>
@@ -595,7 +887,13 @@ const AdminProduct = () => {
               }`}
             >
               {loading && <FaSpinner className="animate-spin" />}
-              {loading ? "Adding Product..." : "Add Product"}
+              {loading
+                ? editingProductId
+                  ? "Updating Product..."
+                  : "Adding Product..."
+                : editingProductId
+                ? "Edit Product"
+                : "Add Product"}
             </button>
           </div>
         </form>
@@ -740,15 +1038,21 @@ const AdminProduct = () => {
                   {/* ACTIONS */}
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <button className="text-gray-500 hover:text-[#111827]">
-                        <FaEye />
-                      </button>
+                      
 
-                      <button className="text-gray-500 hover:text-[#9A7B3F]">
+                      <button
+                        className="text-gray-500 hover:text-[#9A7B3F]"
+                        type="button"
+                        onClick={() => handleEdit(product.id)}
+                      >
                         <FaEdit />
                       </button>
 
-                      <button className="text-gray-500 hover:text-red-600">
+                      <button
+                        type="button"
+                        onClick={() => setDeleteProductId(product.id)}
+                        className="text-gray-500 hover:text-red-600"
+                      >
                         <FaTrash />
                       </button>
                     </div>
@@ -759,6 +1063,45 @@ const AdminProduct = () => {
           </table>
         </div>
       </div>
+      {deleteProductId && (
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md bg-white p-6 shadow-xl">
+            <h2 className="text-lg cursor-pointer font-semibold text-[#111827]">
+              Delete Product
+            </h2>
+
+            <p className="mt-3 text-sm text-gray-500">
+              Are you sure you want to delete this product? This action cannot
+              be undone.
+            </p>
+
+            <div className="flex justify-end gap-3 mt-6">
+              {/* Cancel */}
+              <button
+                type="button"
+                onClick={() => setDeleteProductId(null)}
+                className="px-5 py-2.5 text-sm border border-gray-200 text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+
+              {/* Confirm Delete */}
+              <button
+                type="button"
+                onClick={() => {
+                  handleDeleteProduct()
+                  console.log("Delete:", deleteProductId);
+
+                  setDeleteProductId(null);
+                }}
+                className="px-5 py-2.5 text-sm bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </MainLayout>
   );
 };

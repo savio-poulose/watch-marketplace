@@ -19,7 +19,19 @@ export const productGet = async (id) =>{
 }
 
 
-// export const productEdit = asycn (data,params) =>{
+export const productUpdate = async (id, data) => {
+  return await Product.findByIdAndUpdate(
+    id,
+    data,
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
+};
 
-
-// }
+export const ProductDelete = async(id)=>{
+    
+    return await Product.deleteOne({_id:id})
+    
+}

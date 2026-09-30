@@ -11,3 +11,14 @@ export const variantGetAll = async () =>{
     const variants = await Variant.find()
     return variants
 }
+
+  
+export const variantGetByProductId = async (productId) => {
+  return await Variant.find({ productId });
+};
+
+export const variantDeleteByProductId = async (productId) => {
+  return await Variant.deleteMany({
+    productId,
+  });
+};

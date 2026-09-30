@@ -6,8 +6,8 @@ export const offerAdd = async (data) => {
   return offer;
 };
 
-export const offerGetByProductId = async (productId) => {
-  const offer = await Offer.findOne({ productId });
+export const offerGetByProductId = async (id) => {
+  const offer = await Offer.findOne({productId:id});
 
   return offer;
 };
