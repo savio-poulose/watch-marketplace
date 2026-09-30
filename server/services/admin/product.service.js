@@ -14,7 +14,7 @@ export const productGetAll = async () =>{
 }
 
 export const productGet = async (id) =>{
-    const product = await findOne({_id:id})
+    const product = await Product.findOne({_id:id})
     return product
 }
 

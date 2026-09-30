@@ -7,7 +7,7 @@ export const adminLogin = async(req,res)=>{
     // console.log(email+password+"req.body")
 
     const token = await loginAdmin(email,password)
-    
+     
     if(!token){
         return res.status(401).json({
             message:"invalid email or password"

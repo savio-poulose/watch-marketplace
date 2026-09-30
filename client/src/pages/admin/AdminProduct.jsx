@@ -1,4 +1,4 @@
-import { FaPlus, FaSearch, FaEdit, FaTrash, FaEye } from "react-icons/fa";
+import { FaPlus, FaSearch, FaEdit, FaTrash, FaEye,FaSpinner } from "react-icons/fa";
 
 import MainLayout from "../../components/admin/MainLayout";
 import { useState } from "react";
@@ -20,7 +20,14 @@ const AdminProduct = () => {
   const [categoryList, setCategoryList] = useState([]);
   const [images, setImages] = useState([]);
   const [products, setProducts] = useState([]);
-  
+  const [offer, setOffer] = useState({
+    isActive: false,
+    discountType: "percentage",
+    discountValue: "",
+    startDate: "",
+    endDate: "",
+  });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     async function fetchCategory() {
@@ -53,11 +60,14 @@ const AdminProduct = () => {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    setLoading(true);
 
     const formData = new FormData(event.target);
     // console.log(formData);
 
     formData.append("variants", JSON.stringify(variants));
+
+    formData.append("offer", JSON.stringify(offer));
     // console.log("Images:", formData.getAll("images"));
 
     // const data = Object.fromEntries(formData);
@@ -94,8 +104,17 @@ const AdminProduct = () => {
 
       // Clear images
       setImages([]);
+      setOffer({
+        isActive: false,
+        discountType: "percentage",
+        discountValue: "",
+        startDate: "",
+        endDate: "",
+      });
     } catch (err) {
       alert(err.message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -435,6 +454,125 @@ const AdminProduct = () => {
               </div>
             ))}
           </div>
+          {/* Product Offer */}
+
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-[#111827]">
+                  Product Offer
+                </h3>
+
+                <p className="text-xs text-gray-400 mt-1">
+                  Add a discount for this product
+                </p>
+              </div>
+
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={offer.isActive}
+                  onChange={(e) =>
+                    setOffer({
+                      ...offer,
+                      isActive: e.target.checked,
+                    })
+                  }
+                />
+                Enable Offer
+              </label>
+            </div>
+
+            {offer.isActive && (
+              <div className="grid grid-cols-2 gap-5 border border-gray-200 p-5">
+                {/* Discount Type */}
+
+                <div>
+                  <label className="block text-sm text-gray-600 mb-2">
+                    Discount Type
+                  </label>
+
+                  <select
+                    value={offer.discountType}
+                    onChange={(e) =>
+                      setOffer({
+                        ...offer,
+                        discountType: e.target.value,
+                      })
+                    }
+                    className="w-full border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#9A7B3F]"
+                  >
+                    <option value="percentage">Percentage</option>
+                    <option value="fixed">Fixed Amount</option>
+                  </select>
+                </div>
+
+                {/* Discount Value */}
+
+                <div>
+                  <label className="block text-sm text-gray-600 mb-2">
+                    Discount Value
+                  </label>
+
+                  <input
+                    type="number"
+                    min="0"
+                    value={offer.discountValue}
+                    onChange={(e) =>
+                      setOffer({
+                        ...offer,
+                        discountValue: e.target.value,
+                      })
+                    }
+                    placeholder={
+                      offer.discountType === "percentage" ? "10" : "5000"
+                    }
+                    className="w-full border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#9A7B3F]"
+                  />
+                </div>
+
+                {/* Start Date */}
+
+                <div>
+                  <label className="block text-sm text-gray-600 mb-2">
+                    Start Date
+                  </label>
+
+                  <input
+                    type="datetime-local"
+                    value={offer.startDate}
+                    onChange={(e) =>
+                      setOffer({
+                        ...offer,
+                        startDate: e.target.value,
+                      })
+                    }
+                    className="w-full border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#9A7B3F]"
+                  />
+                </div>
+
+                {/* End Date */}
+
+                <div>
+                  <label className="block text-sm text-gray-600 mb-2">
+                    End Date
+                  </label>
+
+                  <input
+                    type="datetime-local"
+                    value={offer.endDate}
+                    onChange={(e) =>
+                      setOffer({
+                        ...offer,
+                        endDate: e.target.value,
+                      })
+                    }
+                    className="w-full border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#9A7B3F]"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Form Buttons */}
 
@@ -449,9 +587,15 @@ const AdminProduct = () => {
 
             <button
               type="submit"
-              className="px-5 py-3 cursor-pointer text-sm bg-[#111827] text-white hover:bg-gray-800"
+              disabled={loading}
+              className={`px-5 py-3 text-sm bg-[#111827] text-white flex items-center gap-2 ${
+                loading
+                  ? "opacity-60 cursor-not-allowed"
+                  : "hover:bg-gray-800 cursor-pointer"
+              }`}
             >
-              Add Product
+              {loading && <FaSpinner className="animate-spin" />}
+              {loading ? "Adding Product..." : "Add Product"}
             </button>
           </div>
         </form>
