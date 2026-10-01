@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
+import {toast} from "react-hot-toast"
 
 const Register = () => {
   const navigate = useNavigate();
@@ -25,24 +26,22 @@ const Register = () => {
 
     const userName = data.userName.trim();
     if (userName === "") {
-      alert("enter username");
+      toast.error("enter username")
       return;
     }
 
     if (data.password === "") {
-      alert("password cant be empty");
+      toast.error("password cant be empty")
       return;
     }
 
     if (!passwordRegex.test(data.password)) {
-      alert(
-        "Password must be at least 8 characters and contain uppercase, lowercase, number and special character.",
-      );
+      toast.error("Password must be at least 8 characters and contain uppercase, lowercase, number and special character.")
       return;
     }
 
     if (data.password !== data.confirmPassword) {
-      alert("password doesnt match confirm password");
+      toast.error("password doesnt match confirm password")
       return;
     }
 
@@ -57,9 +56,9 @@ const Register = () => {
       console.log(error.message);
 
       if (error.response) {
-        alert(error.response.data.message);
+        toast.error(error.response.data.message);
       } else {
-        alert("Something went wrong. Please try again.");
+        toast.error("Something went wrong");
       }
     }
   }

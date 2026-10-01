@@ -29,6 +29,10 @@ export const registerUser = async (userName, email, password) => {
 export const LoginUser = async (email, password) => {
   const user = await User.findOne({ email: email });
 
+  if (user.isBlocked) {
+  return "blocked"
+}
+
   if (!user || !(await bcrypt.compare(password, user.password))) {
     return null;
   }
@@ -56,6 +60,10 @@ export const googleLoginUser = async (credential) => {
   const googleId = payload.sub;
 
   let user = await User.findOne({ email });
+
+  if (user && user.isBlocked) {
+  return "blocked"
+}
 
   if (!user) {
     user = await User.create({

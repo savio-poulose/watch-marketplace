@@ -2,6 +2,7 @@ import { useState } from "react";
 // import Navbar from "../../components/layout/Navbar";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 const ForgetPassword = () => {
   const navigate = useNavigate();
@@ -10,7 +11,7 @@ const ForgetPassword = () => {
 
   const handleSendOTP = async () => {
     if (!email) {
-      alert("Please enter your email");
+      toast.error("Please enter your email")
       return;
     }
 
@@ -22,16 +23,16 @@ const ForgetPassword = () => {
         }
       );
 
-      alert(response.data.message);
+      
+      toast.success(response.data.message)
 
       // Later we'll pass the email to the OTP page
       navigate("/user/verify-reset-otp", {
         state: { email },
       });
     } catch (err) {
-      alert(
-        err.response?.data?.message || err.message
-      );
+      toast.error(err.response?.data?.message || err.message)
+      console.log(err)
     }
   };
 

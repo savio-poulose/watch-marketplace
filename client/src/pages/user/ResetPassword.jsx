@@ -3,6 +3,7 @@ import { useState } from "react";
 import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -22,23 +23,24 @@ const ResetPassword = () => {
 
   const handleResetPassword = async () => {
     if (!email) {
-      alert("Email not found");
+      toast.error("Email not found")
       navigate("/user/forgot-password");
       return;
     }
 
     if (!newPassword || !confirmPassword) {
-      alert("Please fill in all fields");
+      toast.error("Please fill in all fields")
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      alert("Passwords do not match");
+      
+      toast.error("Passwords do not match")
       return;
     }
 
     if (newPassword.length < 8) {
-      alert("Password must be at least 8 characters");
+      toast.error("Password must be at least 8 characters")
       return;
     }
 
@@ -51,16 +53,15 @@ const ResetPassword = () => {
         }
       );
 
-      alert(response.data.message);
+      
+      toast.error(response.data.message)
 
       navigate("/user/login", {
         replace: true,
       });
     } catch (err) {
-      alert(
-        err.response?.data?.message ||
-          "Failed to reset password"
-      );
+      toast.error(err.response?.data?.message ||
+          "Failed to reset password")
     }
   };
 

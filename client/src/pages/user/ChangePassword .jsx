@@ -3,6 +3,7 @@ import Navbar from "../../components/layout/Navbar";
 import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 const ChangePassword = () => {
 
@@ -19,7 +20,7 @@ const ChangePassword = () => {
     try {
       const token = localStorage.getItem("userToken");
       if (newPassword !== confirmPassword) {
-        alert("New passwords do not match");
+        toast.error("New passwords do not match")
         return;
       }
 
@@ -37,10 +38,10 @@ const ChangePassword = () => {
       );
 
       console.log("password change succesfull")
-      alert(response.data.message);
+      toast.success(response.data.message)
       navigate("/user/profile")
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      toast.error(err.response?.data?.message || err.message)
     }
   };
 

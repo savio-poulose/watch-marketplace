@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 const AdminLogin = () => {
 
@@ -24,17 +25,19 @@ const AdminLogin = () => {
 
       localStorage.setItem("adminToken", response.data.token);
 
-      // alert("login succesfull")
+      
+      toast.success("Login succesfull")
       navigate("/admin/dashboard")
 
     } catch (err) {
       console.log(err);
 
-      if(err.response){
-        alert(err.response.data.message)
-      }else{
-        alert("something went wrong")
-      }
+      if (err.response) {
+              toast.error(err.response.data.message);
+            } else {
+              toast.error("Something went wrong");
+            }
+          
 
     }
   }

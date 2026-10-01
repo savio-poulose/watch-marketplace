@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 // import Navbar from "../../components/layout/Navbar";
 import axios from "axios";
+import toast from "react-hot-toast";
 
 const VerifyResetOTP = () => {
   const navigate = useNavigate();
@@ -13,13 +14,13 @@ const VerifyResetOTP = () => {
 
   const handleVerifyOTP = async () => {
     if (!email) {
-      alert("Email not found");
+      toast.error("Email not found")
       navigate("/user/forgot-password");
       return;
     }
 
     if (!otp) {
-      alert("Please enter the OTP");
+      toast.error("Please enter the OTP")
       return;
     }
 
@@ -32,18 +33,17 @@ const VerifyResetOTP = () => {
         }
       );
 
-      alert(response.data.message);
+      
+      toast.error(response.data.message)
 
-      // We'll replace this with a secure reset token later
+      
       navigate("/user/reset-password", {
         state: { email },
       });
 
     } catch (err) {
-      alert(
-        err.response?.data?.message ||
-        "Invalid OTP"
-      );
+      toast.error(err.response?.data?.message ||
+        "Invalid OTP")
     }
   };
 

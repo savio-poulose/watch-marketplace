@@ -2,6 +2,7 @@ import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -30,9 +31,16 @@ const Login = () => {
 
             // console.log("BACKEND RESPONSE:", result.data);
             localStorage.setItem("userToken", result.data.token);
+            toast.success("User login successfully");
             navigate("/user/dashboard");
-          } catch (error) {
-            console.log("GOOGLE LOGIN ERROR:", error);
+          } catch (err) {
+            console.log("GOOGLE LOGIN ERROR:", err);
+
+            if (err.response) {
+              toast.error(err.response.data.message);
+            } else {
+              toast.error("Something went wrong");
+            }
           }
         },
       });
@@ -72,15 +80,15 @@ const Login = () => {
       console.log(response.data);
 
       localStorage.setItem("userToken", response.data.token);
-
+      toast.success("User login successfully");
       navigate("/user/dashboard");
     } catch (err) {
       console.log(err);
 
       if (err.response) {
-        alert(err.response.data.message);
+        toast.error(err.response.data.message);
       } else {
-        alert("something went wrong");
+        toast.error("Something went wrong");
       }
     }
   }

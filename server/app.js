@@ -5,6 +5,7 @@ import userRouter from "./routes/user/user.route.js"
 import adminRouter from "./routes/admin/admin.route.js"
 import productRouter from "./routes/admin/product.route.js"
 import categoryRouter from "./routes/admin/category.route.js"
+import adminUsersRouter from "./routes/admin/users.route.js"
 
 import cors from "cors"
 
@@ -23,6 +24,7 @@ app.use("/api/user/", userRouter);
 
 app.use("/api/admin/product", productRouter);
 app.use("/api/admin/category", categoryRouter);
+app.use("/api/admin/users",adminUsersRouter)
 app.use("/api/admin/", adminRouter);
 //admin@watchstore.com
 

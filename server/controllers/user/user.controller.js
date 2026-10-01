@@ -12,7 +12,7 @@ import {
   changeUserPassword,
   forgotPasswordService,
   verifyResetOTPService,
-  resetPasswordService
+  resetPasswordService,
 } from "../../services/user/user.service.js";
 
 export const userRegister = async (req, res) => {
@@ -41,6 +41,10 @@ export const userLogin = async (req, res) => {
     if (!token) {
       return res.status(401).json({
         message: "Invalid email or password",
+      });
+    } else if (token == "blocked") {
+      return res.status(403).json({
+        message: "Your account has been blocked by the administrator",
       });
     }
 
@@ -78,6 +82,12 @@ export const googleLogin = async (req, res) => {
 
     const token = await googleLoginUser(credential);
 
+    if (token == "blocked") {
+      return res.status(403).json({
+        message: "Your account has been blocked by the administrator",
+      });
+    }
+
     res.status(200).json({
       message: "Google login successful",
       token,
@@ -93,15 +103,15 @@ export const googleLogin = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const {userName} = req.body;
-    
+    const { userName } = req.body;
+
     const id = req.params.id;
 
     const user = await ProfileUpdate(id, userName);
 
     res.status(201).json({
       message: "user Updated succesfully",
-      user
+      user,
     });
   } catch (err) {
     res.status(400).json({
@@ -109,8 +119,6 @@ export const updateProfile = async (req, res) => {
     });
   }
 };
-
-
 
 export const updateProfilePhoto = async (req, res) => {
   try {
@@ -128,7 +136,6 @@ export const updateProfilePhoto = async (req, res) => {
       message: "Profile photo updated successfully",
       user,
     });
-
   } catch (err) {
     console.log("PROFILE PHOTO ERROR:", err);
 
@@ -138,30 +145,23 @@ export const updateProfilePhoto = async (req, res) => {
   }
 };
 
-
 export const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
     const userId = req.user.id;
 
-    await changeUserPassword(
-      userId,
-      currentPassword,
-      newPassword
-    );
+    await changeUserPassword(userId, currentPassword, newPassword);
 
     res.status(200).json({
       message: "Password changed successfully",
     });
-
   } catch (err) {
     res.status(400).json({
       message: err.message,
     });
   }
 };
-
 
 export const forgotPassword = async (req, res) => {
   try {
@@ -181,16 +181,11 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
-
-
 export const verifyResetOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
-    const result = await verifyResetOTPService(
-      email,
-      otp
-    );
+    const result = await verifyResetOTPService(email, otp);
 
     res.status(200).json(result);
   } catch (err) {
@@ -202,15 +197,11 @@ export const verifyResetOTP = async (req, res) => {
   }
 };
 
-
 export const resetPassword = async (req, res) => {
   try {
     const { email, newPassword } = req.body;
 
-    const result = await resetPasswordService(
-      email,
-      newPassword
-    );
+    const result = await resetPasswordService(email, newPassword);
 
     res.status(200).json(result);
   } catch (err) {

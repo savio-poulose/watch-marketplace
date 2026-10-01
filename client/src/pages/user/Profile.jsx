@@ -3,6 +3,7 @@ import Navbar from "../../components/layout/Navbar";
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 const Profile = () => {
   const [user, setUser] = useState(null);
@@ -20,7 +21,7 @@ const Profile = () => {
         const token = localStorage.getItem("userToken");
 
         if (!token) {
-          alert("Please login");
+          toast.error("please login")
           // navigate("/user/login")
 
           return;
@@ -45,7 +46,8 @@ const Profile = () => {
         console.log("RESPONSE:", err.response?.data);
         console.log("STATUS:", err.response?.status);
 
-        alert(err.response?.data?.message || err.message);
+        
+        toast.error(err.response?.data?.message || err.message)
       } finally {
         setLoading(false);
       }
@@ -95,12 +97,13 @@ const Profile = () => {
       // Exit edit mode
       setIsEditing(false);
 
-      alert("Profile updated successfully");
+      toast.success("Profile updated successfully")
     } catch (err) {
       console.log("UPDATE PROFILE ERROR:", err);
       console.log("RESPONSE:", err.response?.data);
 
-      alert(err.response?.data?.message || err.message);
+      
+      toast.error(err.response?.data?.message || err.message)
     } finally {
       setSaving(false);
     }
@@ -142,12 +145,12 @@ const Profile = () => {
 
       setUser(response.data.user);
 
-      alert("Profile photo updated successfully");
+      toast.success("Profile photo updated successfully")
     } catch (err) {
       console.log("PROFILE IMAGE ERROR:", err);
       console.log("RESPONSE:", err.response?.data);
 
-      alert(err.response?.data?.message || err.message);
+      toast.error(err.response?.data?.message || err.message)
     } finally {
       setSaving(false);
 

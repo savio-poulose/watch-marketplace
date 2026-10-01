@@ -4,6 +4,7 @@ import MainLayout from "../../components/admin/MainLayout";
 import { useState } from "react";
 import { useEffect } from "react";
 import axios from "axios";
+import toast from "react-hot-toast";
 
 const AdminProduct = () => {
   const [showForm, setShowForm] = useState(false);
@@ -63,7 +64,7 @@ const AdminProduct = () => {
         // console.log(categoryList)
       } catch (err) {
         console.log(err.message);
-        alert(err.message);
+        toast.error(err.message)
       }
     }
     fetchCategory();
@@ -92,7 +93,8 @@ const AdminProduct = () => {
           },
         );
 
-        alert(response.data.message);
+        
+        toast.error(response.data.message)
 
         event.target.reset();
 
@@ -129,7 +131,7 @@ const AdminProduct = () => {
           endDate: "",
         });
       } catch (err) {
-        alert(err.response?.data?.message || err.message);
+        toast.error(err.response?.data?.message || err.message)
       } finally {
         setLoading(false);
       }
@@ -160,7 +162,7 @@ const AdminProduct = () => {
         );
 
         // console.log(response.data)
-        alert(response.data.message);
+        toast.success(response.data.message)
         event.target.reset();
 
         // Clear variants
@@ -184,7 +186,7 @@ const AdminProduct = () => {
           endDate: "",
         });
       } catch (err) {
-        alert(err.message);
+        toast.error(err.message)
       } finally {
         setLoading(false);
       }
@@ -280,7 +282,7 @@ const AdminProduct = () => {
       setShowForm(true);
     } catch (err) {
       console.log(err);
-      alert(err.response?.data?.message || "Failed to get product");
+      toast.error(err.response?.data?.message || "Failed to get product")
     } finally {
       setLoading(false);
     }
@@ -313,7 +315,7 @@ const AdminProduct = () => {
       console.log(response);
     } catch (err) {
       console.log(err.message);
-      alert(err.message);
+      toast.error(err.message)
     }
   }
 
@@ -351,10 +353,8 @@ const AdminProduct = () => {
     setStatusProduct(null);
   } catch (err) {
     console.log(err);
-    alert(
-      err.response?.data?.message ||
-        "Failed to update product status"
-    );
+    toast.error(err.response?.data?.message ||
+        "Failed to update product status")
   }
 };
 

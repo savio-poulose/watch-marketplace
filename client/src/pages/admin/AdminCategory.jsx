@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { FaPlus, FaSearch, FaEdit, FaTrash } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash } from "react-icons/fa";
 import axios from "axios";
 
 import MainLayout from "../../components/admin/MainLayout";
+import toast from "react-hot-toast";
 
 const AdminCategory = () => {
   const [showForm, setShowForm] = useState(false);
@@ -32,7 +33,7 @@ const AdminCategory = () => {
         }
       );
       
-      alert("Category updated successfully");
+      toast.success("Category updated successfully")
       console.log(response.data)
       }
       else{
@@ -48,16 +49,16 @@ const AdminCategory = () => {
 
       event.target.reset(); // clears all form fields
       setShowForm(false);
-      alert("added succesfully");
+      toast.success("added succesfully")
       console.log(response.data)
       }
     } catch (err) {
       console.log(err);
 
       if (err.response) {
-        alert(err.response.data.message);
+        toast.error(err.response.data.message);
       } else {
-        alert("something went wrong");
+        toast.error("Something went wrong");
       }
     }
   }
@@ -103,10 +104,11 @@ const AdminCategory = () => {
          setCategoryList((prev) =>
       prev.filter((item) => item._id !== category._id)
     );
-      alert("deleted succesfully")
+      
+      toast.success("deleted succesfully")
       console.log(response) 
       }catch(err){
-        alert(err.message)
+        toast.error(err.message)
       }
   }
   
@@ -215,7 +217,7 @@ const AdminCategory = () => {
       )}
 
       {/* Search */}
-      <div className="bg-white border border-gray-200 p-5 mb-6">
+      {/* <div className="bg-white border border-gray-200 p-5 mb-6">
         <div className="relative max-w-md">
           <FaSearch
             className="absolute left-4 top-1/2
@@ -231,7 +233,7 @@ const AdminCategory = () => {
             focus:border-[#9A7B3F]"
           />
         </div>
-      </div>
+      </div> */}
 
       {/* Category Table */}
       <div className="bg-white border border-gray-200">

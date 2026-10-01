@@ -1,4 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
+
 import Register from "./pages/user/Register.jsx";
 import Home from "./pages/user/Home.jsx";
 import Login from "./pages/user/Login.jsx";
@@ -10,21 +12,44 @@ import Profile from "./pages/user/Profile.jsx";
 import ChangePassword from "./pages/user/ChangePassword .jsx";
 import ForgetPassword from "./pages/user/ForgetPassword.jsx";
 import VerifyResetOTP from "./pages/user/VerifyResetOTP.jsx";
-import ResetPassword from "./pages/user/ResetPassword.jsx"
+import ResetPassword from "./pages/user/ResetPassword.jsx";
+import AdminUserManage from "./pages/admin/AdminUserManage.jsx";
 
 import ProtectedRoute from "./components/user/ProtectedRoute.jsx";
 import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute.jsx";
 
-
 function App() {
   return (
     <>
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: "#ffffff ",
+            color: "#111827",
+            border: "1px solid #9A7B3F",
+          },
+          success: {
+            iconTheme: {
+              primary: "#9A7B3F",
+              secondary: "#ffffff",
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: "#ef4444",
+              secondary: "#ffffff",
+            },
+          },
+        }}
+      />
       <BrowserRouter>
         <Routes>
           <Route path="/user/register" element={<Register />} />
           <Route path="/user/login" element={<Login />} />
 
-           <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
 
           <Route element={<ProtectedRoute />}>
             <Route path="/user/dashboard" element={<Home />} />
@@ -33,15 +58,14 @@ function App() {
             <Route path="/user/forget-password" element={<ForgetPassword />} />
             <Route path="/user/verify-reset-otp" element={<VerifyResetOTP />} />
             <Route path="/user/reset-password" element={<ResetPassword />} />
-            
           </Route>
 
-          <Route element={<ProtectedAdminRoute/>}>
+          <Route element={<ProtectedAdminRoute />}>
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/product" element={<AdminProduct />} />
             <Route path="/admin/categories" element={<AdminCategory />} />
+            <Route path="/admin/users" element={<AdminUserManage />} />
           </Route>
-
         </Routes>
       </BrowserRouter>
     </>
