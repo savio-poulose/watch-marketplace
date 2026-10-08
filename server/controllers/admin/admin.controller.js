@@ -57,3 +57,26 @@ export const getCurrentAdmin = async (req, res) => {
     });
   }
 };
+
+
+
+
+export const adminLogout = async (req, res) => {
+  try {
+    res.clearCookie("adminAccessToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Admin logged out successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Logout failed",
+    });
+  }
+};

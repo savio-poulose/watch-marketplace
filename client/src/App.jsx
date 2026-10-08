@@ -19,6 +19,7 @@ import Collections from "./pages/user/Collections.jsx";
 import ProtectedRoute from "./components/user/ProtectedRoute.jsx";
 import GuestRoute from "./components/user/GuestRoute.jsx"
 import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute.jsx";
+import GuestAdminRoute from "./components/admin/GuestAdminRoute.jsx"
 
 function App() {
   return (
@@ -56,7 +57,9 @@ function App() {
             <Route path="/user/login" element={<Login />} />
           </Route>
 
-          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route element={<GuestAdminRoute />}>
+  <Route path="/admin/login" element={<AdminLogin />} />
+</Route>
 
           {/* User Protected Routes */}
           <Route element={<ProtectedRoute />}>
@@ -83,6 +86,8 @@ function App() {
               element={<Collections />}
             />
           </Route>
+
+
 
           {/* Admin Protected Routes */}
           <Route element={<ProtectedAdminRoute />}>

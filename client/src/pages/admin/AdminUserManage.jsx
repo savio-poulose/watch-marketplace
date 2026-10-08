@@ -11,17 +11,15 @@ const AdminUserManage = () => {
   const [showBlockPopup, setShowBlockPopup] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
 
-  useEffect(() => {
+  useEffect(() => { 
     async function getAllUsers() {
       try {
-        const token = localStorage.getItem("adminToken");
+        
 
         const response = await axios.get(
           "http://localhost:3000/api/admin/users",
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            withCredentials:true,
           },
         );
 
@@ -42,15 +40,13 @@ const AdminUserManage = () => {
   };
   const handleToggleBlock = async () => {
     try {
-      const token = localStorage.getItem("adminToken");
+    
 
       const response = await axios.patch(
         `http://localhost:3000/api/admin/users/${selectedUser._id}/block`,
         {},
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          withCredentials:true,
         },
       );
 

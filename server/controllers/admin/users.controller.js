@@ -5,7 +5,7 @@ export const getAllUsers = async (req, res) => {
     const users = await usersGetAll();
 
     res.status(200).json({
-      users: users,
+      users: users, 
     });
   } catch (err) {
     res.status(404).json({

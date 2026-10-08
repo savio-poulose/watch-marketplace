@@ -9,13 +9,29 @@ import {
   FaSignOutAlt,
   FaTimes,
 } from "react-icons/fa";
+import { useAdminAuth } from "../../context/useAdminAuth";
+import axios from "axios"
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const navigate = useNavigate();
+  const { setAdmin } = useAdminAuth();
 
-  const handleLogout = () => {
-    localStorage.removeItem("adminToken");
-    navigate("/admin/login");
+  const handleLogout = async () => {
+    try {
+      await axios.post(
+        "http://localhost:3000/api/admin/logout",
+        {},
+        {
+          withCredentials: true,
+        }
+      );
+
+      setAdmin(null);
+
+      navigate("/admin/login", { replace: true });
+    } catch (error) {
+      console.log("Logout error:", error);
+    }
   };
 
   const handleNavClick = () => {
@@ -172,7 +188,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         <div className="p-4 border-t border-gray-700 shrink-0">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-3 text-gray-300 hover:text-[#9A7B3F] text-sm"
+            className="w-full cursor-pointer flex items-center gap-3 px-3 py-3 text-gray-300 hover:text-[#9A7B3F] text-sm"
           >
             <FaSignOutAlt className="text-xs" />
             Logout
