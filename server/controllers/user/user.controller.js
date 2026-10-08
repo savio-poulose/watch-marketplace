@@ -90,7 +90,7 @@ export const getProfile = async (req, res) => {
       user,
     });
   } catch (err) {
-    console.log("GET PROFILE ERROR:", err);
+    // console.log("GET PROFILE ERROR:", err);
 
     return res.status(500).json({
       success: false,

@@ -15,35 +15,43 @@ const ChangePassword = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const handleChangePassword = async () => {
-    try {
-      const token = localStorage.getItem("userToken");
-      if (newPassword !== confirmPassword) {
-        toast.error("New passwords do not match")
-        return;
-      }
-
-      const response = await axios.put(
-        "http://localhost:3000/api/user/change-password",
-        {
-          currentPassword,
-          newPassword,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      console.log("password change succesfull")
-      toast.success(response.data.message)
-      navigate("/user/profile")
-    } catch (err) {
-      toast.error(err.response?.data?.message || err.message)
+const handleChangePassword = async () => {
+  try {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error("All fields are required");
+      return;
     }
-  };
+
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+
+    const response = await axios.put(
+      "http://localhost:3000/api/user/change-password",
+      {
+        currentPassword,
+        newPassword,
+      },
+      {
+        withCredentials: true,
+      }
+    );
+
+    console.log("Password change successful");
+
+    toast.success(response.data.message);
+
+    navigate("/user/profile");
+  } catch (err) {
+    console.log("CHANGE PASSWORD ERROR:", err);
+    console.log("RESPONSE:", err.response?.data);
+
+    toast.error(
+      err.response?.data?.message || "Failed to change password"
+    );
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -141,7 +149,7 @@ const ChangePassword = () => {
               <div className="pt-2">
                 <button
                   onClick={handleChangePassword}
-                  className="w-full h-11 bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition"
+                  className="w-full cursor-pointer h-11 bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition"
                 >
                   Change Password
                 </button>

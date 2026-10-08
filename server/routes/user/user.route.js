@@ -23,7 +23,12 @@ router.post("/login", userLogin);
 
 router.post("/google-login", googleLogin);
 
-router.get("/profile/:id", authMiddleware, getProfile);
+// router.get("/profile/:id", authMiddleware, getProfile);
+router.get(
+  "/profile",
+  authMiddleware,
+  getProfile
+);
 
 router.put("/profile/:id", authMiddleware, updateProfile);
 

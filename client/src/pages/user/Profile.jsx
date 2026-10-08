@@ -4,7 +4,8 @@ import axios from "axios";
 // import { jwtDecode } from "jwt-decode";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
+
 
 const Profile = () => {
   const [user, setUser] = useState(null);
@@ -16,126 +17,112 @@ const Profile = () => {
 
   const navigate = useNavigate();
 
-  const { user: authUser } = useAuth();
+  // const { user: authUser } = useAuth();
+  const { logout } = useAuth();
 
   useEffect(() => {
-  async function fetchUserInfo() {
-    try {
-      if (!authUser?._id) return;
+    async function fetchUserInfo() {
+      try {
+        const response = await axios.get(
+          "http://localhost:3000/api/user/profile",
+          {
+            withCredentials: true,
+          },
+        );
 
-      const response = await axios.get(
-        `http://localhost:3000/api/user/profile/${authUser._id}`,
+        console.log("PROFILE RESPONSE:", response.data);
+
+        setUser(response.data.user);
+        setEditUserName(response.data.user.userName);
+      } catch (err) {
+        console.log("PROFILE ERROR:", err);
+        console.log("RESPONSE:", err.response?.data);
+        console.log("STATUS:", err.response?.status);
+
+        toast.error(err.response?.data?.message || "Failed to load profile");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchUserInfo();
+  }, []);
+
+  const handleLogout = async () => {
+  await logout();
+
+  toast.success("Logged out successfully");
+  navigate("/user/login");
+};
+
+  async function handleSaveProfile() {
+    try {
+      setSaving(true);
+
+      const response = await axios.put(
+        `http://localhost:3000/api/user/profile/${user._id}`,
+        {
+          userName: editUserName,
+        },
         {
           withCredentials: true,
-        }
+        },
       );
 
-      console.log("PROFILE RESPONSE:", response.data);
+      console.log("UPDATED USER:", response.data.user);
 
       setUser(response.data.user);
       setEditUserName(response.data.user.userName);
-    } catch (err) {
-      console.log("PROFILE ERROR:", err);
-      console.log("RESPONSE:", err.response?.data);
-      console.log("STATUS:", err.response?.status);
+      setIsEditing(false);
 
-      toast.error(
-        err.response?.data?.message || "Failed to load profile"
-      );
+      toast.success("Profile updated successfully");
+    } catch (err) {
+      console.log("UPDATE PROFILE ERROR:", err);
+      console.log("RESPONSE:", err.response?.data);
+
+      toast.error(err.response?.data?.message || "Failed to update profile");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   }
+  const handleProfileImageChange = async (e) => {
+    const file = e.target.files[0];
 
-  fetchUserInfo();
-}, [authUser]);
+    if (!file) return;
 
-  const handleLogout = async () => {
-  try {
-    await axios.post(
-      "http://localhost:3000/api/user/logout",
-      {},
-      {
-        withCredentials: true,
-      }
-    );
+    try {
+      const formData = new FormData();
 
-    navigate("/user/login");
-  } catch (err) {
-    console.log("LOGOUT ERROR:", err);
-  }
-};
+      formData.append("profileImage", file);
 
-async function handleSaveProfile() {
-  try {
-    setSaving(true);
+      setSaving(true);
 
-    const response = await axios.put(
-      `http://localhost:3000/api/user/profile/${user._id}`,
-      {
-        userName: editUserName,
-      },
-      {
-        withCredentials: true,
-      }
-    );
+      const response = await axios.put(
+        `http://localhost:3000/api/user/profile/${user._id}/photo`,
+        formData,
+        {
+          withCredentials: true,
+        },
+      );
 
-    console.log("UPDATED USER:", response.data.user);
+      console.log("UPDATED USER:", response.data.user);
 
-    setUser(response.data.user);
-    setEditUserName(response.data.user.userName);
-    setIsEditing(false);
+      setUser(response.data.user);
 
-    toast.success("Profile updated successfully");
-  } catch (err) {
-    console.log("UPDATE PROFILE ERROR:", err);
-    console.log("RESPONSE:", err.response?.data);
+      toast.success("Profile photo updated successfully");
+    } catch (err) {
+      console.log("PROFILE IMAGE ERROR:", err);
+      console.log("RESPONSE:", err.response?.data);
 
-    toast.error(
-      err.response?.data?.message || "Failed to update profile"
-    );
-  } finally {
-    setSaving(false);
-  }
-}
-const handleProfileImageChange = async (e) => {
-  const file = e.target.files[0];
+      toast.error(
+        err.response?.data?.message || "Failed to update profile photo",
+      );
+    } finally {
+      setSaving(false);
 
-  if (!file) return;
-
-  try {
-    const formData = new FormData();
-
-    formData.append("profileImage", file);
-
-    setSaving(true);
-
-    const response = await axios.put(
-      `http://localhost:3000/api/user/profile/${user._id}/photo`,
-      formData,
-      {
-        withCredentials: true,
-      }
-    );
-
-    console.log("UPDATED USER:", response.data.user);
-
-    setUser(response.data.user);
-
-    toast.success("Profile photo updated successfully");
-  } catch (err) {
-    console.log("PROFILE IMAGE ERROR:", err);
-    console.log("RESPONSE:", err.response?.data);
-
-    toast.error(
-      err.response?.data?.message || "Failed to update profile photo"
-    );
-  } finally {
-    setSaving(false);
-
-    e.target.value = "";
-  }
-};
+      e.target.value = "";
+    }
+  };
 
   if (loading) {
     return (
@@ -299,7 +286,7 @@ const handleProfileImageChange = async (e) => {
                 </p>
               </div>
 
-              <button className="h-10 px-5 bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition">
+              <button className="h-10 cursor-pointer px-5 bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition">
                 + Add Address
               </button>
             </div>
@@ -329,17 +316,16 @@ const handleProfileImageChange = async (e) => {
                   Manage your password and account security
                 </p>
               </div>
-              
 
               <button
                 onClick={() => navigate("/user/change-password")}
-                className="px-5 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition"
+                className="px-5 py-2 cursor-pointer border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition"
               >
                 Change Password
               </button>
               <button
                 onClick={() => navigate("/user/forget-password")}
-                className="px-5 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition"
+                className="px-5 py-2 cursor-pointer border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition"
               >
                 Forget Password
               </button>
@@ -347,7 +333,7 @@ const handleProfileImageChange = async (e) => {
           </div>
           <button
             onClick={handleLogout}
-            className="mt-4 w-full h-10 border border-red-300 text-red-600 text-sm font-medium hover:bg-red-50 transition"
+            className="mt-4 w-full cursor-pointer h-10 border border-red-300 text-red-600 text-sm font-medium hover:bg-red-50 transition"
           >
             LOGOUT
           </button>

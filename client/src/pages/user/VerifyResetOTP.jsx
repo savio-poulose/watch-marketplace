@@ -34,7 +34,7 @@ const VerifyResetOTP = () => {
       );
 
       
-      toast.error(response.data.message)
+      toast.success(response.data.message)
 
       
       navigate("/user/reset-password", {
