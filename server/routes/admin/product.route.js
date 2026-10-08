@@ -1,14 +1,14 @@
 import express from "express";
 const router = express.Router();
-import {
+import { 
   addProduct,
-  getAllProduct,
+  getAllProduct,  
   getProduct,
   updateProduct,
   deleteProduct,
   toggleStatus,
 } from "../../controllers/admin/product.conroller.js";
-import { adminAuth, authMiddleware } from "../../middlewares/auth.middleware.js";
+import { adminAuth } from "../../middlewares/auth.middleware.js";
 import upload from "../../middlewares/upload.middleware.js";
 
 router.post("/", adminAuth, upload.array("images", 3), addProduct);
@@ -21,6 +21,6 @@ router.put("/:id", adminAuth, upload.array("images", 3), updateProduct);
 
 router.delete("/:id", adminAuth, deleteProduct);
 
-router.patch("/status/:id",authMiddleware,toggleStatus)
+router.patch("/status/:id", adminAuth, toggleStatus);
 
 export default router;

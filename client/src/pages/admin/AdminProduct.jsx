@@ -48,25 +48,22 @@ const AdminProduct = () => {
   useEffect(() => {
     async function fetchCategory() {
       try {
-        const token = localStorage.getItem("adminToken");
-
         const response = await axios.get(
           "http://localhost:3000/api/admin/category",
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            withCredentials: true,
           },
         );
 
-        // console.log(response.data)
         setCategoryList(response.data.categories);
-        // console.log(categoryList)
       } catch (err) {
-        console.log(err.message);
-        toast.error(err.message)
+        console.log(err);
+        toast.error(
+          err.response?.data?.message || "Failed to fetch categories",
+        );
       }
     }
+
     fetchCategory();
   }, []);
 
@@ -87,14 +84,11 @@ const AdminProduct = () => {
           `http://localhost:3000/api/admin/product/${editingProductId}`,
           formData,
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            withCredentials: true,
           },
         );
 
-        
-        toast.error(response.data.message)
+        toast.error(response.data.message);
 
         event.target.reset();
 
@@ -131,7 +125,7 @@ const AdminProduct = () => {
           endDate: "",
         });
       } catch (err) {
-        toast.error(err.response?.data?.message || err.message)
+        toast.error(err.response?.data?.message || err.message);
       } finally {
         setLoading(false);
       }
@@ -155,14 +149,12 @@ const AdminProduct = () => {
           "http://localhost:3000/api/admin/product",
           formData,
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            withCredentials: true,
           },
         );
 
         // console.log(response.data)
-        toast.success(response.data.message)
+        toast.success(response.data.message);
         event.target.reset();
 
         // Clear variants
@@ -186,50 +178,47 @@ const AdminProduct = () => {
           endDate: "",
         });
       } catch (err) {
-        toast.error(err.message)
+        toast.error(err.message);
       } finally {
         setLoading(false);
       }
     }
   }
 
-  useEffect(() => {
-    async function getAllProduct() {
-      try {
-        const token = localStorage.getItem("adminToken");
 
-        const response = await axios.get(
-          "http://localhost:3000/api/admin/product",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
+useEffect(() => {
+  async function getAllProduct() {
+    try {
+      const response = await axios.get(
+        "http://localhost:3000/api/admin/product",
+        {
+          withCredentials: true,
+        }
+      );
 
-        setProducts(response.data.response);
-      } catch (err) {
-        console.log(err.message);
-      }
+      setProducts(response.data.response);
+    } catch (err) {
+      console.log(err);
+      toast.error(
+        err.response?.data?.message || "Failed to fetch products"
+      );
     }
-    getAllProduct();
-  }, []);
+  }
+
+  getAllProduct();
+}, []);
 
   const handleEdit = async (id) => {
     try {
       setLoading(true);
       setEditingProductId(id);
 
-      const token = localStorage.getItem("adminToken");
-
       const response = await axios.get(
-        `http://localhost:3000/api/admin/product/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
+  `http://localhost:3000/api/admin/product/${id}`,
+  {
+    withCredentials: true,
+  }
+);
 
       console.log("Edit product data:", response.data);
 
@@ -282,7 +271,7 @@ const AdminProduct = () => {
       setShowForm(true);
     } catch (err) {
       console.log(err);
-      toast.error(err.response?.data?.message || "Failed to get product")
+      toast.error(err.response?.data?.message || "Failed to get product");
     } finally {
       setLoading(false);
     }
@@ -301,62 +290,59 @@ const AdminProduct = () => {
 
   async function handleDeleteProduct() {
     try {
-      const token = localStorage.getItem("adminToken");
+     
 
       const response = await axios.delete(
-        `http://localhost:3000/api/admin/product/${deleteProductId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
+  `http://localhost:3000/api/admin/product/${deleteProductId}`,
+  {
+    withCredentials: true,
+  }
+);
 
       console.log(response);
     } catch (err) {
       console.log(err.message);
-      toast.error(err.message)
+      toast.error(err.message);
     }
   }
 
   const handleToggleStatus = async () => {
-  if (!statusProduct) return;
+    if (!statusProduct) return;
 
-  try {
-    const token = localStorage.getItem("adminToken");
+    try {
+      
 
-    const newStatus = !statusProduct.isActive;
+      const newStatus = !statusProduct.isActive;
 
-    await axios.patch(
-      `http://localhost:3000/api/admin/product/status/${statusProduct.id}`,
-      {},
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    setProducts((prevProducts) =>
-      prevProducts.map((product) => {
-        if (product.id === statusProduct.id) {
-          return {
-            ...product,
-            isActive: newStatus,
-          };
-        }
-
-        return product;
-      })
-    );
-
-    setStatusProduct(null);
-  } catch (err) {
-    console.log(err);
-    toast.error(err.response?.data?.message ||
-        "Failed to update product status")
+     await axios.patch(
+  `http://localhost:3000/api/admin/product/status/${statusProduct.id}`,
+  {},
+  {
+    withCredentials: true,
   }
-};
+);
+
+      setProducts((prevProducts) =>
+        prevProducts.map((product) => {
+          if (product.id === statusProduct.id) {
+            return {
+              ...product,
+              isActive: newStatus,
+            };
+          }
+
+          return product;
+        }),
+      );
+
+      setStatusProduct(null);
+    } catch (err) {
+      console.log(err);
+      toast.error(
+        err.response?.data?.message || "Failed to update product status",
+      );
+    }
+  };
 
   const filteredProducts = products.filter((product) => {
     const search = searchTerm.toLowerCase().trim();
@@ -1035,7 +1021,7 @@ const AdminProduct = () => {
             <tbody>
               {filteredProducts.map((product) => (
                 <tr
-                  key={product._id}
+                  key={product.id}
                   className="border-b border-gray-100 hover:bg-gray-50"
                 >
                   {/* PRODUCT */}

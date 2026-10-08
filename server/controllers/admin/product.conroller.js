@@ -4,21 +4,34 @@ import {
   productGet,
   productUpdate,
   ProductDelete,
-  statusToggle
+  statusToggle,
 } from "../../services/admin/product.service.js";
 import {
   variantAdd,
   variantGetAll,
   variantGetByProductId,
-  variantDeleteByProductId
+  variantDeleteByProductId,
 } from "../../services/admin/variant.service.js";
 import { uploadImages } from "../../services/image.service.js";
-import { offerAdd,offerGetByProductId,offerDelete,offerUpdate } from "../../services/admin/offer.service.js";
+import {
+  offerAdd,
+  offerGetByProductId,
+  offerDelete,
+  offerUpdate,
+} from "../../services/admin/offer.service.js";
 
 export const addProduct = async (req, res) => {
   try {
-    const { name, brand, gender, categoryId, description, image, variants,offer } =
-      req.body;
+    const {
+      name,
+      brand,
+      gender,
+      categoryId,
+      description,
+      image,
+      variants,
+      offer,
+    } = req.body;
     //   console.log(name)
 
     const imageUrls = await uploadImages(req.files);
@@ -82,6 +95,11 @@ export const getAllProduct = async (req, res) => {
 
       const prices = productVariants.map((variant) => variant.price);
 
+      const price =
+        prices.length > 0
+          ? `${Math.min(...prices)} - ${Math.max(...prices)}`
+          : "N/A";
+
       // console.log(prices)
 
       const stock = productVariants.reduce((acc, curr) => {
@@ -91,10 +109,11 @@ export const getAllProduct = async (req, res) => {
       return {
         id: product._id,
         name: product.name,
-        image: product.images[0],
+        brand: product.brand,
+        image: product.images?.[0] || "",
         category: product.categoryId?.name || "Uncategorized",
-        price: `${Math.min(...prices)} - ${Math.max(...prices)}`,
-        stock: stock,
+        price,
+        stock,
         isActive: product.isActive,
       };
     });
@@ -140,8 +159,6 @@ export const getProduct = async (req, res) => {
   }
 };
 
-
-
 export const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
@@ -162,7 +179,6 @@ export const updateProduct = async (req, res) => {
     const parsedOffer = JSON.parse(offer || "{}");
     const parsedExistingImages = JSON.parse(existingImages || "[]");
 
-   
     let newImageUrls = [];
 
     if (req.files && req.files.length > 0) {
@@ -170,10 +186,7 @@ export const updateProduct = async (req, res) => {
     }
 
     // Keep old images + add new images
-    const finalImages = [
-      ...parsedExistingImages,
-      ...newImageUrls,
-    ];
+    const finalImages = [...parsedExistingImages, ...newImageUrls];
 
     // Update product
     await productUpdate(id, {
@@ -205,7 +218,6 @@ export const updateProduct = async (req, res) => {
     res.status(200).json({
       message: "Product updated successfully",
     });
-
   } catch (err) {
     console.log("Update Product Error:", err);
 
@@ -215,27 +227,22 @@ export const updateProduct = async (req, res) => {
   }
 };
 
-
-
-export const deleteProduct = async(req,res)=>{
-  
-  try{
-    const {id} = req.params
-    await ProductDelete(id)
-    await variantDeleteByProductId(id); 
+export const deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await ProductDelete(id);
+    await variantDeleteByProductId(id);
     await offerDelete(id);
 
     res.status(200).json({
-      message:"product deleted succesfully"
-    })
-  }catch(err){
+      message: "product deleted succesfully",
+    });
+  } catch (err) {
     res.status(404).json({
-      message:err.message
-    })
-}
-
-
-}
+      message: err.message,
+    });
+  }
+};
 
 export const toggleStatus = async (req, res) => {
   try {
@@ -249,7 +256,6 @@ export const toggleStatus = async (req, res) => {
       message: "isActive toggled successfully",
       product: status,
     });
-
   } catch (err) {
     res.status(400).json({
       message: err.message,
