@@ -31,35 +31,44 @@ export const authMiddleware = async (req, res, next) => {
   }
 };
 
+
 export const adminAuth = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  // console.log("AUTH HEADER:", authHeader);
-  if (!authHeader) {
-    return res.status(401).json({
-      message: "Authentication required",
-    });
-  }
-
-  const token = authHeader.split(" ")[1];
-
-  if (!token) {
-    return res.status(401).json({
-      message: "Authentication required", 
-    });
-  }
   try {
-    const decoded = jwt.verify(token, process.env.SECRET_KEY);
+    console.log("ADMIN COOKIES:", req.cookies);
+
+    const token = req.cookies.adminAccessToken;
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Admin authentication required",
+      });
+    }
+
+    const decoded = jwt.verify(
+      token,
+      process.env.SECRET_KEY
+    );
+
+    console.log("ADMIN DECODED:", decoded);
 
     if (decoded.role !== "admin") {
       return res.status(403).json({
+        success: false,
         message: "Admin access required",
       });
     }
+
     req.user = decoded;
+
     next();
-  } catch (err) {
-    res.status(401).json({
-      message: err.message,
+
+  } catch (error) {
+    console.log("ADMIN AUTH ERROR:", error);
+
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired admin session",
     });
   }
 };

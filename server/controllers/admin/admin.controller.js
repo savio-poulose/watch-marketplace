@@ -1,29 +1,59 @@
-import {loginAdmin} from "../../services/admin/admin.service.js"
+import { loginAdmin } from "../../services/admin/admin.service.js";
 
-export const adminLogin = async(req,res)=>{
+export const adminLogin = async (req, res) => {
+  try {
+
+    console.log("req.body :  "+req.body)
+    const { email, password } = req.body;
     
-    try{
-        const {email,password} = req.body
-    // console.log(email+password+"req.body")
 
-    const token = await loginAdmin(email,password)
-     
-    if(!token){
-        return res.status(401).json({
-            message:"invalid email or password"
-        })
+    const token = await loginAdmin(email, password);
+
+    if (!token) {
+      return res.status(401).json({
+        message: "invalid email or password",
+      });
     }
+
+    res.cookie("adminAccessToken", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000,
+    });
 
     return res.status(200).json({
-        message:"login succesfull",
-        token
-    })
-    console.log("login succesfull")
+       success:true, 
+      message: "login succesfull"
+    });
+    // console.log("login succesfull");
+  } catch (error) {
+    console.log(error)
+    return res.status(500).json({
+      success:false,
+      message:"something went wrong"
+    });
+  }
+};
 
-    }catch(error){
-        return res.status(404).json({
-            message:error.message
-        })
-    }
 
-}
+
+
+export const getCurrentAdmin = async (req, res) => {
+  try {
+    console.log("CURRENT ADMIN:", req.user);
+
+    return res.status(200).json({
+      success: true,
+      admin: req.user,
+    });
+
+  } catch (error) {
+    console.log("GET ADMIN ME ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong",
+    });
+  }
+};

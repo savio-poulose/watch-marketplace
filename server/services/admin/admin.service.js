@@ -2,23 +2,30 @@ import User from "../../models/user.model.js"
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
 
-export const loginAdmin = async(email,password) =>{
-    const admin = await User.findOne({email:email})
+export const loginAdmin = async (email, password) => {
+  const admin = await User.findOne({ email });
 
-    if(!admin || !(await bcrypt.compare(password,admin.password))){
-        return null
+  if (!admin || !(await bcrypt.compare(password, admin.password))) {
+    return null;
+  }
+
+  if (admin.role !== "admin") {
+    return null;
+  }
+
+  const payload = {
+    id: admin._id,
+    email: admin.email,
+    role: admin.role,
+  };
+
+  const token = jwt.sign(
+    payload,
+    process.env.SECRET_KEY,
+    {
+      expiresIn: "1d",
     }
+  );
 
-    const payload = {
-        id: admin._id, email: admin.email,role: admin.role,
-    }
-
-    const token = jwt.sign(payload,process.env.SECRET_KEY,{
-        expiresIn:"1d"
-    })
-
-    // console.log(token)
-
-    return token
-
-}
+  return token;
+};
