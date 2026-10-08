@@ -1,20 +1,28 @@
 
 import { categoryAdd ,getCategoryAll,categoryEdit,categoryDelete} from "../../services/admin/category.service.js";
 
-export const addCategory = async (req,res) =>{
-    try{
-        const category = await categoryAdd(req.body)
 
-        res.status(201).json({
-            message:"category created"
-        })
-    }catch(err){
-        res.status(400).json({
-            message:err.message
-        })
-    }
+export const addCategory = async (req, res) => {
+  try {
+    const category = await categoryAdd(
+      req.body,
+      req.file
+    );
 
-}
+    return res.status(201).json({
+      success: true,
+      message: "Category created successfully",
+      category,
+    });
+  } catch (err) {
+    console.log("ADD CATEGORY ERROR:", err);
+
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
 
 export const getAllCategory = async(req,res)=>{
     try{
@@ -29,20 +37,27 @@ export const getAllCategory = async(req,res)=>{
     }
 }
 
-export const editCategory = async (req,res)=>{
-    try{
-        
-        const category = categoryEdit(req.body,req.params)
-        res.status(200).json({
-            message:"category updated succesfully"
-        })
+export const editCategory = async (req, res) => {
+  try {
+    await categoryEdit(
+      req.body,
+      req.params,
+      req.file
+    );
 
-    }catch(err){
-        res.status(404).json({
-            message:err.message
-        })
-    }
-}
+    return res.status(200).json({
+      success: true,
+      message: "Category updated successfully",
+    });
+  } catch (err) {
+    console.log("EDIT CATEGORY ERROR:", err);
+
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
 
 export const deleteCategory = async (req,res)=>{
     try{

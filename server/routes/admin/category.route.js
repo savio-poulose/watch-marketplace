@@ -1,15 +1,41 @@
-import express from "express"
-const router = express.Router()
+import express from "express";
+import upload from "../../middlewares/upload.middleware.js";
 
-import {addCategory,getAllCategory,editCategory,deleteCategory} from "../../controllers/admin/category.controller.js"
-import { adminAuth } from "../../middlewares/auth.middleware.js"
+const router = express.Router();
 
-router.post("/",adminAuth,addCategory)
+import {
+  addCategory,
+  getAllCategory,
+  editCategory,
+  deleteCategory,
+} from "../../controllers/admin/category.controller.js";
 
-router.get("/",adminAuth,getAllCategory)
+import { adminAuth } from "../../middlewares/auth.middleware.js";
 
-router.put("/:id",adminAuth,editCategory)
+router.post(
+  "/",
+  adminAuth,
+  upload.single("image"),
+  addCategory
+);
 
-router.delete("/:id",adminAuth,deleteCategory)
+router.get(
+  "/",
+  adminAuth,
+  getAllCategory
+);
 
-export default router
+router.put(
+  "/:id",
+  adminAuth,
+  upload.single("image"),
+  editCategory
+);
+
+router.delete(
+  "/:id",
+  adminAuth,
+  deleteCategory
+);
+
+export default router;

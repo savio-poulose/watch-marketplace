@@ -34,7 +34,7 @@ export const authMiddleware = async (req, res, next) => {
 
 export const adminAuth = async (req, res, next) => {
   try {
-    console.log("ADMIN COOKIES:", req.cookies);
+    // console.log("ADMIN COOKIES:", req.cookies);
 
     const token = req.cookies.adminAccessToken;
 
@@ -50,7 +50,7 @@ export const adminAuth = async (req, res, next) => {
       process.env.SECRET_KEY
     );
 
-    console.log("ADMIN DECODED:", decoded);
+    // console.log("ADMIN DECODED:", decoded);
 
     if (decoded.role !== "admin") {
       return res.status(403).json({

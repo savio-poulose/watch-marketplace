@@ -9,109 +9,81 @@ const AdminCategory = () => {
   const [showForm, setShowForm] = useState(false);
   const [categoryList, setCategoryList] = useState([]);
   const [editingCategory, setEditingCategory] = useState(null);
-//   const [deleteCategory,setDeleteCategory] = useState(null)
-
+  //   const [deleteCategory,setDeleteCategory] = useState(null)
   async function handleSubmit(event) {
     event.preventDefault();
 
     const formData = new FormData(event.target);
-    // console.log(formData);
-    const data = Object.fromEntries(formData);
-    // console.log(data);
 
     try {
-      const token = localStorage.getItem("adminToken");
-      // console.log("TOKEN:", token);
-      if(editingCategory){
-             const response = await axios.put(
-        `http://localhost:3000/api/admin/category/${editingCategory._id}`,
-        data,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
+      if (editingCategory) {
+        await axios.put(
+          `http://localhost:3000/api/admin/category/${editingCategory._id}`,
+          formData,
+          {
+            withCredentials: true,
           },
-        }
-      );
-      
-      toast.success("Category updated successfully")
-      console.log(response.data)
-      }
-      else{
-        const response = await axios.post(
-        "http://localhost:3000/api/admin/category",
-        data,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
+        );
 
-      event.target.reset(); // clears all form fields
-      setShowForm(false);
-      toast.success("added succesfully")
-      console.log(response.data)
-      }
-    } catch (err) {
-      console.log(err);
-
-      if (err.response) {
-        toast.error(err.response.data.message);
+        toast.success("Category updated successfully");
       } else {
-        toast.error("Something went wrong");
+        await axios.post("http://localhost:3000/api/admin/category", formData, {
+          withCredentials: true,
+        });
+
+        toast.success("Category added successfully");
       }
+
+      event.target.reset();
+      setEditingCategory(null);
+      setShowForm(false);
+    } catch (err) {
+      console.log("CATEGORY ERROR:", err);
+
+      toast.error(err.response?.data?.message || "Something went wrong");
     }
   }
 
   useEffect(() => {
-    async function fetchCategories() {
+    const fetchCategories = async () => {
       try {
-        const token = localStorage.getItem("adminToken");
-
         const response = await axios.get(
           "http://localhost:3000/api/admin/category",
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            withCredentials: true,
           },
         );
 
-        // console.log(response.data.categories);
         setCategoryList(response.data.categories);
       } catch (err) {
-        console.log(err.message);
-      }
-    }
+        console.log("FETCH CATEGORY ERROR:", err);
 
+        toast.error(err.response?.data?.message || "Failed to load categories");
+      }
+    };
     fetchCategories();
   }, []);
 
-
-  async function handleDelete(category){
-
-      try{
-        console.log(category._id)
-        const token = localStorage.getItem("adminToken");
-        const response = await axios.delete(
+  async function handleDelete(category) {
+    try {
+      await axios.delete(
         `http://localhost:3000/api/admin/category/${category._id}`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-         setCategoryList((prev) =>
-      prev.filter((item) => item._id !== category._id)
-    );
-      
-      toast.success("deleted succesfully")
-      console.log(response) 
-      }catch(err){
-        toast.error(err.message)
-      }
+          withCredentials: true,
+        },
+      );
+
+      setCategoryList((prev) =>
+        prev.filter((item) => item._id !== category._id),
+      );
+
+      toast.success("Deleted successfully");
+    } catch (err) {
+      console.log("DELETE CATEGORY ERROR:", err);
+
+      toast.error(err.response?.data?.message || "Something went wrong");
+    }
   }
-  
 
   return (
     <MainLayout>
@@ -172,13 +144,30 @@ const AdminCategory = () => {
                 Image URL
               </label>
 
-              <input
-                type="text"
-                name="image"
-                defaultValue={editingCategory?.image || ""}
-                placeholder="Enter image URL"
-                className="w-full border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#9A7B3F]"
-              />
+              <div>
+                <label className="block text-sm text-gray-600 mb-2">
+                  Category Image
+                </label>
+
+                <input
+                  type="file"
+                  name="image"
+                  accept="image/*"
+                  className="w-full border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#9A7B3F]"
+                />
+
+                {editingCategory?.image && (
+                  <div className="mt-3">
+                    <p className="text-xs text-gray-500 mb-2">Current Image</p>
+
+                    <img
+                      src={editingCategory.image}
+                      alt={editingCategory.name}
+                      className="w-20 h-20 object-cover"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Description */}
@@ -326,8 +315,9 @@ const AdminCategory = () => {
                       </button>
 
                       <button
-                      onClick={() => handleDelete(category)}
-                       className="text-gray-500 hover:text-red-600">
+                        onClick={() => handleDelete(category)}
+                        className="text-gray-500 hover:text-red-600"
+                      >
                         <FaTrash />
                       </button>
                     </div>

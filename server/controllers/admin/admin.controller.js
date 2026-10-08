@@ -3,7 +3,7 @@ import { loginAdmin } from "../../services/admin/admin.service.js";
 export const adminLogin = async (req, res) => {
   try {
 
-    console.log("req.body :  "+req.body)
+    // console.log("req.body :  "+req.body)
     const { email, password } = req.body;
     
 
