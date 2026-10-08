@@ -6,6 +6,7 @@ import adminRouter from "./routes/admin/admin.route.js"
 import productRouter from "./routes/admin/product.route.js"
 import categoryRouter from "./routes/admin/category.route.js"
 import adminUsersRouter from "./routes/admin/users.route.js"
+import cookieParser from "cookie-parser";
 
 import cors from "cors"
 
@@ -14,9 +15,15 @@ const app = express();
 dotenv.config()
 
 
-app.use(cors())
+app.use(cors(
+    {
+    origin: "http://localhost:5173",
+    credentials: true,
+  }
+))
 app.use(express.urlencoded({extended:true}))
 app.use(express.json()) 
+app.use(cookieParser())
 
 
 app.use("/api/user/", userRouter);

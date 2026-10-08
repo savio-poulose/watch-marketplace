@@ -69,7 +69,7 @@ const AdminUserManage = () => {
       );
 
       
-      toast.error(response.data.message)
+      toast.success(response.data.message)
 
       setShowBlockPopup(false);
       setSelectedUser(null);

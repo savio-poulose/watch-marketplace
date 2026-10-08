@@ -10,7 +10,9 @@ import {
   changePassword,
   forgotPassword,
   verifyResetOTP,
-  resetPassword
+  resetPassword,
+  getCurrentUser,
+  logoutUser
 } from "../../controllers/user/user.controller.js";
 import { authMiddleware } from "../../middlewares/auth.middleware.js";
 import upload from "../../middlewares/upload.middleware.js";
@@ -37,5 +39,8 @@ router.put("/change-password", authMiddleware, changePassword);
 router.post("/forgot-password", forgotPassword);
 router.post("/verify-reset-otp", verifyResetOTP);
 router.put("/reset-password",resetPassword);
+
+router.get("/me", authMiddleware, getCurrentUser);
+router.get("/logout",logoutUser)
 
 export default router;

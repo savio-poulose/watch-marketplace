@@ -48,33 +48,57 @@ export const userLogin = async (req, res) => {
       });
     }
 
-    res.status(200).json({
-      message: "login succesfull",
-      token,
+    // res.status(200).json({
+    //   message: "login succesfull",
+    //   token,
+    // });
+
+    res.cookie("accessToken", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
     });
 
     // console.log(user.password)
   } catch (err) {
-    res.status(404).json({
-      message: err.message,
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong",
     });
   }
 };
 
 export const getProfile = async (req, res) => {
-  // console.log(req.params)
   try {
-    const user = await profileGet(req.params.id);
-    // console.log(user)
-    res.status(200).json({
-      user: user,
+    const user = await profileGet(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user,
     });
   } catch (err) {
-    res.status(404).json({
-      message: err.message,
+    console.log("GET PROFILE ERROR:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load profile",
     });
   }
 };
+
 
 export const googleLogin = async (req, res) => {
   try {
@@ -82,21 +106,29 @@ export const googleLogin = async (req, res) => {
 
     const token = await googleLoginUser(credential);
 
-    if (token == "blocked") {
+    if (token === "blocked") {
       return res.status(403).json({
         message: "Your account has been blocked by the administrator",
       });
     }
 
-    res.status(200).json({
+    res.cookie("accessToken", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+
+    return res.status(200).json({
+      success: true,
       message: "Google login successful",
-      token,
     });
   } catch (err) {
     console.log(err);
 
-    res.status(401).json({
-      message: err.message,
+    return res.status(401).json({
+      success: false,
+      message: "Google authentication failed",
     });
   }
 };
@@ -211,4 +243,26 @@ export const resetPassword = async (req, res) => {
       message: err.message,
     });
   }
+};
+
+
+export const getCurrentUser = async(req,res)=>{
+   return res.status(200).json({
+    success: true,
+    user: req.user,
+  });
+}
+
+
+export const logoutUser = (req, res) => {
+  res.clearCookie("accessToken", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: "Logout successful",
+  });
 };

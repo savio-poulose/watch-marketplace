@@ -1,34 +1,34 @@
 import jwt from "jsonwebtoken";
 
 export const authMiddleware = async (req, res, next) => {
-  const header = req.headers["authorization"];
-
-  if (!header) {
-    return res.status(401).json({
-      error: "Access denied. No token provided",
-    });
-  }
-
-  const token = header.split(" ")[1];
-  // console.log(token)
-  if (!token) {
-    return res.status(401).json({
-      error: "access denied no token provided",
-    });
-  }
-
   try {
-    const verifyToken = jwt.verify(token, process.env.SECRET_KEY);
 
-     req.user = verifyToken;
+    console.log("COOKIES:", req.cookies);
+    const token = req.cookies.accessToken;
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    const verifyToken = jwt.verify(
+      token,
+      process.env.SECRET_KEY
+    );
+
+    console.log("verifyToken:"+verifyToken)
+
+    req.user = verifyToken;
+
     next();
   } catch (err) {
-    res.status(403).json({
-      error: "invalid or expired token",
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired session",
     });
   }
-
-  
 };
 
 export const adminAuth = async (req, res, next) => {

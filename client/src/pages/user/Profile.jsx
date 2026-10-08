@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import Navbar from "../../components/layout/Navbar";
 import axios from "axios";
-import { jwtDecode } from "jwt-decode";
+// import { jwtDecode } from "jwt-decode";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import { useAuth } from "../../context/AuthContext";
 
 const Profile = () => {
   const [user, setUser] = useState(null);
@@ -15,149 +16,126 @@ const Profile = () => {
 
   const navigate = useNavigate();
 
+  const { user: authUser } = useAuth();
+
   useEffect(() => {
-    async function fetchUserInfo() {
-      try {
-        const token = localStorage.getItem("userToken");
-
-        if (!token) {
-          toast.error("please login")
-          // navigate("/user/login")
-
-          return;
-        }
-
-        const decoded = jwtDecode(token);
-
-        const response = await axios.get(
-          `http://localhost:3000/api/user/profile/${decoded.id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
-
-        setUser(response.data.user);
-        setEditUserName(response.data.user.userName);
-        console.log(response.data);
-      } catch (err) {
-        console.log("PROFILE ERROR:", err);
-        console.log("RESPONSE:", err.response?.data);
-        console.log("STATUS:", err.response?.status);
-
-        
-        toast.error(err.response?.data?.message || err.message)
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchUserInfo();
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem("userToken");
-    navigate("/user/login");
-  };
-
-  async function handleSaveProfile() {
+  async function fetchUserInfo() {
     try {
-      const token = localStorage.getItem("userToken");
+      if (!authUser?._id) return;
 
-      if (!token) {
-        navigate("/user/login");
-        return;
-      }
-
-      const decoded = jwtDecode(token);
-
-      setSaving(true);
-
-      const response = await axios.put(
-        `http://localhost:3000/api/user/profile/${decoded.id}`,
+      const response = await axios.get(
+        `http://localhost:3000/api/user/profile/${authUser._id}`,
         {
-          userName: editUserName,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
+          withCredentials: true,
+        }
       );
 
-      console.log("UPDATED USER:", response.data.user);
+      console.log("PROFILE RESPONSE:", response.data);
 
-      // Update the user displayed on the page
       setUser(response.data.user);
-
-      // Keep input value in sync
       setEditUserName(response.data.user.userName);
-
-      // Exit edit mode
-      setIsEditing(false);
-
-      toast.success("Profile updated successfully")
     } catch (err) {
-      console.log("UPDATE PROFILE ERROR:", err);
+      console.log("PROFILE ERROR:", err);
       console.log("RESPONSE:", err.response?.data);
+      console.log("STATUS:", err.response?.status);
 
-      
-      toast.error(err.response?.data?.message || err.message)
+      toast.error(
+        err.response?.data?.message || "Failed to load profile"
+      );
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   }
 
-  const handleProfileImageChange = async (e) => {
-    const file = e.target.files[0];
+  fetchUserInfo();
+}, [authUser]);
 
-    if (!file) return;
-
-    try {
-      const token = localStorage.getItem("userToken");
-
-      if (!token) {
-        navigate("/user/login");
-        return;
+  const handleLogout = async () => {
+  try {
+    await axios.post(
+      "http://localhost:3000/api/user/logout",
+      {},
+      {
+        withCredentials: true,
       }
+    );
 
-      const decoded = jwtDecode(token);
+    navigate("/user/login");
+  } catch (err) {
+    console.log("LOGOUT ERROR:", err);
+  }
+};
 
-      const formData = new FormData();
+async function handleSaveProfile() {
+  try {
+    setSaving(true);
 
-      formData.append("profileImage", file);
+    const response = await axios.put(
+      `http://localhost:3000/api/user/profile/${user._id}`,
+      {
+        userName: editUserName,
+      },
+      {
+        withCredentials: true,
+      }
+    );
 
-      setSaving(true);
+    console.log("UPDATED USER:", response.data.user);
 
-      const response = await axios.put(
-        `http://localhost:3000/api/user/profile/${decoded.id}/photo`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        },
-      );
+    setUser(response.data.user);
+    setEditUserName(response.data.user.userName);
+    setIsEditing(false);
 
-      console.log("UPDATED USER:", response.data.user);
+    toast.success("Profile updated successfully");
+  } catch (err) {
+    console.log("UPDATE PROFILE ERROR:", err);
+    console.log("RESPONSE:", err.response?.data);
 
-      setUser(response.data.user);
+    toast.error(
+      err.response?.data?.message || "Failed to update profile"
+    );
+  } finally {
+    setSaving(false);
+  }
+}
+const handleProfileImageChange = async (e) => {
+  const file = e.target.files[0];
 
-      toast.success("Profile photo updated successfully")
-    } catch (err) {
-      console.log("PROFILE IMAGE ERROR:", err);
-      console.log("RESPONSE:", err.response?.data);
+  if (!file) return;
 
-      toast.error(err.response?.data?.message || err.message)
-    } finally {
-      setSaving(false);
+  try {
+    const formData = new FormData();
 
-      // Allows selecting the same image again
-      e.target.value = "";
-    }
-  };
+    formData.append("profileImage", file);
+
+    setSaving(true);
+
+    const response = await axios.put(
+      `http://localhost:3000/api/user/profile/${user._id}/photo`,
+      formData,
+      {
+        withCredentials: true,
+      }
+    );
+
+    console.log("UPDATED USER:", response.data.user);
+
+    setUser(response.data.user);
+
+    toast.success("Profile photo updated successfully");
+  } catch (err) {
+    console.log("PROFILE IMAGE ERROR:", err);
+    console.log("RESPONSE:", err.response?.data);
+
+    toast.error(
+      err.response?.data?.message || "Failed to update profile photo"
+    );
+  } finally {
+    setSaving(false);
+
+    e.target.value = "";
+  }
+};
 
   if (loading) {
     return (

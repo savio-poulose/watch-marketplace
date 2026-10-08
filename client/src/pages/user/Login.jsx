@@ -3,9 +3,11 @@ import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { checkAuth } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
 
@@ -27,10 +29,13 @@ const Login = () => {
               {
                 credential: response.credential,
               },
+              {
+                withCredentials: true,
+              },
             );
 
-            // console.log("BACKEND RESPONSE:", result.data);
-            localStorage.setItem("userToken", result.data.token);
+            await checkAuth();
+            console.log(result);
             toast.success("User login successfully");
             navigate("/user/dashboard");
           } catch (err) {
@@ -66,27 +71,28 @@ const Login = () => {
     event.preventDefault();
 
     const formData = new FormData(event.target);
-    console.log(formData);
-
     const data = Object.fromEntries(formData);
-    console.log(data);
 
     try {
       const response = await axios.post(
         "http://localhost:3000/api/user/login",
         data,
+        {
+          withCredentials: true,
+        },
       );
 
       console.log(response.data);
 
-      localStorage.setItem("userToken", response.data.token);
+      await checkAuth();
+
       toast.success("User login successfully");
       navigate("/user/dashboard");
     } catch (err) {
       console.log(err);
 
       if (err.response) {
-        toast.error(err.response.data.message);
+        toast.error(err.response.data.message || "Login failed");
       } else {
         toast.error("Something went wrong");
       }

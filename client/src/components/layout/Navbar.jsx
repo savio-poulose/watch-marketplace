@@ -1,112 +1,152 @@
-import logo from "../../assets/images/logo.png"
-import {Link} from "react-router-dom"
+import logo from "../../assets/images/logo.png";
+import { Link, NavLink } from "react-router-dom";
+
 import {
   HiOutlineUser,
   HiOutlineShoppingBag,
-  HiOutlineHeart
-} from "react-icons/hi2"
-
-// import {FaRegHeart} from "react-icons/fa"
+  HiOutlineHeart,
+} from "react-icons/hi2";
 
 const Navbar = () => {
+  const navLinkClass = ({ isActive }) =>
+    `h-full flex items-center transition-colors ${
+      isActive
+        ? "border-b-2 border-gray-800 text-gray-900"
+        : "text-gray-700 hover:text-gray-500"
+    }`;
+
   return (
-    <nav className="w-full bg-white border-b border-slate-300 sticky top-0 ">
+    <nav className="sticky top-0 z-50 w-full border-b border-slate-300 bg-white">
 
       {/* TOP NAVBAR */}
-      <div className="h-16 px-5 md:px-8 flex items-center justify-between gap-5 border-b border-slate-300 bg-white shadow-md z-50">
+      <div className="flex h-16 items-center justify-between gap-5 border-b border-slate-300 bg-white px-5 shadow-md md:px-8">
 
         {/* LOGO */}
-        <div >
+        <div>
           <Link to="/user/dashboard">
-          <img src={logo} alt="" className="h-16 cursor-pointer "/>
+            <img
+              src={logo}
+              alt="Logo"
+              className="h-16 cursor-pointer"
+            />
           </Link>
         </div>
 
         {/* SEARCH */}
-        <div className="hidden md:flex flex-1 max-w-xl">
+        <div className="hidden max-w-xl flex-1 md:flex">
           <input
             type="text"
             placeholder="Search for watches, collections, smart watches..."
-            className="w-full h-10 border border-slate-300 rounded px-4 text-sm outline-none focus:border-gray-400"
+            className="h-10 w-full rounded border border-slate-300 px-4 text-sm outline-none focus:border-gray-400"
           />
         </div>
 
         {/* RIGHT SIDE */}
-        <div className="hidden md:flex items-center gap-6 text-gray-700 z-0">
-
-          
+        <div className="z-0 hidden items-center gap-6 text-gray-700 md:flex">
 
           {/* WISHLIST */}
-          <div className="text-center cursor-pointer relative">
-           <Link to="/wishlist">
-           <HiOutlineHeart className="w-5 h-5"/>
-           </Link>
+          <div className="relative cursor-pointer text-center">
+            <Link to="/wishlist">
+              <HiOutlineHeart className="h-5 w-5" />
+            </Link>
           </div>
 
           {/* ACCOUNT */}
-          <div className="text-center cursor-pointer">
+          <div className="cursor-pointer text-center">
             <Link to="/user/profile">
-            <HiOutlineUser className="h-5 w-5"/>
+              <HiOutlineUser className="h-5 w-5" />
             </Link>
           </div>
 
           {/* CART */}
-          <div className="text-center cursor-pointer relative">
+          <div className="relative cursor-pointer text-center">
             <Link to="/cart">
-            <HiOutlineShoppingBag className="h-5 w-5"/>
+              <HiOutlineShoppingBag className="h-5 w-5" />
             </Link>
           </div>
 
         </div>
 
         {/* MOBILE MENU BUTTON */}
-        <button className="md:hidden text-2xl">
+        <button className="text-2xl md:hidden">
           ☰
         </button>
-
       </div>
 
       {/* CATEGORY NAVIGATION */}
-      <div className="hidden md:flex h-12   items-center justify-center gap-8 text-sm font-medium ">
+      <div className="hidden h-12 items-center justify-center gap-8 text-sm font-medium md:flex">
 
-        <a href="#" className="border-b-2 border-gray-800 h-full flex items-center">
+        {/* HOME */}
+        <NavLink
+          to="/user/dashboard"
+          className={navLinkClass}
+        >
           HOME
-        </a>
+        </NavLink>
 
-        <a href="#" className="hover:text-gray-500">
+        {/* COLLECTIONS */}
+        <NavLink
+          to="/user/collections"
+          className={navLinkClass}
+        >
           COLLECTIONS
-        </a>
+        </NavLink>
 
-        <a href="#" className="hover:text-gray-500">
+        {/* MEN */}
+        <NavLink
+          to="/user/men"
+          className={navLinkClass}
+        >
           MEN
-        </a>
+        </NavLink>
 
-        <a href="#" className="hover:text-gray-500">
+        {/* WOMEN */}
+        <NavLink
+          to="/user/women"
+          className={navLinkClass}
+        >
           WOMEN
-        </a>
+        </NavLink>
 
-        <a href="#" className="hover:text-gray-500">
+        {/* CONTACT */}
+        <NavLink
+          to="/user/contact"
+          className={navLinkClass}
+        >
           CONTACT
-        </a>
+        </NavLink>
 
-        
-
-        
-
-        <a href="#" className="hover:text-gray-500">
+        {/* ABOUT */}
+        <NavLink
+          to="/user/about"
+          className={navLinkClass}
+        >
           ABOUT
-        </a>
+        </NavLink>
 
-         <a href="#" className="hover:text-gray-500">
+        {/* MY ORDERS */}
+        <NavLink
+          to="/user/orders"
+          className={navLinkClass}
+        >
           MY ORDERS
-        </a>
+        </NavLink>
 
-        <a href="#" className="text-[#9A7B3F]">
+        {/* OFFERS */}
+        <NavLink
+          to="/user/offers"
+          className={({ isActive }) =>
+            `h-full flex items-center transition-colors ${
+              isActive
+                ? "border-b-2 border-[#9A7B3F] text-[#9A7B3F]"
+                : "text-[#9A7B3F] hover:text-[#7d6332]"
+            }`
+          }
+        >
           OFFERS
-        </a>
+        </NavLink>
 
       </div>
-
     </nav>
   );
 };

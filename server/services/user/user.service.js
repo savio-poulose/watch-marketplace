@@ -29,13 +29,15 @@ export const registerUser = async (userName, email, password) => {
 export const LoginUser = async (email, password) => {
   const user = await User.findOne({ email: email });
 
-  if (user.isBlocked) {
-  return "blocked"
-}
+  
 
   if (!user || !(await bcrypt.compare(password, user.password))) {
     return null;
   }
+
+  if (user.isBlocked) {
+  return "blocked"
+}
 
   const payload = { id: user._id, email: user.email };
 
@@ -91,19 +93,29 @@ export const googleLoginUser = async (credential) => {
 
 
 
-export const profileGet = async (id)=>{
-  const user = await User.findOne({_id:id})
-  return user
-}
+export const profileGet = async (id) => {
+  const user = await User.findById(id).select("-password");
+
+  return user;
+};
+
+
 
 export const ProfileUpdate = async (id,userName)=>{
 
   if (!userName || !userName.trim()) {
       throw new Error("Username is required");
     }
+
+  const userr = await User.findOne({_id:id})
+
+  if(userr.isBlocked){
+    throw new Error("Your account has been blocked by the administrator")
+  }
+
   await User.updateOne({_id:id},{$set:{userName:userName}})
 
-  const user = await User.  findOne({_id:id})
+  const user = await User.findOne({_id:id})
   
     if (!user) {
     throw new Error("User not found");
