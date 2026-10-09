@@ -123,18 +123,46 @@ const ProductDetails = () => {
     );
   };
 
-  const handleAddToCart = async () => {
-    if (!selectedVariant || selectedVariant.quantity < 1) {
-      setCartMessage("This variant is currently out of stock.");
-      return;
-    }
+ 
+const handleAddToCart = async () => {
+  if (!selectedVariant || selectedVariant.quantity < 1) {
+    setCartMessage("This variant is currently out of stock.");
+    return;
+  }
 
-    if (quantity > selectedVariant.quantity) {
+  if (quantity > selectedVariant.quantity) {
+    setCartMessage(
+      `Only ${selectedVariant.quantity} item(s) are available.`
+    );
+    return;
+  }
+
+  setAddingToCart(true);
+  setCartMessage("");
+
+  try {
+    const response = await api.post("/user/cart/items", {
+      variantId: selectedVariant._id,
+      quantity,
+    });
+
+    setCartMessage(
+      response.data.message || "Item added to your bag."
+    );
+  } catch (error) {
+    if (error.response?.status === 401) {
+      setCartMessage("Please log in to add items to your bag.");
+    } else {
       setCartMessage(
-        `Only ${selectedVariant.quantity} item(s) are available.`
+        error.response?.data?.message ||
+          "Unable to add item to your bag. Please try again."
       );
-      return;
     }
+  } finally {
+    setAddingToCart(false);
+  }
+};
+
 
     /*
       Connect your existing cart API here.

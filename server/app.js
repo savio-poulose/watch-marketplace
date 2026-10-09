@@ -8,6 +8,7 @@ import categoryRouter from "./routes/admin/category.route.js"
 import adminUsersRouter from "./routes/admin/users.route.js"
 import cookieParser from "cookie-parser";
 import userProductRouter from "./routes/user/product.route.js"
+import cartRouter from "./routes/user/cart.route.js"
 
 import cors from "cors"
 
@@ -36,6 +37,7 @@ app.use("/api/admin/users",adminUsersRouter)
 app.use("/api/admin/", adminRouter);
 
 app.use("/api/user/products",userProductRouter)
+app.use("/api/user/cart",cartRouter)
 
 //admin@watchstore.com
 
