@@ -1,3 +1,6 @@
+
+import mongoose from "mongoose";
+
 import {
   productAdd,
   productGetAll,
@@ -6,13 +9,16 @@ import {
   ProductDelete,
   statusToggle,
 } from "../../services/admin/product.service.js";
+
 import {
   variantAdd,
   variantGetAll,
   variantGetByProductId,
   variantDeleteByProductId,
 } from "../../services/admin/variant.service.js";
+
 import { uploadImages } from "../../services/image.service.js";
+
 import {
   offerAdd,
   offerGetByProductId,
@@ -20,7 +26,203 @@ import {
   offerUpdate,
 } from "../../services/admin/offer.service.js";
 
+const parseJSON = (value, fallback) => {
+  if (value === undefined || value === null || value === "") {
+    return fallback;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    throw new Error("Invalid JSON submitted");
+  }
+};
+
+const validateProductFields = ({
+  name,
+  brand,
+  gender,
+  categoryId,
+  description,
+}) => {
+  if (!name?.trim()) throw new Error("Product name is required");
+  if (!brand?.trim()) throw new Error("Brand is required");
+  if (!description?.trim()) throw new Error("Description is required");
+
+  if (!["Men", "Women", "Unisex"].includes(gender)) {
+    throw new Error("Select a valid gender");
+  }
+
+  if (!mongoose.isValidObjectId(categoryId)) {
+    throw new Error("Select a valid category");
+  }
+};
+
+const validateOffer = (offer) => {
+  if (!offer?.isActive) return null;
+
+  const discountValue = Number(offer.discountValue);
+  const startDate = new Date(offer.startDate);
+  const endDate = new Date(offer.endDate);
+
+  if (!["percentage", "fixed"].includes(offer.discountType)) {
+    throw new Error("Invalid discount type");
+  }
+
+  if (
+    !Number.isFinite(discountValue) ||
+    discountValue <= 0 ||
+    (offer.discountType === "percentage" && discountValue > 100)
+  ) {
+    throw new Error("Invalid discount value");
+  }
+
+  if (
+    !offer.startDate ||
+    !offer.endDate ||
+    Number.isNaN(startDate.getTime()) ||
+    Number.isNaN(endDate.getTime()) ||
+    startDate >= endDate
+  ) {
+    throw new Error("Invalid offer dates");
+  }
+
+  return {
+    discountType: offer.discountType,
+    discountValue,
+    startDate,
+    endDate,
+    isActive: true,
+  };
+};
+
+const prepareVariants = async (variants, files = []) => {
+  if (!Array.isArray(variants) || variants.length === 0) {
+    throw new Error("At least one variant is required");
+  }
+
+  if (variants.length > 50) {
+    throw new Error("Maximum 50 variants allowed per product");
+  }
+
+  const allowedFields = new Set(
+    variants.map((_, index) => `variantImages_${index}`)
+  );
+
+  for (const file of files) {
+    if (!allowedFields.has(file.fieldname)) {
+      throw new Error(`Unexpected image field: ${file.fieldname}`);
+    }
+  }
+
+  const prepared = [];
+
+  for (let index = 0; index < variants.length; index++) {
+    const variant = variants[index];
+
+    const filesForVariant = files.filter(
+      (file) => file.fieldname === `variantImages_${index}`
+    );
+
+    if (filesForVariant.length > 3) {
+      throw new Error(
+        `Variant ${index + 1} can have at most 3 new images`
+      );
+    }
+
+    const existingImages = Array.isArray(variant.images)
+      ? variant.images
+      : [];
+
+    if (
+      existingImages.length > 3 ||
+      existingImages.some(
+        (image) =>
+          typeof image !== "string" ||
+          !/^https?:\/\//i.test(image)
+      )
+    ) {
+      throw new Error(`Invalid images for variant ${index + 1}`);
+    }
+
+    const newImages = filesForVariant.length
+      ? await uploadImages(filesForVariant)
+      : [];
+
+    const images = [...existingImages, ...newImages];
+
+    if (images.length > 3) {
+      throw new Error(
+        `Variant ${index + 1} can have at most 3 images in total`
+      );
+    }
+
+    const preparedVariant = {
+      size: String(variant.size || "").trim(),
+      strapMaterial: String(variant.strapMaterial || "").trim(),
+      caseMaterial: String(variant.caseMaterial || "").trim(),
+      dialColor: String(variant.dialColor || "").trim(),
+      strapColor: String(variant.strapColor || "").trim(),
+      price: Number(variant.price),
+      quantity: Number(variant.quantity),
+      images,
+    };
+
+    if (
+      !preparedVariant.size ||
+      !preparedVariant.strapMaterial ||
+      !preparedVariant.caseMaterial ||
+      !preparedVariant.dialColor ||
+      !preparedVariant.strapColor
+    ) {
+      throw new Error(
+        `Variant ${index + 1}: size, strap material, case material, dial color and strap color are required`
+      );
+    }
+
+    if (
+      !Number.isFinite(preparedVariant.price) ||
+      preparedVariant.price < 0
+    ) {
+      throw new Error(`Invalid price for variant ${index + 1}`);
+    }
+
+    if (
+      !Number.isInteger(preparedVariant.quantity) ||
+      preparedVariant.quantity < 0
+    ) {
+      throw new Error(`Invalid quantity for variant ${index + 1}`);
+    }
+
+    prepared.push(preparedVariant);
+  }
+
+  return prepared;
+};
+
+const saveOffer = async (productId, offer) => {
+  const validOffer = validateOffer(offer);
+
+  if (!validOffer) {
+    await offerDelete(productId);
+    return;
+  }
+
+  const existingOffer = await offerGetByProductId(productId);
+
+  if (existingOffer) {
+    await offerUpdate(productId, validOffer);
+  } else {
+    await offerAdd({
+      ...validOffer,
+      productId,
+    });
+  }
+};
+
 export const addProduct = async (req, res) => {
+  let createdProductId = null;
+
   try {
     const {
       name,
@@ -28,86 +230,105 @@ export const addProduct = async (req, res) => {
       gender,
       categoryId,
       description,
-      image,
-      variants,
-      offer,
     } = req.body;
-    //   console.log(name)
 
-    const imageUrls = await uploadImages(req.files);
-    console.log(imageUrls);
-    const productData = {
-      name: name,
-      brand: brand,
-      gender: gender,
-      categoryId: categoryId,
-      description: description,
-      images: imageUrls,
-    };
+    validateProductFields({
+      name,
+      brand,
+      gender,
+      categoryId,
+      description,
+    });
 
-    // console.log(req.files)
-    const product = await productAdd(productData);
+    const variants = parseJSON(req.body.variants, []);
+    const offer = parseJSON(req.body.offer, {
+      isActive: false,
+    });
 
-    const parsedVariants = JSON.parse(variants);
+    validateOffer(offer);
 
-    const variantData = parsedVariants.map((variant) => ({
-      ...variant,
+    const preparedVariants = await prepareVariants(
+      variants,
+      req.files || []
+    );
+
+    // The first variant supplies the default product images.
+    const product = await productAdd({
+      name: name.trim(),
+      brand: brand.trim(),
+      gender,
+      categoryId,
+      description: description.trim(),
+      images: preparedVariants[0].images,
+    });
+
+    createdProductId = product._id;
+
+    await variantAdd(
+      preparedVariants.map((variant) => ({
+        ...variant,
+        productId: product._id,
+      }))
+    );
+
+    if (offer.isActive) {
+      await saveOffer(product._id, offer);
+    }
+
+    return res.status(201).json({
+      message: "Product added successfully",
       productId: product._id,
-    }));
+    });
+  } catch (error) {
+    console.error("Add product error:", error);
 
-    const variant = await variantAdd(variantData);
-
-    if (offer) {
-      const parsedOffer = JSON.parse(offer);
-
-      if (parsedOffer.isActive) {
-        await offerAdd({
-          ...parsedOffer,
-          productId: product._id,
-        });
+    if (createdProductId) {
+      try {
+        await variantDeleteByProductId(createdProductId);
+        await offerDelete(createdProductId);
+        await ProductDelete(createdProductId);
+      } catch (rollbackError) {
+        console.error("Rollback error:", rollbackError);
       }
     }
 
-    res.status(201).json({
-      message: "product added succesfully",
-    });
-  } catch (err) {
-    console.log("product controller:", err);
-    res.status(400).json({
-      message: err.message,
+    return res.status(400).json({
+      message: error.message,
     });
   }
-
-  // console.log(req.body)
 };
 
 export const getAllProduct = async (req, res) => {
   try {
     const products = await productGetAll();
-    // console.log(products);
     const variants = await variantGetAll();
-    // console.log(variants)
 
     const response = products.map((product) => {
-      const productVariants = variants.filter((variant) => {
-        return variant.productId.toString() === product._id.toString();
-      });
+      const productVariants = variants.filter(
+        (variant) =>
+          variant.productId.toString() === product._id.toString()
+      );
 
-      const prices = productVariants.map((variant) => variant.price);
+      const activeVariants = productVariants.filter(
+        (variant) => variant.isActive
+      );
+
+      const prices = activeVariants.map((variant) => variant.price);
+
+      const stock = activeVariants.reduce(
+        (total, variant) => total + variant.quantity,
+        0
+      );
 
       const price =
         prices.length > 0
-          ? `${Math.min(...prices)} - ${Math.max(...prices)}`
+          ? `${Math.min(...prices).toLocaleString("en-IN")} - ${Math.max(
+              ...prices
+            ).toLocaleString("en-IN")}`
           : "N/A";
 
-      // console.log(prices)
-
-      const stock = productVariants.reduce((acc, curr) => {
-        return acc + curr.quantity;
-      }, 0);
-
       return {
-        id: product._id,
+        id: product._id.toString(),
         name: product.name,
         brand: product.brand,
         image: product.images?.[0] || "",
@@ -118,17 +339,15 @@ export const getAllProduct = async (req, res) => {
       };
     });
 
-    //response = {img,name,category,price(min-max),stock(qty),isactive}
-
-    // console.log(response)
-    res.status(200).json({
-      message: "getall users succesfull",
+    return res.status(200).json({
+      message: "Products fetched successfully",
       response,
     });
-  } catch (err) {
-    console.log(err);
-    res.status(404).json({
-      message: err.message,
+  } catch (error) {
+    console.error("Get all products error:", error);
+
+    return res.status(500).json({
+      message: error.message,
     });
   }
 };
@@ -137,24 +356,33 @@ export const getProduct = async (req, res) => {
   try {
     const { id } = req.params;
 
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        message: "Invalid product ID",
+      });
+    }
+
     const product = await productGet(id);
+
+    if (!product) {
+      return res.status(404).json({
+        message: "Product not found",
+      });
+    }
+
     const variants = await variantGetByProductId(id);
     const offer = await offerGetByProductId(id);
 
-    // console.log("product:"+product)
-    // console.log("variants:"+variants)
-    // console.log("offer:"+offer)
-
-    res.status(200).json({
+    return res.status(200).json({
       product,
       variants,
       offer,
     });
-  } catch (err) {
-    console.log("get product controller:", err);
+  } catch (error) {
+    console.error("Get product error:", error);
 
-    res.status(404).json({
-      message: err.message,
+    return res.status(500).json({
+      message: error.message,
     });
   }
 };
@@ -163,66 +391,77 @@ export const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
 
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        message: "Invalid product ID",
+      });
+    }
+
     const {
       name,
       brand,
       gender,
       categoryId,
       description,
-      variants,
-      offer,
-      existingImages,
     } = req.body;
 
-    // Parse JSON data from FormData
-    const parsedVariants = JSON.parse(variants || "[]");
-    const parsedOffer = JSON.parse(offer || "{}");
-    const parsedExistingImages = JSON.parse(existingImages || "[]");
-
-    let newImageUrls = [];
-
-    if (req.files && req.files.length > 0) {
-      newImageUrls = await uploadImages(req.files);
-    }
-
-    // Keep old images + add new images
-    const finalImages = [...parsedExistingImages, ...newImageUrls];
-
-    // Update product
-    await productUpdate(id, {
+    validateProductFields({
       name,
       brand,
       gender,
       categoryId,
       description,
-      images: finalImages,
     });
 
-    // Replace old variants
-    await variantDeleteByProductId(id);
+    const product = await productGet(id);
 
-    const variantData = parsedVariants.map((variant) => ({
-      ...variant,
-      productId: id,
-    }));
-
-    await variantAdd(variantData);
-
-    // Update / create / delete offer
-    if (parsedOffer.isActive) {
-      await offerUpdate(id, parsedOffer);
-    } else {
-      await offerDelete(id);
+    if (!product) {
+      return res.status(404).json({
+        message: "Product not found",
+      });
     }
 
-    res.status(200).json({
+    const variants = parseJSON(req.body.variants, []);
+    const offer = parseJSON(req.body.offer, {
+      isActive: false,
+    });
+
+    validateOffer(offer);
+
+    const preparedVariants = await prepareVariants(
+      variants,
+      req.files || []
+    );
+
+    await productUpdate(id, {
+      name: name.trim(),
+      brand: brand.trim(),
+      gender,
+      categoryId,
+      description: description.trim(),
+      images: preparedVariants[0].images,
+    });
+
+    // Retains your existing variant replacement strategy.
+    await variantDeleteByProductId(id);
+
+    await variantAdd(
+      preparedVariants.map((variant) => ({
+        ...variant,
+        productId: id,
+      }))
+    );
+
+    await saveOffer(id, offer);
+
+    return res.status(200).json({
       message: "Product updated successfully",
     });
-  } catch (err) {
-    console.log("Update Product Error:", err);
+  } catch (error) {
+    console.error("Update product error:", error);
 
-    res.status(400).json({
-      message: err.message,
+    return res.status(400).json({
+      message: error.message,
     });
   }
 };
@@ -230,35 +469,58 @@ export const updateProduct = async (req, res) => {
 export const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    await ProductDelete(id);
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        message: "Invalid product ID",
+      });
+    }
+
+    const product = await productGet(id);
+
+    if (!product) {
+      return res.status(404).json({
+        message: "Product not found",
+      });
+    }
+
     await variantDeleteByProductId(id);
     await offerDelete(id);
+    await ProductDelete(id);
 
-    res.status(200).json({
-      message: "product deleted succesfully",
+    return res.status(200).json({
+      message: "Product deleted successfully",
     });
-  } catch (err) {
-    res.status(404).json({
-      message: err.message,
+  } catch (error) {
+    console.error("Delete product error:", error);
+
+    return res.status(500).json({
+      message: error.message,
     });
   }
 };
 
 export const toggleStatus = async (req, res) => {
   try {
-    const id = req.params.id;
+    const { id } = req.params;
 
-    // console.log("ID:", id);
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        message: "Invalid product ID",
+      });
+    }
 
-    const status = await statusToggle(id);
+    const product = await statusToggle(id);
 
-    res.status(200).json({
-      message: "isActive toggled successfully",
-      product: status,
+    return res.status(200).json({
+      message: "Product status updated successfully",
+      product,
     });
-  } catch (err) {
-    res.status(400).json({
-      message: err.message,
+  } catch (error) {
+    console.error("Toggle product status error:", error);
+
+    return res.status(400).json({
+      message: error.message,
     });
   }
 };

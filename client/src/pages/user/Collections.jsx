@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState,useMemo } from "react";
 import CollectionFilters from "../../components/user/collections/CollectionFilters";
 import CollectionToolbar from "../../components/user/collections/CollectionToolbar";
 import ProductGrid from "../../components/user/collections/ProductGrid";
 import Pagination from "../../components/user/collections/Pagination";
 import Navbar from "../../components/layout/Navbar";
-import toast from "react-hot-toast"
-import axios from "axios"
+import toast from "react-hot-toast";
+import axios from "axios";
 
 const Collections = () => {
   const [products, setProducts] = useState([]);
@@ -16,7 +16,7 @@ const Collections = () => {
 
   const [filters, setFilters] = useState({
     brands: [],
-    priceRange: [0, 100000],
+    priceRange: [0, 10000000],
     dialShade: [],
     movementType: [],
     strapMaterial: [],
@@ -24,261 +24,83 @@ const Collections = () => {
 
   const [sortBy, setSortBy] = useState("featured");
 
-  
   useEffect(() => {
-    const dummyProducts = [
-      {
-        id: 1,
-        name: "Titan Karishma Quartz Analog",
-        brand: "Titan",
-        price: 3445,
-        oldPrice: 3995,
-        image:
-          "https://images.unsplash.com/photo-1524805444758-089113d48a6d",
-        badge: "BESTSELLER",
-        rating: 4.5,
-        reviews: 120,
-      },
-      {
-        id: 2,
-        name: "Titan Edge Slimline Champagne",
-        brand: "Titan",
-        price: 14995,
-        oldPrice: 16995,
-        image:
-          "https://images.unsplash.com/photo-1523275335684-37898b6baf30",
-        badge: "NEW ARRIVAL",
-        rating: 4.7,
-        reviews: 89,
-      },
-      {
-        id: 3,
-        name: "Titan Minimalist Obsidian Black",
-        brand: "Titan",
-        price: 4495,
-        oldPrice: 5295,
-        image:
-          "https://images.unsplash.com/photo-1523170335258-f5ed11844a49",
-        badge: "BESTSELLER",
-        rating: 4.5,
-        reviews: 98,
-      },
-      {
-        id: 4,
-        name: "Titan Karishma Black & Rose",
-        brand: "Titan",
-        price: 4495,
-        oldPrice: 4995,
-        image:
-          "https://images.unsplash.com/photo-1524805444758-089113d48a6d",
-        badge: "TRENDING",
-        rating: 4.6,
-        reviews: 73,
-      },
-      {
-        id: 5,
-        name: "Titan Grand Regalia",
-        brand: "Titan",
-        price: 24495,
-        oldPrice: 28995,
-        image:
-          "https://images.unsplash.com/photo-1539874754764-5a96559165b0",
-        badge: "PREMIUM AUTOMATIC",
-        rating: 4.8,
-        reviews: 56, 
-      },
-      {
-        id: 6,
-        name: "Titan Octane Chrono Mesh",
-        brand: "Titan",
-        price: 18995,
-        oldPrice: 21995,
-        image:
-          "https://images.unsplash.com/photo-1508057198894-247b23fe5ade",
-        badge: "LIMITED EDITION",
-        rating: 4.7,
-        reviews: 64,
-      },
-      {
-        id: 7,
-        name: "Titan Automatic Skeleton",
-        brand: "Titan",
-        price: 42995,
-        oldPrice: 48995,
-        image:
-          "https://images.unsplash.com/photo-1523170335258-f5ed11844a49",
-        badge: "HAUTE HORLOGERIE",
-        rating: 4.9,
-        reviews: 42,
-      },
-      {
-        id: 8,
-        name: "Titan Ceramic Precision Dual",
-        brand: "Titan",
-        price: 29995,
-        oldPrice: 34995,
-        image:
-          "https://images.unsplash.com/photo-1524805444758-089113d48a6d",
-        badge: "CERAMIC DIAL",
-        rating: 4.6,
-        reviews: 31,
-      },
-      {
-        id: 9,
-        name: "Titan Regalia Sovereign Gold",
-        brand: "Titan",
-        price: 11495,
-        oldPrice: 13995,
-        image:
-          "https://images.unsplash.com/photo-1547996160-81dfa63595aa",
-        badge: "ROYAL GOLD",
-        rating: 4.8,
-        reviews: 27,
-      },
-      {
-        id: 1,
-        name: "Titan Karishma Quartz Analog",
-        brand: "Titan",
-        price: 3445,
-        oldPrice: 3995,
-        image:
-          "https://images.unsplash.com/photo-1524805444758-089113d48a6d",
-        badge: "BESTSELLER",
-        rating: 4.5,
-        reviews: 120,
-      },
-      {
-        id: 2,
-        name: "Titan Edge Slimline Champagne",
-        brand: "Titan",
-        price: 14995,
-        oldPrice: 16995,
-        image:
-          "https://images.unsplash.com/photo-1523275335684-37898b6baf30",
-        badge: "NEW ARRIVAL",
-        rating: 4.7,
-        reviews: 89,
-      },
-      {
-        id: 3,
-        name: "Titan Minimalist Obsidian Black",
-        brand: "Titan",
-        price: 4495,
-        oldPrice: 5295,
-        image:
-          "https://images.unsplash.com/photo-1523170335258-f5ed11844a49",
-        badge: "BESTSELLER",
-        rating: 4.5,
-        reviews: 98,
-      },
-      {
-        id: 4,
-        name: "Titan Karishma Black & Rose",
-        brand: "Titan",
-        price: 4495,
-        oldPrice: 4995,
-        image:
-          "https://images.unsplash.com/photo-1524805444758-089113d48a6d",
-        badge: "TRENDING",
-        rating: 4.6,
-        reviews: 73,
-      },
-      {
-        id: 5,
-        name: "Titan Grand Regalia",
-        brand: "Titan",
-        price: 24495,
-        oldPrice: 28995,
-        image:
-          "https://images.unsplash.com/photo-1539874754764-5a96559165b0",
-        badge: "PREMIUM AUTOMATIC",
-        rating: 4.8,
-        reviews: 56,
-      },
-      {
-        id: 6,
-        name: "Titan Octane Chrono Mesh",
-        brand: "Titan",
-        price: 18995,
-        oldPrice: 21995,
-        image:
-          "https://images.unsplash.com/photo-1508057198894-247b23fe5ade",
-        badge: "LIMITED EDITION",
-        rating: 4.7,
-        reviews: 64,
-      },
-      {
-        id: 7,
-        name: "Titan Automatic Skeleton",
-        brand: "Titan",
-        price: 42995,
-        oldPrice: 48995,
-        image:
-          "https://images.unsplash.com/photo-1523170335258-f5ed11844a49",
-        badge: "HAUTE HORLOGERIE",
-        rating: 4.9,
-        reviews: 42,
-      },
-      {
-        id: 8,
-        name: "Titan Ceramic Precision Dual",
-        brand: "Titan",
-        price: 29995,
-        oldPrice: 34995,
-        image:
-          "https://images.unsplash.com/photo-1524805444758-089113d48a6d",
-        badge: "CERAMIC DIAL",
-        rating: 4.6,
-        reviews: 31,
-      },
-      {
-        id: 9,
-        name: "Titan Regalia Sovereign Gold",
-        brand: "Titan",
-        price: 11495,
-        oldPrice: 13995,
-        image:
-          "https://images.unsplash.com/photo-1547996160-81dfa63595aa",
-        badge: "ROYAL GOLD",
-        rating: 4.8,
-        reviews: 27,
-      },
-    ];
-
-    setProducts(dummyProducts);
-  }, []);
-
-
-  useEffect(()=>{
-
     async function fetchProducts() {
-      try{
-        
+      try {
         const response = await axios.get(
-          "http://localhost:3000/api/user/profile",
-        {
-          withCredentials:true
-        })
+          "http://localhost:3000/api/user/products",
+          {
+            withCredentials: true,
+          },
+        );
 
-        console.log(response)
+        // console.log(response)
 
-      }catch(err){
-        console.log(err)
-        toast.error("something went wrong")
-        
+        setProducts(response.data.products);
+      } catch (err) {
+        console.log(err);
+        toast.error("something went wrong");
       }
     }
-   fetchProducts()
-  },[])
-  
+    fetchProducts();
+  }, []);
 
-  const totalPages = Math.ceil(products.length / productsPerPage);
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      // Brand filter
+      
+      if (
+        filters.brands.length > 0 &&
+        !filters.brands.some(
+          (brand) =>
+            brand.toLowerCase() === (product.brand || "").toLowerCase(),
+        )
+      ) {
+        return false;
+      }
+
+      // Dial color filter
+      if (
+        filters.dialShade.length > 0 &&
+        !filters.dialShade.some(
+          (shade) =>
+            shade.toLowerCase() === (product.dialColor || "").toLowerCase(),
+        )
+      ) {
+        return false;
+      }
+
+      // Strap material filter
+      if (
+        filters.strapMaterial.length > 0 &&
+        !filters.strapMaterial.some(
+          (material) =>
+            material.toLowerCase() ===
+            (product.strapMaterial || "").toLowerCase(),
+        )
+      ) {
+        return false;
+      }
+
+      // Price filter
+      const price = Number(product.price ?? 0);
+      const [minPrice, maxPrice] = filters.priceRange;
+
+      if (price < minPrice || price > maxPrice) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [products, filters]);
+
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
 
   const startIndex = (currentPage - 1) * productsPerPage;
 
-  const currentProducts = products.slice(
+  const currentProducts = filteredProducts.slice(
     startIndex,
-    startIndex + productsPerPage
+    startIndex + productsPerPage,
   );
 
   const handlePageChange = (page) => {
@@ -304,19 +126,18 @@ const Collections = () => {
     setCurrentPage(1);
   };
 
+
   return (
     <div className="min-h-screen bg-[#f8f8f6]">
-
       {/* Page Header */}
 
       <div className="border-b border-gray-200 sticky top-0 z-100 bg-white">
-        <Navbar/>
+        <Navbar />
       </div>
 
       {/* Main Collection */}
 
       <div className="mx-auto flex max-w-[1400px] gap-6 px-6 py-8">
-
         {/* Filters */}
 
         <CollectionFilters
@@ -327,12 +148,11 @@ const Collections = () => {
         {/* Products Section */}
 
         <main className="min-w-0 flex-1">
-
           <CollectionToolbar
-            productCount={products.length}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
-          />
+  productCount={filteredProducts.length}
+  sortBy={sortBy}
+  setSortBy={setSortBy}
+/>
 
           <ProductGrid products={currentProducts} />
 
@@ -341,7 +161,6 @@ const Collections = () => {
             totalPages={totalPages}
             onPageChange={handlePageChange}
           />
-
         </main>
       </div>
     </div>

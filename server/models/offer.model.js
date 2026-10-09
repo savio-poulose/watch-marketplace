@@ -14,11 +14,17 @@ const offerSchema = new mongoose.Schema(
       enum: ["percentage", "fixed"],
       required: true,
     },
- 
+
     discountValue: {
       type: Number,
       required: true,
       min: 0,
+      validate: {
+        validator: function (value) {
+          return this.discountType !== "percentage" || value <= 100;
+        },
+        message: "Percentage discount cannot exceed 100%",
+      },
     },
 
     startDate: {
@@ -29,6 +35,12 @@ const offerSchema = new mongoose.Schema(
     endDate: {
       type: Date,
       required: true,
+      validate: {
+        validator: function (value) {
+          return value > this.startDate;
+        },
+        message: "End date must be after start date",
+      },
     },
 
     isActive: {
@@ -38,7 +50,7 @@ const offerSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const Offer = mongoose.model("Offer", offerSchema);

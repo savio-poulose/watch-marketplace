@@ -15,6 +15,7 @@ import VerifyResetOTP from "./pages/user/VerifyResetOTP.jsx";
 import ResetPassword from "./pages/user/ResetPassword.jsx";
 import AdminUserManage from "./pages/admin/AdminUserManage.jsx";
 import Collections from "./pages/user/Collections.jsx";
+import ProductDetails from "./pages/user/ProductDetails.jsx";
 
 import ProtectedRoute from "./components/user/ProtectedRoute.jsx";
 import GuestRoute from "./components/user/GuestRoute.jsx"
@@ -85,6 +86,7 @@ function App() {
               path="/user/collections"
               element={<Collections />}
             />
+             <Route path="/products/:id" element={<ProductDetails />} />
           </Route>
 
 

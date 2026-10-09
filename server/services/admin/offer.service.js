@@ -16,10 +16,7 @@ export const offerUpdate = async (productId, data) => {
   const offer = await Offer.findOneAndUpdate(
     { productId },
     data,
-    {
-      new: true,
-      runValidators: true,
-    }
+    { returnDocument: "after" }
   );
 
   return offer;

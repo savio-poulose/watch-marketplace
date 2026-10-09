@@ -1,3 +1,4 @@
+
 import mongoose from "mongoose";
 
 const variantSchema = new mongoose.Schema(
@@ -14,13 +15,25 @@ const variantSchema = new mongoose.Schema(
       trim: true,
     },
 
-    material: {
+    strapMaterial: {
       type: String,
       required: true,
       trim: true,
     },
 
-    color: {
+    caseMaterial: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    dialColor: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    strapColor: {
       type: String,
       required: true,
       trim: true,
@@ -36,6 +49,19 @@ const variantSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 0,
+      validate: {
+        validator: Number.isInteger,
+        message: "Quantity must be a whole number",
+      },
+    },
+
+    images: {
+      type: [{ type: String }],
+      default: [],
+      validate: {
+        validator: (images) => images.length <= 3,
+        message: "A variant can have a maximum of 3 images",
+      },
     },
 
     isActive: {
