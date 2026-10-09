@@ -1,7 +1,7 @@
 const Pagination = ({
   currentPage,
   totalPages,
-  onPageChange,
+  onPageChange, 
 }) => {
   if (totalPages <= 1) {
     return null;
@@ -38,7 +38,7 @@ const Pagination = ({
           onClick={() => onPageChange(page)}
           className={`flex h-9 min-w-9 items-center justify-center border px-3 text-xs ${
             currentPage === page
-              ? "border-black bg-black text-white"
+              ? "border-black bg-[#111827] text-white"
               : "border-gray-200 bg-white text-gray-700 hover:border-black"
           }`}
         >

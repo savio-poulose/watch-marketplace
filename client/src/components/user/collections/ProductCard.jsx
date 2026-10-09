@@ -8,19 +8,13 @@ const ProductCard = ({ product }) => {
     : 0;
 
   return (
-    <div className="group overflow-hidden border border-gray-200 bg-white">
+    <div className="group overflow-hidden cursor-pointer border border-gray-200 bg-white">
 
       {/* Image */}
 
       <div className="relative aspect-square overflow-hidden bg-[#f3f2ee]">
 
-        {/* Badge */}
-
-        {product.badge && (
-          <span className="absolute left-3 top-3 z-10 bg-black px-2 py-1 text-[8px] font-semibold uppercase tracking-wider text-white">
-            {product.badge}
-          </span>
-        )}
+        
 
         {/* Wishlist */}
 
@@ -100,7 +94,7 @@ const ProductCard = ({ product }) => {
         {/* Add to cart */}
 
         <button
-          className="mt-4 w-full bg-black py-3 text-[9px] font-semibold uppercase tracking-widest text-white transition hover:bg-[#9A7B3F]"
+          className="mt-4 w-full bg-[#111827] py-3 cursor-pointer text-[9px] font-semibold uppercase tracking-widest text-white transition hover:bg-[#9A7B3F]"
         >
           Add to Bag
         </button>

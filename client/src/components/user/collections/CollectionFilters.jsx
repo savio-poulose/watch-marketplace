@@ -114,7 +114,7 @@ const CollectionFilters = ({ filters, onFilterChange }) => {
                   [0, Number(e.target.value)]
                 )
               }
-              className="w-full accent-[#9A7B3F]"
+              className="w-full accent-[#111827]"
             />
 
             <div className="mt-3 text-xs font-medium text-gray-700">

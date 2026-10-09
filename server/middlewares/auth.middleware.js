@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 export const authMiddleware = async (req, res, next) => {
   try {
 
-    console.log("COOKIES:", req.cookies);
+    // console.log("COOKIES:", req.cookies);
     const token = req.cookies.accessToken;
 
     if (!token) {
@@ -18,7 +18,7 @@ export const authMiddleware = async (req, res, next) => {
       process.env.SECRET_KEY
     );
 
-    console.log("verifyToken:"+verifyToken)
+    // console.log("verifyToken:"+verifyToken)
 
     req.user = verifyToken;
 

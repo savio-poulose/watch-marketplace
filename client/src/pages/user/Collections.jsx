@@ -4,6 +4,8 @@ import CollectionToolbar from "../../components/user/collections/CollectionToolb
 import ProductGrid from "../../components/user/collections/ProductGrid";
 import Pagination from "../../components/user/collections/Pagination";
 import Navbar from "../../components/layout/Navbar";
+import toast from "react-hot-toast"
+import axios from "axios"
 
 const Collections = () => {
   const [products, setProducts] = useState([]);
@@ -83,7 +85,7 @@ const Collections = () => {
           "https://images.unsplash.com/photo-1539874754764-5a96559165b0",
         badge: "PREMIUM AUTOMATIC",
         rating: 4.8,
-        reviews: 56,
+        reviews: 56, 
       },
       {
         id: 6,
@@ -246,6 +248,28 @@ const Collections = () => {
     setProducts(dummyProducts);
   }, []);
 
+
+  useEffect(()=>{
+
+    async function fetchProducts() {
+      try{
+        
+        const response = await axios.get(
+          "http://localhost:3000/api/user/profile",
+        {
+          withCredentials:true
+        })
+
+        console.log(response)
+
+      }catch(err){
+        console.log(err)
+        toast.error("something went wrong")
+        
+      }
+    }
+   fetchProducts()
+  },[])
   
 
   const totalPages = Math.ceil(products.length / productsPerPage);
