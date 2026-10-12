@@ -60,7 +60,7 @@ const Navbar = () => {
 
           {/* CART */}
           <div className="relative cursor-pointer text-center">
-            <Link to="/cart">
+            <Link to="/user/cart">
               <HiOutlineShoppingBag className="h-5 w-5" />
             </Link>
           </div>

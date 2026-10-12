@@ -16,6 +16,7 @@ import ResetPassword from "./pages/user/ResetPassword.jsx";
 import AdminUserManage from "./pages/admin/AdminUserManage.jsx";
 import Collections from "./pages/user/Collections.jsx";
 import ProductDetails from "./pages/user/ProductDetails.jsx";
+import Cart from "./pages/user/Cart.jsx";
 
 import ProtectedRoute from "./components/user/ProtectedRoute.jsx";
 import GuestRoute from "./components/user/GuestRoute.jsx"
@@ -87,6 +88,7 @@ function App() {
               element={<Collections />}
             />
              <Route path="/products/:id" element={<ProductDetails />} />
+             <Route path="/user/cart" element={<Cart />} />
           </Route>
 
 
