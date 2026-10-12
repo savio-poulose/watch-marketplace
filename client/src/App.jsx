@@ -17,11 +17,14 @@ import AdminUserManage from "./pages/admin/AdminUserManage.jsx";
 import Collections from "./pages/user/Collections.jsx";
 import ProductDetails from "./pages/user/ProductDetails.jsx";
 import Cart from "./pages/user/Cart.jsx";
+import AddAddress from "./pages/user/AddAddress.jsx";
+import EditAddress from "./pages/user/EditAddress.jsx";
+import Checkout from "./pages/user/Checkout.jsx";
 
 import ProtectedRoute from "./components/user/ProtectedRoute.jsx";
-import GuestRoute from "./components/user/GuestRoute.jsx"
+import GuestRoute from "./components/user/GuestRoute.jsx";
 import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute.jsx";
-import GuestAdminRoute from "./components/admin/GuestAdminRoute.jsx"
+import GuestAdminRoute from "./components/admin/GuestAdminRoute.jsx";
 
 function App() {
   return (
@@ -52,7 +55,6 @@ function App() {
 
       <BrowserRouter>
         <Routes>
-
           {/* Guest Routes */}
           <Route element={<GuestRoute />}>
             <Route path="/user/register" element={<Register />} />
@@ -60,59 +62,32 @@ function App() {
           </Route>
 
           <Route element={<GuestAdminRoute />}>
-  <Route path="/admin/login" element={<AdminLogin />} />
-</Route>
+            <Route path="/admin/login" element={<AdminLogin />} />
+          </Route>
 
           {/* User Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/user/dashboard" element={<Home />} />
             <Route path="/user/profile" element={<Profile />} />
-            <Route
-              path="/user/change-password"
-              element={<ChangePassword />}
-            />
-            <Route
-              path="/user/forget-password"
-              element={<ForgetPassword />}
-            />
-            <Route
-              path="/user/verify-reset-otp"
-              element={<VerifyResetOTP />}
-            />
-            <Route
-              path="/user/reset-password"
-              element={<ResetPassword />}
-            />
-            <Route
-              path="/user/collections"
-              element={<Collections />}
-            />
-             <Route path="/products/:id" element={<ProductDetails />} />
-             <Route path="/user/cart" element={<Cart />} />
+            <Route path="/user/change-password" element={<ChangePassword />} />
+            <Route path="/user/forget-password" element={<ForgetPassword />} />
+            <Route path="/user/verify-reset-otp" element={<VerifyResetOTP />} />
+            <Route path="/user/reset-password" element={<ResetPassword />} />
+            <Route path="/user/collections" element={<Collections />} />
+            <Route path="/products/:id" element={<ProductDetails />} />
+            <Route path="/user/cart" element={<Cart />} />
+            <Route path="/user/address/add" element={<AddAddress />} />
+            <Route path="/user/address/edit/:addressId" element={<EditAddress />} />
+            <Route path="/user/checkout" element={<Checkout />} />
           </Route>
-
-
 
           {/* Admin Protected Routes */}
           <Route element={<ProtectedAdminRoute />}>
-            <Route
-              path="/admin/dashboard"
-              element={<AdminDashboard />}
-            />
-            <Route
-              path="/admin/product"
-              element={<AdminProduct />}
-            />
-            <Route
-              path="/admin/categories"
-              element={<AdminCategory />}
-            />
-            <Route
-              path="/admin/users"
-              element={<AdminUserManage />}
-            />
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/product" element={<AdminProduct />} />
+            <Route path="/admin/categories" element={<AdminCategory />} />
+            <Route path="/admin/users" element={<AdminUserManage />} />
           </Route>
-
         </Routes>
       </BrowserRouter>
     </>
