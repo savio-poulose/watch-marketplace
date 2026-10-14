@@ -1,15 +1,32 @@
-import User from "../../models/user.model.js"
-import bcrypt from "bcrypt"
-import jwt from "jsonwebtoken"
+import User from "../../models/user.model.js";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 export const loginAdmin = async (email, password) => {
-  const admin = await User.findOne({ email });
-
-  if (!admin || !(await bcrypt.compare(password, admin.password))) {
+  if (
+    typeof email !== "string" ||
+    typeof password !== "string" ||
+    !email.trim() ||
+    !password
+  ) {
     return null;
   }
 
-  if (admin.role !== "admin") {
+  const admin = await User.findOne({
+    email: email.trim().toLowerCase(),
+    role: "admin",
+  }).select("+password");
+
+  if (!admin || typeof admin.password !== "string" || !admin.password) {
+    return null;
+  }
+
+  const isPasswordValid = await bcrypt.compare(
+    password,
+    admin.password
+  );
+
+  if (!isPasswordValid) {
     return null;
   }
 
@@ -19,13 +36,9 @@ export const loginAdmin = async (email, password) => {
     role: admin.role,
   };
 
-  const token = jwt.sign(
-    payload,
-    process.env.SECRET_KEY,
-    {
-      expiresIn: "1d",
-    }
-  );
+  const token = jwt.sign(payload, process.env.SECRET_KEY, {
+    expiresIn: "1d",
+  });
 
   return token;
 };

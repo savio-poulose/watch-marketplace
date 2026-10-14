@@ -22,6 +22,7 @@ import EditAddress from "./pages/user/EditAddress.jsx";
 import Checkout from "./pages/user/Checkout.jsx";
 import MyOrders from "./pages/user/MyOrders.jsx";
 import OrderDetails from "./pages/user/OrderDetails.jsx"
+import AdminOrder from "./pages/admin/AdminOrder.jsx";
 
 import ProtectedRoute from "./components/user/ProtectedRoute.jsx";
 import GuestRoute from "./components/user/GuestRoute.jsx";
@@ -93,6 +94,7 @@ function App() {
             <Route path="/admin/product" element={<AdminProduct />} />
             <Route path="/admin/categories" element={<AdminCategory />} />
             <Route path="/admin/users" element={<AdminUserManage />} />
+            <Route path="/admin/orders" element={<AdminOrder />} />
           </Route>
         </Routes>
       </BrowserRouter>

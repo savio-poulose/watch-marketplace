@@ -1,12 +1,22 @@
-
 import mongoose from "mongoose";
-import Order from "../../models/order.module.js"
+import Order from "../../models/order.module.js";
 
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);
   error.statusCode = statusCode;
   return error;
 };
+
+const ORDER_STATUSES = [
+  "PLACED",
+  "CONFIRMED",
+  "PROCESSING",
+  "SHIPPED",
+  "DELIVERED",
+  "CANCELLED",
+  "RETURN_REQUESTED",
+  "RETURNED",
+];
 
 const allowedTransitions = {
   PLACED: ["CONFIRMED", "CANCELLED"],
@@ -23,14 +33,14 @@ export const getAllOrdersService = async ({
   page = 1,
   limit = 10,
   status,
-}) => {
+} = {}) => {
   page = Math.max(1, Number(page) || 1);
   limit = Math.min(50, Math.max(1, Number(limit) || 10));
 
   const filter = {};
 
   if (status) {
-    if (!allowedTransitions[status] && status !== "CANCELLED") {
+    if (!ORDER_STATUSES.includes(status)) {
       throw createError("Invalid order status.", 400);
     }
 
@@ -44,6 +54,7 @@ export const getAllOrdersService = async ({
       .skip((page - 1) * limit)
       .limit(limit)
       .lean(),
+
     Order.countDocuments(filter),
   ]);
 
@@ -79,7 +90,7 @@ export const updateOrderStatusService = async (orderId, nextStatus) => {
     throw createError("Invalid order ID.", 400);
   }
 
-  if (!Object.hasOwn(allowedTransitions, nextStatus)) {
+  if (!ORDER_STATUSES.includes(nextStatus)) {
     throw createError("Invalid order status.", 400);
   }
 
@@ -89,14 +100,13 @@ export const updateOrderStatusService = async (orderId, nextStatus) => {
     throw createError("Order not found.", 404);
   }
 
-  if (!allowedTransitions[order.orderStatus].includes(nextStatus)) {
+  if (!allowedTransitions[order.orderStatus]?.includes(nextStatus)) {
     throw createError(
       `Cannot move order from ${order.orderStatus} to ${nextStatus}.`,
       400
     );
   }
 
-  // Admin cancellation must restore stock exactly once.
   if (nextStatus === "CANCELLED") {
     if (order.paymentStatus === "PAID") {
       throw createError(
@@ -119,17 +129,27 @@ export const updateOrderStatusService = async (orderId, nextStatus) => {
           throw createError("Order was updated concurrently.", 409);
         }
 
+        const Variant = mongoose.model("Variant");
+
         for (const item of latest.items) {
-          await mongoose.model("Variant").updateOne(
+          const result = await Variant.updateOne(
             { _id: item.variantId },
-            { $inc: { stock: item.quantity } },
+            { $inc: { quantity: item.quantity } },
             { session }
           );
+
+          if (result.matchedCount !== 1) {
+            throw createError(
+              "A product variant was not found. Cancellation rolled back.",
+              409
+            );
+          }
         }
 
         latest.orderStatus = "CANCELLED";
         latest.cancelledAt = new Date();
         latest.cancellationReason = "Cancelled by admin";
+
         await latest.save({ session });
       });
     } finally {

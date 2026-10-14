@@ -13,7 +13,7 @@ const createError = (message, statusCode = 400) => {
 const money = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
 
 const generateOrderNumber = () =>
-  `HOR-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+  `OCE-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
 const getOwnedAddress = async (addressId, userId) => {
   if (!mongoose.isValidObjectId(addressId)) {
