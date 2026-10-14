@@ -324,7 +324,7 @@ const Cart = () => {
             )}
 
             <Link
-              to="/collections"
+              to="/user/collections"
               className="inline-flex items-center gap-3 rounded-md bg-[#9A7B3F] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#806532]"
             >
               Explore Collection

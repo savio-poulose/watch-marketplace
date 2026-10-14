@@ -1,4 +1,3 @@
-
 import mongoose from "mongoose";
 import Order from "../../models/order.module.js";
 import Cart from "../../models/cart.module.js";
@@ -31,9 +30,9 @@ const getOwnedAddress = async (addressId, userId) => {
   }
 
   return {
-    name: address.name,
+    name: address.fullName || address.name,
     phone: address.phone,
-    addressLine: address.addressLine,
+    addressLine: address.addressLine1 || address.addressLine,
     city: address.city,
     state: address.state,
     pincode: String(address.pincode),
@@ -85,7 +84,7 @@ export const createOrderService = async (userId, payload) => {
       }).session(session);
 
       const variantMap = new Map(
-        variants.map((variant) => [String(variant._id), variant])
+        variants.map((variant) => [String(variant._id), variant]),
       );
 
       const orderItems = [];
@@ -98,7 +97,7 @@ export const createOrderService = async (userId, payload) => {
         if (!variant) {
           throw createError(
             "A product in your cart is no longer available.",
-            400
+            400,
           );
         }
 
@@ -114,20 +113,23 @@ export const createOrderService = async (userId, payload) => {
           {
             _id: variant._id,
             isActive: true,
-            stock: { $gte: quantity },
+            quantity: { $gte: quantity },
           },
-          { $inc: { stock: -quantity } },
-          { session }
+          {
+            $inc: { quantity: -quantity },
+          },
+          { session },
         );
 
         if (stockUpdate.modifiedCount !== 1) {
           throw createError(
-            `Insufficient stock for ${variant.sku}.`,
-            409
+            `Insufficient stock for variant ${variant._id}. Requested: ${quantity}.`,
+            409,
           );
         }
 
-        const product = await mongoose.model("Product")
+        const product = await mongoose
+          .model("Product")
           .findById(variant.productId)
           .session(session)
           .lean();
@@ -142,17 +144,26 @@ export const createOrderService = async (userId, payload) => {
         // Offer pricing must be integrated into getCurrentUnitPrice.
         const lineSubtotal = money(unitPrice * quantity);
         const lineOfferDiscount = money(
-          Math.max(0, originalPrice - unitPrice) * quantity
+          Math.max(0, originalPrice - unitPrice) * quantity,
         );
 
         subtotal += money(originalPrice * quantity);
         offerDiscount += lineOfferDiscount;
 
+        const sku = variant.sku || `HOR-${variant._id}`;
+
+        console.log("Variant data:", {
+          variantId: String(variant._id),
+          sku: variant.sku,
+          productId: String(variant.productId),
+          productName: product.name,
+        });
+
         orderItems.push({
           productId: product._id,
           variantId: variant._id,
           productName: product.name,
-          variantSku: variant.sku,
+          variantSku: sku,
           image: variant.images?.[0] || product.images?.[0] || "",
           quantity,
           originalPrice,
@@ -170,14 +181,14 @@ export const createOrderService = async (userId, payload) => {
       if (couponCode) {
         throw createError(
           "Coupon checkout integration is not configured yet.",
-          501
+          501,
         );
       }
 
       const couponDiscount = 0;
       const shippingCharge = 0;
       const totalAmount = money(
-        subtotal - offerDiscount - couponDiscount + shippingCharge
+        subtotal - offerDiscount - couponDiscount + shippingCharge,
       );
 
       const [order] = await Order.create(
@@ -198,7 +209,7 @@ export const createOrderService = async (userId, payload) => {
             orderStatus: "PLACED",
           },
         ],
-        { session }
+        { session },
       );
 
       const cartDelete = await Cart.deleteOne({ userId }, { session });
@@ -217,10 +228,7 @@ export const createOrderService = async (userId, payload) => {
 };
 
 export const getMyOrdersService = async (userId) => {
-  return Order.find({ userId })
-    .sort({ createdAt: -1 })
-    .select("-__v")
-    .lean();
+  return Order.find({ userId }).sort({ createdAt: -1 }).select("-__v").lean();
 };
 
 export const getMyOrderByIdService = async (userId, orderId) => {
@@ -240,11 +248,7 @@ export const getMyOrderByIdService = async (userId, orderId) => {
   return order;
 };
 
-export const cancelMyOrderService = async (
-  userId,
-  orderId,
-  reason = ""
-) => {
+export const cancelMyOrderService = async (userId, orderId, reason = "") => {
   if (!mongoose.isValidObjectId(orderId)) {
     throw createError("Invalid order ID.", 400);
   }
@@ -266,7 +270,7 @@ export const cancelMyOrderService = async (
   if (order.paymentStatus === "PAID") {
     throw createError(
       "A paid order needs the refund workflow before cancellation.",
-      400
+      400,
     );
   }
 
@@ -288,8 +292,8 @@ export const cancelMyOrderService = async (
       for (const item of latestOrder.items) {
         await Variant.updateOne(
           { _id: item.variantId },
-          { $inc: { stock: item.quantity } },
-          { session }
+          { $inc: { quantity: item.quantity } },
+          { session },
         );
       }
 

@@ -16,7 +16,7 @@ const formatPrice = (amount) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(Number(amount) || 0);
 
 const getId = (value) => {
@@ -30,8 +30,7 @@ const getCartItems = (data) => {
     data?.cart?.items ??
     data?.cartItems ??
     data?.items ??
-    data?.cart ??
-    [];
+    (Array.isArray(data?.cart) ? data.cart : []);
 
   return Array.isArray(items) ? items : [];
 };
@@ -39,6 +38,7 @@ const getCartItems = (data) => {
 const getImageUrl = (image) => {
   if (!image) return "";
   if (typeof image === "string") return image;
+
   return image.url || image.secure_url || image.path || "";
 };
 
@@ -59,10 +59,12 @@ const Checkout = () => {
   const [loading, setLoading] = useState(true);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [applyingCoupon, setApplyingCoupon] = useState(false);
+
   const [error, setError] = useState("");
   const [couponMessage, setCouponMessage] = useState("");
+  const [orderError, setOrderError] = useState("");
 
-  // Load cart and saved addresses.
+  // Fetch the cart and saved addresses.
   const loadCheckout = useCallback(async () => {
     try {
       setLoading(true);
@@ -78,6 +80,7 @@ const Checkout = () => {
       const addressData =
         addressResponse.data?.addresses ??
         addressResponse.data?.data?.addresses ??
+        addressResponse.data?.data ??
         [];
 
       const savedAddresses = Array.isArray(addressData)
@@ -109,10 +112,10 @@ const Checkout = () => {
     loadCheckout();
   }, [loadCheckout]);
 
-  // Normalize backend cart items.
-  // The backend calculates offer pricing; the frontend displays it.
+  // Normalize the cart response for display.
+  // Offer calculations should come from the backend.
   const normalizedItems = useMemo(() => {
-    return cartItems.map((item) => {
+    return cartItems.map((item, index) => {
       const variant =
         item.variantId && typeof item.variantId === "object"
           ? item.variantId
@@ -125,9 +128,11 @@ const Checkout = () => {
             ? item.productId
             : item.product || {};
 
-      const quantity = Math.max(1, Number(item.quantity) || 1);
+      const quantity = Math.max(
+        1,
+        Math.floor(Number(item.quantity) || 1)
+      );
 
-      // Original price before the automatic offer.
       const originalPrice = Math.max(
         0,
         Number(
@@ -139,9 +144,6 @@ const Checkout = () => {
         ) || 0
       );
 
-      // IMPORTANT:
-      // Your cart service returns discountedPrice.
-      // Do not calculate the offer a second time on the frontend.
       const finalPrice = Math.max(
         0,
         Number(
@@ -153,7 +155,7 @@ const Checkout = () => {
         ) || 0
       );
 
-      const offerSavingsPerItem = Math.max(
+      const offerSavings = Math.max(
         0,
         originalPrice - finalPrice
       );
@@ -163,14 +165,6 @@ const Checkout = () => {
         item.appliedOffer ||
         item.pricing?.offer ||
         null;
-
-      const offer = {
-        name: backendOffer?.name || "",
-        discountType: backendOffer?.discountType || "",
-        discountValue: Number(backendOffer?.discountValue) || 0,
-        offerFor: backendOffer?.offerFor || "",
-        discountAmount: offerSavingsPerItem,
-      };
 
       const images = Array.isArray(variant.images)
         ? variant.images
@@ -188,32 +182,37 @@ const Checkout = () => {
         product,
         variant,
         quantity,
-        price: originalPrice,
         originalPrice,
         finalPrice,
-        offer,
-        offerSavings: offerSavingsPerItem,
+        offerSavings,
+        offer: {
+          name: backendOffer?.name || "",
+          discountType: backendOffer?.discountType || "",
+          discountValue: Number(backendOffer?.discountValue) || 0,
+        },
         image,
         name: product.name || item.name || "Luxury Watch",
         brand: product.brand || item.brand || "",
         id:
           getId(item) ||
-          `${getId(product)}-${getId(variant)}`,
+          `${getId(product)}-${getId(variant)}` ||
+          `cart-item-${index}`,
       };
     });
   }, [cartItems]);
 
-  // Original subtotal before automatic offers.
+  // Original subtotal before offers.
   const subtotal = useMemo(
     () =>
       normalizedItems.reduce(
-        (sum, item) => sum + item.originalPrice * item.quantity,
+        (sum, item) =>
+          sum + item.originalPrice * item.quantity,
         0
       ),
     [normalizedItems]
   );
 
-  // Total savings from automatic product offers.
+  // Total product offer savings.
   const offerSavings = useMemo(
     () =>
       normalizedItems.reduce(
@@ -228,13 +227,13 @@ const Checkout = () => {
   const discountedSubtotal = useMemo(
     () =>
       normalizedItems.reduce(
-        (sum, item) => sum + item.finalPrice * item.quantity,
+        (sum, item) =>
+          sum + item.finalPrice * item.quantity,
         0
       ),
     [normalizedItems]
   );
 
-  // Coupon discount is applied after automatic offers.
   const discount = Math.min(
     discountedSubtotal,
     Math.max(0, Number(appliedCoupon?.discountAmount) || 0)
@@ -252,7 +251,7 @@ const Checkout = () => {
     (address) => getId(address) === selectedAddressId
   );
 
-  // Apply coupon through the backend.
+  // Apply coupon using the backend.
   const handleApplyCoupon = async (event) => {
     event.preventDefault();
 
@@ -271,7 +270,7 @@ const Checkout = () => {
     try {
       setApplyingCoupon(true);
       setCouponMessage("");
-      setError("");
+      setOrderError("");
 
       const response = await api.post(API.applyCoupon, {
         code,
@@ -335,17 +334,31 @@ const Checkout = () => {
     setCouponMessage("");
   };
 
-  // Create order. The server must recalculate prices and discounts.
+  // Place a COD order. Online payment needs its own Razorpay flow.
   const handlePlaceOrder = async () => {
-    setError("");
+    if (placingOrder) return;
 
-    if (normalizedItems.length === 0) {
-      setError("Your cart is empty.");
+    setOrderError("");
+
+    if (!selectedAddressId) {
+      setOrderError("Please select a delivery address.");
       return;
     }
 
-    if (!selectedAddressId || !selectedAddress) {
-      setError("Please select a valid delivery address.");
+    if (normalizedItems.length === 0) {
+      setOrderError("Your cart is empty.");
+      return;
+    }
+
+    if (paymentMethod === "ONLINE") {
+      setOrderError(
+        "Online payment is not configured yet. Please select Cash on Delivery."
+      );
+      return;
+    }
+
+    if (paymentMethod !== "COD") {
+      setOrderError("Please select a valid payment method.");
       return;
     }
 
@@ -354,42 +367,26 @@ const Checkout = () => {
 
       const response = await api.post(API.createOrder, {
         addressId: selectedAddressId,
-        paymentMethod,
-        couponCode: appliedCoupon?.code || null,
+        paymentMethod: "COD",
+        couponCode: appliedCoupon?.code || undefined,
       });
 
-      const order =
-        response.data?.order ||
-        response.data?.data?.order ||
-        response.data;
+      const order = response.data?.order;
 
-      if (paymentMethod === "ONLINE") {
-        const paymentUrl =
-          order?.paymentUrl ||
-          order?.checkoutUrl ||
-          order?.paymentSession?.url;
-
-        if (paymentUrl) {
-          window.location.assign(paymentUrl);
-          return;
-        }
-
+      if (!order?._id) {
         throw new Error(
-          "The order was submitted, but no payment URL was returned. Check the order before retrying."
+          "The server did not return a valid order."
         );
       }
 
-      const orderId = getId(order);
-
-      navigate(
-        orderId
-          ? `/user/orders/${orderId}`
-          : "/user/orders"
-      );
+      // Navigate only after the backend creates the order.
+      navigate(`/user/order-success/${order._id}`, {
+        replace: true,
+      });
     } catch (err) {
-      console.error("Order submission failed:", err);
+      console.error("Order placement failed:", err);
 
-      setError(
+      setOrderError(
         err.response?.data?.message ||
           err.message ||
           "Unable to place your order. Please try again."
@@ -440,6 +437,13 @@ const Checkout = () => {
             className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
           >
             {error}
+            <button
+              type="button"
+              onClick={loadCheckout}
+              className="ml-2 font-semibold underline"
+            >
+              Retry
+            </button>
           </div>
         )}
 
@@ -538,7 +542,7 @@ const Checkout = () => {
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="font-semibold">
-                                {address.fullName}
+                                {address.fullName || address.name}
                               </span>
 
                               {address.addressType && (
@@ -555,7 +559,8 @@ const Checkout = () => {
                             </div>
 
                             <p className="mt-2 text-sm leading-6 text-gray-600">
-                              {address.addressLine1}
+                              {address.addressLine1 ||
+                                address.addressLine}
                               {address.addressLine2
                                 ? `, ${address.addressLine2}`
                                 : ""}
@@ -597,7 +602,7 @@ const Checkout = () => {
                       value: "ONLINE",
                       title: "Online payment",
                       description:
-                        "Continue to your payment provider.",
+                        "Razorpay integration is not available yet.",
                     },
                   ].map((method) => (
                     <label
@@ -613,9 +618,10 @@ const Checkout = () => {
                         name="paymentMethod"
                         value={method.value}
                         checked={paymentMethod === method.value}
-                        onChange={() =>
-                          setPaymentMethod(method.value)
-                        }
+                        onChange={() => {
+                          setPaymentMethod(method.value);
+                          setOrderError("");
+                        }}
                         className="mt-1 accent-[#9A7B3F]"
                       />
 
@@ -632,13 +638,15 @@ const Checkout = () => {
                   ))}
                 </div>
 
-                <p className="mt-4 text-xs leading-5 text-gray-400">
-                  Online payment requires a configured payment
-                  gateway and server-side verification.
-                </p>
+                {paymentMethod === "ONLINE" && (
+                  <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-800">
+                    Online payment is not connected yet. Select
+                    Cash on Delivery to place an order.
+                  </p>
+                )}
               </section>
 
-              {/* Order items and automatic offers */}
+              {/* Order items */}
               <section className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
                 <div className="mb-5 flex items-center justify-between">
                   <div>
@@ -766,7 +774,7 @@ const Checkout = () => {
               </section>
             </div>
 
-            {/* Order summary and coupon */}
+            {/* Order summary */}
             <aside className="lg:sticky lg:top-6">
               <div className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
                 <h2 className="text-xl font-semibold">
@@ -777,10 +785,7 @@ const Checkout = () => {
                   Apply a coupon and review your savings.
                 </p>
 
-                <form
-                  onSubmit={handleApplyCoupon}
-                  className="mt-6"
-                >
+                <form onSubmit={handleApplyCoupon} className="mt-6">
                   <label
                     htmlFor="couponCode"
                     className="mb-2 block text-sm font-medium"
@@ -853,7 +858,6 @@ const Checkout = () => {
                     <span className="text-gray-500">
                       Original subtotal
                     </span>
-
                     <span className="font-medium">
                       {formatPrice(subtotal)}
                     </span>
@@ -863,7 +867,6 @@ const Checkout = () => {
                     <span className="text-gray-500">
                       Offer savings
                     </span>
-
                     <span className="font-medium text-green-700">
                       {offerSavings > 0
                         ? `−${formatPrice(offerSavings)}`
@@ -875,7 +878,6 @@ const Checkout = () => {
                     <span className="text-gray-500">
                       Subtotal after offers
                     </span>
-
                     <span className="font-medium">
                       {formatPrice(discountedSubtotal)}
                     </span>
@@ -885,7 +887,6 @@ const Checkout = () => {
                     <span className="text-gray-500">
                       Coupon discount
                     </span>
-
                     <span className="font-medium text-green-700">
                       {discount > 0
                         ? `−${formatPrice(discount)}`
@@ -894,10 +895,7 @@ const Checkout = () => {
                   </div>
 
                   <div className="flex justify-between gap-4">
-                    <span className="text-gray-500">
-                      Shipping
-                    </span>
-
+                    <span className="text-gray-500">Shipping</span>
                     <span className="font-medium">
                       {shipping === 0
                         ? "Free"
@@ -908,9 +906,8 @@ const Checkout = () => {
                   <div className="flex items-end justify-between gap-4 border-t border-gray-200 pt-5">
                     <div>
                       <p className="font-semibold">Total</p>
-
                       <p className="mt-1 text-xs text-gray-400">
-                        Final amount subject to server validation
+                        Subject to server validation
                       </p>
                     </div>
 
@@ -927,14 +924,30 @@ const Checkout = () => {
                     </p>
 
                     <p className="mt-2 text-sm font-medium">
-                      {selectedAddress.fullName}
+                      {selectedAddress.fullName ||
+                        selectedAddress.name}
                     </p>
 
                     <p className="mt-1 text-sm leading-5 text-gray-500">
-                      {selectedAddress.addressLine1},{" "}
-                      {selectedAddress.city} -{" "}
+                      {selectedAddress.addressLine1 ||
+                        selectedAddress.addressLine}
+                      {selectedAddress.addressLine2
+                        ? `, ${selectedAddress.addressLine2}`
+                        : ""}
+                      <br />
+                      {selectedAddress.city},{" "}
+                      {selectedAddress.state} -{" "}
                       {selectedAddress.pincode}
                     </p>
+                  </div>
+                )}
+
+                {orderError && (
+                  <div
+                    role="alert"
+                    className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                  >
+                    {orderError}
                   </div>
                 )}
 
@@ -957,8 +970,8 @@ const Checkout = () => {
                 </button>
 
                 <p className="mt-4 text-center text-xs leading-5 text-gray-400">
-                  The server must validate offers, coupon eligibility,
-                  the final amount, and stock before confirming the order.
+                  The server must validate prices, offers, coupons,
+                  and stock before creating the order.
                 </p>
               </div>
             </aside>

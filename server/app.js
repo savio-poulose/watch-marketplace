@@ -10,7 +10,7 @@ import cookieParser from "cookie-parser";
 import userProductRouter from "./routes/user/product.route.js"
 import cartRouter from "./routes/user/cart.route.js"
 import addressRouter from "./routes/user/address.route.js"
-import orderRouter from "./routes/user/order.routes.js"
+import orderRouter from "./routes/user/order.route.js"
 import adminOrderRouter from "./routes/admin/order.route.js"
 
 import cors from "cors"

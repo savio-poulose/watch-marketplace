@@ -20,11 +20,14 @@ import Cart from "./pages/user/Cart.jsx";
 import AddAddress from "./pages/user/AddAddress.jsx";
 import EditAddress from "./pages/user/EditAddress.jsx";
 import Checkout from "./pages/user/Checkout.jsx";
+import MyOrders from "./pages/user/MyOrders.jsx";
+import OrderDetails from "./pages/user/OrderDetails.jsx"
 
 import ProtectedRoute from "./components/user/ProtectedRoute.jsx";
 import GuestRoute from "./components/user/GuestRoute.jsx";
 import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute.jsx";
 import GuestAdminRoute from "./components/admin/GuestAdminRoute.jsx";
+import OrderSuccess from "./pages/user/OrderSuccess.jsx";
 
 function App() {
   return (
@@ -79,6 +82,9 @@ function App() {
             <Route path="/user/address/add" element={<AddAddress />} />
             <Route path="/user/address/edit/:addressId" element={<EditAddress />} />
             <Route path="/user/checkout" element={<Checkout />} />
+            <Route path="/user/order-success/:orderId" element={<OrderSuccess />} />
+            <Route path="/user/orders" element={<MyOrders />} />
+            <Route path="/user/order/:orderId" element={<OrderDetails />} />
           </Route>
 
           {/* Admin Protected Routes */}
