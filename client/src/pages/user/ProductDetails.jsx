@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "../../api/axios.js";
+
 import {
   FaHeart,
   FaShoppingBag,
@@ -14,20 +15,92 @@ import {
   FaArrowRight,
   FaChevronRight,
 } from "react-icons/fa";
+
 import Navbar from "../../components/layout/Navbar.jsx";
 import Footer from "../../components/common/Footer.jsx";
 import ReviewsSection from "../../components/user/collections/ReviewsSection.jsx";
-import toast from "react-hot-toast"
+import toast from "react-hot-toast";
 
 const formatPrice = (price) =>
   `₹${Number(price || 0).toLocaleString("en-IN")}`;
 
+const calculateOfferPrice = (originalPrice, offer) => {
+  const price = Number(originalPrice || 0);
+
+  if (!offer || !offer.isActive || price <= 0) {
+    return {
+      originalPrice: price,
+      finalPrice: price,
+      discountAmount: 0,
+      discountPercentage: 0,
+      hasOffer: false,
+    };
+  }
+
+  const now = new Date();
+  const startsAt = new Date(offer.startDate);
+  const endsAt = new Date(offer.endDate);
+
+  const isCurrentlyValid =
+    !Number.isNaN(startsAt.getTime()) &&
+    !Number.isNaN(endsAt.getTime()) &&
+    startsAt <= now &&
+    endsAt >= now;
+
+  if (!isCurrentlyValid) {
+    return {
+      originalPrice: price,
+      finalPrice: price,
+      discountAmount: 0,
+      discountPercentage: 0,
+      hasOffer: false,
+    };
+  }
+
+  let discountAmount = 0;
+
+  if (offer.discountType === "percentage") {
+    const percentage = Math.min(
+      Math.max(Number(offer.discountValue) || 0, 0),
+      100
+    );
+
+    discountAmount = (price * percentage) / 100;
+  } else if (offer.discountType === "fixed") {
+    discountAmount = Math.min(
+      Math.max(Number(offer.discountValue) || 0, 0),
+      price
+    );
+  }
+
+  discountAmount = Math.round(discountAmount * 100) / 100;
+
+  const finalPrice =
+    Math.round((price - discountAmount) * 100) / 100;
+
+  const discountPercentage =
+    price > 0
+      ? Math.round((discountAmount / price) * 100)
+      : 0;
+
+  return {
+    originalPrice: price,
+    finalPrice,
+    discountAmount,
+    discountPercentage,
+    hasOffer: discountAmount > 0,
+  };
+};
+
 const ProductDetails = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const [product, setProduct] = useState(null);
   const [variants, setVariants] = useState([]);
+  const [offer, setOffer] = useState(null);
   const [selectedVariant, setSelectedVariant] = useState(null);
+
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -35,8 +108,6 @@ const ProductDetails = () => {
   const [error, setError] = useState("");
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartMessage, setCartMessage] = useState("");
-  
-  const navigate = useNavigate()
 
   useEffect(() => {
     const controller = new AbortController();
@@ -47,6 +118,7 @@ const ProductDetails = () => {
         setError("");
         setProduct(null);
         setVariants([]);
+        setOffer(null);
         setSelectedVariant(null);
 
         const response = await api.get(`/user/products/${id}`, {
@@ -55,21 +127,26 @@ const ProductDetails = () => {
 
         const fetchedProduct = response.data.product;
         const fetchedVariants = response.data.variants ?? [];
+        const fetchedOffer = response.data.offer ?? null;
 
         setProduct(fetchedProduct);
         setVariants(fetchedVariants);
+        setOffer(fetchedOffer);
 
-        // Prefer an in-stock variant; otherwise select the first available variant.
         const initialVariant =
-          fetchedVariants.find((variant) => Number(variant.quantity) > 0) ??
+          fetchedVariants.find(
+            (variant) => Number(variant.quantity) > 0
+          ) ??
           fetchedVariants[0] ??
           null;
 
         setSelectedVariant(initialVariant);
       } catch (err) {
         if (err.code === "ERR_CANCELED") return;
+
         setError(
-          err.response?.data?.message || "Unable to load this product."
+          err.response?.data?.message ||
+            "Unable to load this product."
         );
       } finally {
         if (!controller.signal.aborted) setLoading(false);
@@ -82,11 +159,18 @@ const ProductDetails = () => {
     return () => controller.abort();
   }, [id]);
 
-  // Variant images take priority over parent product images.
   const images = useMemo(() => {
-    if (selectedVariant?.images?.length) return selectedVariant.images;
+    if (selectedVariant?.images?.length) {
+      return selectedVariant.images;
+    }
+
     return product?.images ?? [];
   }, [selectedVariant, product]);
+
+  const pricing = useMemo(
+    () => calculateOfferPrice(selectedVariant?.price, offer),
+    [selectedVariant, offer]
+  );
 
   const selectVariant = (variant) => {
     setSelectedVariant(variant);
@@ -97,11 +181,15 @@ const ProductDetails = () => {
 
   const handlePreviousImage = () => {
     if (!images.length) return;
-    setActiveImage((current) => (current - 1 + images.length) % images.length);
+
+    setActiveImage(
+      (current) => (current - 1 + images.length) % images.length
+    );
   };
 
   const handleNextImage = () => {
     if (!images.length) return;
+
     setActiveImage((current) => (current + 1) % images.length);
   };
 
@@ -117,7 +205,9 @@ const ProductDetails = () => {
     }
 
     if (quantity > Number(selectedVariant.quantity)) {
-      setCartMessage(`Only ${selectedVariant.quantity} item(s) are available.`);
+      setCartMessage(
+        `Only ${selectedVariant.quantity} item(s) are available.`
+      );
       return;
     }
 
@@ -130,10 +220,12 @@ const ProductDetails = () => {
         quantity,
       });
 
-      setCartMessage(response.data.message || "Item added to your bag.");
-      toast.success(response.data.message || "Item added to your bag.")
-      navigate("/user/cart");
+      const message =
+        response.data.message || "Item added to your bag.";
 
+      toast.success(message);
+      setCartMessage(message);
+      navigate("/user/cart");
     } catch (err) {
       if (err.response?.status === 401) {
         setCartMessage("Please log in to add items to your bag.");
@@ -153,7 +245,9 @@ const ProductDetails = () => {
       <div className="min-h-screen bg-white">
         <Navbar />
         <div className="flex min-h-[60vh] items-center justify-center">
-          <p className="text-sm text-gray-500">Loading product details...</p>
+          <p className="text-sm text-gray-500">
+            Loading product details...
+          </p>
         </div>
         <Footer />
       </div>
@@ -168,12 +262,14 @@ const ProductDetails = () => {
           <h1 className="text-xl font-semibold text-[#111827]">
             Product unavailable
           </h1>
+
           <p className="text-sm text-gray-500">
             {error || "This product could not be found."}
           </p>
+
           <Link
             to="/user/collections"
-            className="bg-[#111827] px-6 py-3 text-sm text-white"
+            className="bg-[#111827] px-6 py-3 text-sm text-white transition hover:bg-[#9A7B3F]"
           >
             Back to Collections
           </Link>
@@ -184,7 +280,10 @@ const ProductDetails = () => {
   }
 
   const category =
-    typeof product.categoryId === "object" ? product.categoryId?.name : "";
+    typeof product.categoryId === "object"
+      ? product.categoryId?.name
+      : "";
+
   const selectedStock = Number(selectedVariant?.quantity ?? 0);
   const maxSelectableQuantity = Math.min(selectedStock, 5);
   const isOutOfStock = !selectedVariant || selectedStock < 1;
@@ -196,13 +295,15 @@ const ProductDetails = () => {
       {/* Breadcrumb */}
       <div className="mx-auto max-w-[1440px] px-5 pt-6 text-[10px] text-gray-400 lg:px-10">
         {category && <span>{category}</span>}
-        {category && <FaChevronRight className="mx-2 inline text-[7px]" />}
+        {category && (
+          <FaChevronRight className="mx-2 inline text-[7px]" />
+        )}
         <span className="text-[#111827]">{product.name}</span>
       </div>
 
       <main className="mx-auto max-w-[1440px] px-5 pb-16 pt-5 lg:px-10">
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1.1fr_0.9fr] xl:gap-10">
-          {/* LEFT: Product gallery */}
+          {/* Product gallery */}
           <section>
             <div className="relative overflow-hidden border border-gray-100 bg-[#f3f3f1]">
               <div className="flex min-h-[350px] items-center justify-center p-5 sm:min-h-[500px] sm:p-10 lg:min-h-[540px]">
@@ -235,6 +336,7 @@ const ProductDetails = () => {
                   >
                     <FaArrowLeft />
                   </button>
+
                   <button
                     type="button"
                     onClick={handleNextImage}
@@ -247,7 +349,7 @@ const ProductDetails = () => {
               )}
             </div>
 
-            {/* Image thumbnails */}
+            {/* Thumbnails */}
             {images.length > 1 && (
               <div className="mt-4 flex gap-3 overflow-x-auto">
                 {images.map((image, index) => (
@@ -269,6 +371,7 @@ const ProductDetails = () => {
                     />
                   </button>
                 ))}
+
                 <div className="flex items-center text-[9px] tracking-widest text-gray-400">
                   VIEW {activeImage + 1} / {images.length}
                 </div>
@@ -276,16 +379,18 @@ const ProductDetails = () => {
             )}
           </section>
 
-          {/* RIGHT: Product and selected variant information */}
+          {/* Product information */}
           <section className="space-y-5">
             <div className="border border-gray-100 p-5 sm:p-7">
               <p className="mb-3 text-[10px] font-semibold tracking-[0.25em] text-[#9A7B3F]">
                 {product.brand}
                 {category ? ` / ${category}` : ""}
               </p>
+
               <h1 className="text-2xl font-semibold leading-tight sm:text-3xl">
                 {product.name}
               </h1>
+
               <p className="mt-4 text-xs leading-6 text-gray-500 sm:text-sm">
                 {product.description}
               </p>
@@ -296,12 +401,14 @@ const ProductDetails = () => {
                     <p className="text-[10px] font-semibold tracking-widest text-[#9A7B3F]">
                       SELECTED CONFIGURATION
                     </p>
+
                     <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
                       <Spec label="CASE SIZE" value={selectedVariant.size} />
                       <Spec label="DIAL COLOUR" value={selectedVariant.dialColor} />
                       <Spec label="STRAP COLOUR" value={selectedVariant.strapColor} />
                       <Spec label="STRAP MATERIAL" value={selectedVariant.strapMaterial} />
                       <Spec label="CASE MATERIAL" value={selectedVariant.caseMaterial} />
+
                       <Spec
                         label="STOCK"
                         value={
@@ -313,21 +420,41 @@ const ProductDetails = () => {
                     </div>
                   </div>
 
+                  {/* Offer pricing */}
                   <div className="mt-6 bg-[#f6f6f4] p-4 sm:p-5">
                     <div className="flex flex-wrap items-center gap-3">
                       <span className="text-2xl font-bold">
-                        {formatPrice(selectedVariant.price)}
+                        {formatPrice(pricing.finalPrice)}
                       </span>
-                      <span className="text-[10px] text-gray-500">
-                        Inclusive of applicable taxes
-                      </span>
+
+                      {pricing.hasOffer && (
+                        <>
+                          <span className="text-sm text-gray-400 line-through">
+                            {formatPrice(pricing.originalPrice)}
+                          </span>
+
+                          <span className="bg-[#9A7B3F] px-2 py-1 text-[10px] font-semibold text-white">
+                            {pricing.discountPercentage}% OFF
+                          </span>
+                        </>
+                      )}
                     </div>
+
+                    {pricing.hasOffer && (
+                      <p className="mt-2 text-xs font-medium text-green-700">
+                        You save {formatPrice(pricing.discountAmount)}
+                      </p>
+                    )}
+
+                    <p className="mt-2 text-[10px] text-gray-500">
+                      Inclusive of applicable taxes
+                    </p>
                   </div>
                 </>
               )}
             </div>
 
-            {/* Variant cards */}
+            {/* Variants */}
             <div className="border border-gray-200 p-5 sm:p-7">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -338,6 +465,7 @@ const ProductDetails = () => {
                     Select a watch to view its specifications and price.
                   </p>
                 </div>
+
                 <span className="text-[10px] text-gray-500">
                   {variants.length} options
                 </span>
@@ -350,9 +478,18 @@ const ProductDetails = () => {
               ) : (
                 <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {variants.map((variant) => {
-                    const variantImage = variant.images?.[0] || product.images?.[0];
-                    const isSelected = selectedVariant?._id === variant._id;
+                    const variantImage =
+                      variant.images?.[0] || product.images?.[0];
+
+                    const isSelected =
+                      selectedVariant?._id === variant._id;
+
                     const stock = Number(variant.quantity ?? 0);
+
+                    const variantPricing = calculateOfferPrice(
+                      variant.price,
+                      offer
+                    );
 
                     return (
                       <button
@@ -374,20 +511,41 @@ const ProductDetails = () => {
                               className="h-full w-full object-contain"
                             />
                           ) : (
-                            <span className="text-xs text-gray-400">No image</span>
+                            <span className="text-xs text-gray-400">
+                              No image
+                            </span>
                           )}
                         </div>
+
                         <div className="space-y-2 p-3">
                           <p className="truncate text-xs font-semibold">
                             {variant.dialColor || "Standard variant"}
                           </p>
-                          <p className="text-sm font-bold">{formatPrice(variant.price)}</p>
+
+                          <p className="text-sm font-bold">
+                            {formatPrice(variantPricing.finalPrice)}
+                          </p>
+
+                          {variantPricing.hasOffer && (
+                            <p className="text-[10px] text-gray-400 line-through">
+                              {formatPrice(variantPricing.originalPrice)}
+                            </p>
+                          )}
+
                           <p className="text-[10px] text-gray-500">
                             {variant.size || "—"} · {variant.strapColor || "—"}
                           </p>
-                          <p className={`text-[10px] font-medium ${stock > 0 ? "text-green-700" : "text-red-600"}`}>
-                            {stock > 0 ? `${stock} available` : "Out of stock"}
+
+                          <p
+                            className={`text-[10px] font-medium ${
+                              stock > 0 ? "text-green-700" : "text-red-600"
+                            }`}
+                          >
+                            {stock > 0
+                              ? `${stock} available`
+                              : "Out of stock"}
                           </p>
+
                           {isSelected && (
                             <p className="flex items-center gap-1 text-[10px] font-semibold text-[#9A7B3F]">
                               <FaCheckCircle /> Selected
@@ -409,18 +567,27 @@ const ProductDetails = () => {
                     type="button"
                     aria-label="Decrease quantity"
                     disabled={quantity <= 1 || isOutOfStock}
-                    onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+                    onClick={() =>
+                      setQuantity((current) => Math.max(1, current - 1))
+                    }
                     className="p-3 text-xs disabled:opacity-30"
                   >
                     <FaMinus />
                   </button>
+
                   <span className="text-xs">{quantity}</span>
+
                   <button
                     type="button"
                     aria-label="Increase quantity"
-                    disabled={isOutOfStock || quantity >= maxSelectableQuantity}
+                    disabled={
+                      isOutOfStock ||
+                      quantity >= maxSelectableQuantity
+                    }
                     onClick={() =>
-                      setQuantity((current) => Math.min(current + 1, maxSelectableQuantity))
+                      setQuantity((current) =>
+                        Math.min(current + 1, maxSelectableQuantity)
+                      )
                     }
                     className="p-3 text-xs disabled:opacity-30"
                   >
@@ -444,7 +611,9 @@ const ProductDetails = () => {
 
                 <button
                   type="button"
-                  onClick={() => setIsFavorite((current) => !current)}
+                  onClick={() =>
+                    setIsFavorite((current) => !current)
+                  }
                   aria-label="Toggle wishlist"
                   aria-pressed={isFavorite}
                   className={`flex items-center justify-center border px-5 py-4 ${
@@ -458,7 +627,10 @@ const ProductDetails = () => {
               </div>
 
               {cartMessage && (
-                <p role="status" className="mt-3 text-center text-xs text-[#9A7B3F]">
+                <p
+                  role="status"
+                  className="mt-3 text-center text-xs text-[#9A7B3F]"
+                >
                   {cartMessage}
                 </p>
               )}
@@ -468,10 +640,12 @@ const ProductDetails = () => {
                   <FaShieldAlt className="text-[#9A7B3F]" />
                   Authenticity guaranteed
                 </div>
+
                 <div className="flex items-center gap-2">
                   <FaTruck className="text-[#9A7B3F]" />
                   Insured delivery
                 </div>
+
                 <div className="flex items-center gap-2">
                   <FaUndo className="text-[#9A7B3F]" />
                   Easy returns
@@ -483,16 +657,20 @@ const ProductDetails = () => {
 
         <ReviewsSection />
       </main>
+
       <Footer />
     </div>
   );
 };
 
-// Small reusable specification display. Keep this outside ProductDetails.
 const Spec = ({ label, value }) => (
   <div>
-    <p className="text-[9px] font-medium tracking-wider text-gray-400">{label}</p>
-    <p className="mt-1 text-xs font-medium text-[#111827]">{value || "—"}</p>
+    <p className="text-[9px] font-medium tracking-wider text-gray-400">
+      {label}
+    </p>
+    <p className="mt-1 text-xs font-medium text-[#111827]">
+      {value || "—"}
+    </p>
   </div>
 );
 

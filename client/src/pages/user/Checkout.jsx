@@ -1,10 +1,9 @@
 
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import api from "../../api/axios.js";
 
 const SHIPPING_FEE = 0;
-
 
 const API = {
   cart: "/user/cart",
@@ -26,15 +25,35 @@ const getId = (value) => {
   return value._id || value.id || "";
 };
 
+const getCartItems = (data) => {
+  const items =
+    data?.cart?.items ??
+    data?.cartItems ??
+    data?.items ??
+    data?.cart ??
+    [];
+
+  return Array.isArray(items) ? items : [];
+};
+
+const getImageUrl = (image) => {
+  if (!image) return "";
+  if (typeof image === "string") return image;
+  return image.url || image.secure_url || image.path || "";
+};
+
 const Checkout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [cartItems, setCartItems] = useState([]);
   const [addresses, setAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("COD");
 
-  const [couponCode, setCouponCode] = useState("");
+  const [couponCode, setCouponCode] = useState(
+    location.state?.couponCode || ""
+  );
   const [appliedCoupon, setAppliedCoupon] = useState(null);
 
   const [loading, setLoading] = useState(true);
@@ -43,165 +62,263 @@ const Checkout = () => {
   const [error, setError] = useState("");
   const [couponMessage, setCouponMessage] = useState("");
 
-  useEffect(() => {
-    const loadCheckout = async () => {
-      try {
-        setLoading(true);
-        setError("");
+  // Load cart and saved addresses.
+  const loadCheckout = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-        const [cartResponse, addressResponse] = await Promise.all([
-          api.get(API.cart),
-          api.get(API.addresses),
-        ]);
+      const [cartResponse, addressResponse] = await Promise.all([
+        api.get(API.cart),
+        api.get(API.addresses),
+      ]);
 
-        // Supports common response shapes:
-        // { items: [...] }, { cart: { items: [...] } }, or { cartItems: [...] }
-        const cartData =
-          cartResponse.data?.cart?.items ??
-          cartResponse.data?.cartItems ??
-          cartResponse.data?.items ??
-          cartResponse.data?.cart ??
-          [];
+      setCartItems(getCartItems(cartResponse.data));
 
-        const items = Array.isArray(cartData) ? cartData : [];
-        setCartItems(items);
+      const addressData =
+        addressResponse.data?.addresses ??
+        addressResponse.data?.data?.addresses ??
+        [];
 
-        const addressData =
-          addressResponse.data?.addresses ??
-          addressResponse.data?.data?.addresses ??
-          [];
+      const savedAddresses = Array.isArray(addressData)
+        ? addressData
+        : [];
 
-        const savedAddresses = Array.isArray(addressData)
-          ? addressData
-          : [];
+      setAddresses(savedAddresses);
 
-        setAddresses(savedAddresses);
+      const defaultAddress = savedAddresses.find(
+        (address) => address.isDefault
+      );
 
-        const defaultAddress = savedAddresses.find(
-          (address) => address.isDefault
-        );
+      setSelectedAddressId(
+        getId(defaultAddress) || getId(savedAddresses[0])
+      );
+    } catch (err) {
+      console.error("Checkout loading failed:", err);
 
-        setSelectedAddressId(
-          getId(defaultAddress) || getId(savedAddresses[0])
-        );
-      } catch (err) {
-        console.error("Checkout loading failed:", err);
-        setError(
-          err.response?.data?.message ||
-            "Unable to load checkout. Please refresh and try again."
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadCheckout();
+      setError(
+        err.response?.data?.message ||
+          "Unable to load checkout. Please refresh and try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  
+  useEffect(() => {
+    loadCheckout();
+  }, [loadCheckout]);
+
+  // Normalize backend cart items.
+  // The backend calculates offer pricing; the frontend displays it.
   const normalizedItems = useMemo(() => {
-  return cartItems.map((item) => {
-    
-    const variant =
-      typeof item.variantId === "object"
-        ? item.variantId
-        : item.variant || {};
+    return cartItems.map((item) => {
+      const variant =
+        item.variantId && typeof item.variantId === "object"
+          ? item.variantId
+          : item.variant || {};
 
-   
-    const product =
-      typeof variant.productId === "object"
-        ? variant.productId
-        : item.product || {};
+      const product =
+        variant.productId && typeof variant.productId === "object"
+          ? variant.productId
+          : item.productId && typeof item.productId === "object"
+            ? item.productId
+            : item.product || {};
 
-    const quantity = Number(item.quantity) || 1;
+      const quantity = Math.max(1, Number(item.quantity) || 1);
 
-    const price = Number(
-      item.price ?? variant.price ?? product.price ?? 0
-    );
+      // Original price before the automatic offer.
+      const originalPrice = Math.max(
+        0,
+        Number(
+          item.originalPrice ??
+            variant.price ??
+            item.price ??
+            product.price ??
+            0
+        ) || 0
+      );
 
-    const image =
-      variant.images?.[0] ||
-      product.images?.[0] ||
-      item.image ||
-      "";
+      // IMPORTANT:
+      // Your cart service returns discountedPrice.
+      // Do not calculate the offer a second time on the frontend.
+      const finalPrice = Math.max(
+        0,
+        Number(
+          item.discountedPrice ??
+            item.finalPrice ??
+            item.pricing?.finalPrice ??
+            item.price ??
+            originalPrice
+        ) || 0
+      );
 
-    return {
-      ...item,
-      product,
-      variant,
-      quantity,
-      price,
-      image,
-      name: product.name || item.name || "Luxury Watch",
-      brand: product.brand || item.brand || "",
-      id: getId(item) || `${getId(product)}-${getId(variant)}`,
-    };
-  });
-}, [cartItems]);
+      const offerSavingsPerItem = Math.max(
+        0,
+        originalPrice - finalPrice
+      );
 
+      const backendOffer =
+        item.offer ||
+        item.appliedOffer ||
+        item.pricing?.offer ||
+        null;
+
+      const offer = {
+        name: backendOffer?.name || "",
+        discountType: backendOffer?.discountType || "",
+        discountValue: Number(backendOffer?.discountValue) || 0,
+        offerFor: backendOffer?.offerFor || "",
+        discountAmount: offerSavingsPerItem,
+      };
+
+      const images = Array.isArray(variant.images)
+        ? variant.images
+        : Array.isArray(product.images)
+          ? product.images
+          : [];
+
+      const image =
+        getImageUrl(images[0]) ||
+        getImageUrl(item.image) ||
+        "";
+
+      return {
+        ...item,
+        product,
+        variant,
+        quantity,
+        price: originalPrice,
+        originalPrice,
+        finalPrice,
+        offer,
+        offerSavings: offerSavingsPerItem,
+        image,
+        name: product.name || item.name || "Luxury Watch",
+        brand: product.brand || item.brand || "",
+        id:
+          getId(item) ||
+          `${getId(product)}-${getId(variant)}`,
+      };
+    });
+  }, [cartItems]);
+
+  // Original subtotal before automatic offers.
   const subtotal = useMemo(
     () =>
       normalizedItems.reduce(
-        (total, item) => total + item.price * item.quantity,
+        (sum, item) => sum + item.originalPrice * item.quantity,
         0
       ),
     [normalizedItems]
   );
 
+  // Total savings from automatic product offers.
+  const offerSavings = useMemo(
+    () =>
+      normalizedItems.reduce(
+        (sum, item) =>
+          sum + item.offerSavings * item.quantity,
+        0
+      ),
+    [normalizedItems]
+  );
+
+  // Subtotal after automatic offers.
+  const discountedSubtotal = useMemo(
+    () =>
+      normalizedItems.reduce(
+        (sum, item) => sum + item.finalPrice * item.quantity,
+        0
+      ),
+    [normalizedItems]
+  );
+
+  // Coupon discount is applied after automatic offers.
   const discount = Math.min(
-    subtotal,
+    discountedSubtotal,
     Math.max(0, Number(appliedCoupon?.discountAmount) || 0)
   );
 
-  const shipping = subtotal > 0 ? SHIPPING_FEE : 0;
-  const total = Math.max(0, subtotal - discount + shipping);
+  const shipping =
+    discountedSubtotal > 0 ? SHIPPING_FEE : 0;
+
+  const total = Math.max(
+    0,
+    discountedSubtotal - discount + shipping
+  );
 
   const selectedAddress = addresses.find(
     (address) => getId(address) === selectedAddressId
   );
 
+  // Apply coupon through the backend.
   const handleApplyCoupon = async (event) => {
     event.preventDefault();
 
-    if (!couponCode.trim()) {
+    const code = couponCode.trim().toUpperCase();
+
+    if (!code) {
       setCouponMessage("Enter a coupon code first.");
+      return;
+    }
+
+    if (normalizedItems.length === 0) {
+      setCouponMessage("Your cart is empty.");
       return;
     }
 
     try {
       setApplyingCoupon(true);
       setCouponMessage("");
+      setError("");
 
       const response = await api.post(API.applyCoupon, {
-        code: couponCode.trim(),
-        subtotal,
+        code,
+        subtotal: discountedSubtotal,
       });
 
-      const result = response.data?.coupon || response.data;
+      const result =
+        response.data?.coupon ||
+        response.data?.data?.coupon ||
+        response.data;
 
       if (result?.success === false) {
-        throw new Error(result.message || "Coupon could not be applied.");
-      }
-
-      // Expected response:
-      // { discountAmount: 500 } or { coupon: { discountAmount: 500 } }
-      const discountAmount = Number(result?.discountAmount);
-
-      if (!Number.isFinite(discountAmount) || discountAmount <= 0) {
         throw new Error(
-          result?.message ||
-            "The coupon response did not include a valid discount."
+          result.message || "Coupon could not be applied."
         );
       }
 
+      const discountAmount = Number(result?.discountAmount);
+
+      if (
+        !Number.isFinite(discountAmount) ||
+        discountAmount <= 0
+      ) {
+        throw new Error(
+          result?.message ||
+            "The server did not return a valid coupon discount."
+        );
+      }
+
+      const normalizedCode = String(
+        result.code || result.coupon?.code || code
+      ).toUpperCase();
+
       setAppliedCoupon({
-        code: result.code || couponCode.trim(),
-        discountAmount,
+        code: normalizedCode,
+        discountAmount: Math.min(
+          discountedSubtotal,
+          discountAmount
+        ),
       });
 
+      setCouponCode(normalizedCode);
       setCouponMessage("Coupon applied successfully.");
     } catch (err) {
+      console.error("Coupon application failed:", err);
       setAppliedCoupon(null);
+
       setCouponMessage(
         err.response?.data?.message ||
           err.message ||
@@ -218,6 +335,7 @@ const Checkout = () => {
     setCouponMessage("");
   };
 
+  // Create order. The server must recalculate prices and discounts.
   const handlePlaceOrder = async () => {
     setError("");
 
@@ -226,13 +344,8 @@ const Checkout = () => {
       return;
     }
 
-    if (!selectedAddressId) {
-      setError("Please select a delivery address.");
-      return;
-    }
-
-    if (!selectedAddress) {
-      setError("The selected address could not be found.");
+    if (!selectedAddressId || !selectedAddress) {
+      setError("Please select a valid delivery address.");
       return;
     }
 
@@ -250,21 +363,14 @@ const Checkout = () => {
         response.data?.data?.order ||
         response.data;
 
-      // For online payment, the backend should return a payment URL
-      // or payment-session details. Do not mark it paid on the client.
       if (paymentMethod === "ONLINE") {
-        if (order?.paymentUrl) {
-          window.location.assign(order.paymentUrl);
-          return;
-        }
+        const paymentUrl =
+          order?.paymentUrl ||
+          order?.checkoutUrl ||
+          order?.paymentSession?.url;
 
-        if (order?.checkoutUrl) {
-          window.location.assign(order.checkoutUrl);
-          return;
-        }
-
-        if (order?.paymentSession?.url) {
-          window.location.assign(order.paymentSession.url);
+        if (paymentUrl) {
+          window.location.assign(paymentUrl);
           return;
         }
 
@@ -275,13 +381,14 @@ const Checkout = () => {
 
       const orderId = getId(order);
 
-      if (orderId) {
-        navigate(`/user/orders/${orderId}`);
-      } else {
-        navigate("/user/orders");
-      }
+      navigate(
+        orderId
+          ? `/user/orders/${orderId}`
+          : "/user/orders"
+      );
     } catch (err) {
       console.error("Order submission failed:", err);
+
       setError(
         err.response?.data?.message ||
           err.message ||
@@ -295,7 +402,9 @@ const Checkout = () => {
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center bg-gray-50 px-4">
-        <p className="text-sm text-gray-500">Loading checkout...</p>
+        <p className="text-sm text-gray-500">
+          Loading checkout...
+        </p>
       </div>
     );
   }
@@ -303,8 +412,7 @@ const Checkout = () => {
   return (
     <div className="min-h-screen bg-gray-50 text-[#111827]">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8 border-b border-gray-200 pb-6">
+        <header className="mb-8 border-b border-gray-200 pb-6">
           <button
             type="button"
             onClick={() => navigate("/user/cart")}
@@ -324,7 +432,7 @@ const Checkout = () => {
           <p className="mt-2 text-sm text-gray-500">
             Confirm your delivery details and review your purchase.
           </p>
-        </div>
+        </header>
 
         {error && (
           <div
@@ -337,10 +445,14 @@ const Checkout = () => {
 
         {normalizedItems.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white px-6 py-16 text-center">
-            <h2 className="text-xl font-semibold">Your cart is empty</h2>
+            <h2 className="text-xl font-semibold">
+              Your cart is empty
+            </h2>
+
             <p className="mt-2 text-sm text-gray-500">
-              Add a watch to your cart before checking out.
+              Add a watch before checking out.
             </p>
+
             <button
               type="button"
               onClick={() => navigate("/collections")}
@@ -351,7 +463,6 @@ const Checkout = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[1fr_400px]">
-            {/* Left column */}
             <div className="space-y-8">
               {/* Delivery address */}
               <section className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
@@ -360,6 +471,7 @@ const Checkout = () => {
                     <p className="text-xs font-semibold uppercase tracking-widest text-[#9A7B3F]">
                       Step 01
                     </p>
+
                     <h2 className="mt-1 text-xl font-semibold">
                       Delivery address
                     </h2>
@@ -383,6 +495,7 @@ const Checkout = () => {
                     <p className="text-sm text-gray-500">
                       You have not saved a delivery address yet.
                     </p>
+
                     <button
                       type="button"
                       onClick={() =>
@@ -399,7 +512,8 @@ const Checkout = () => {
                   <div className="space-y-3">
                     {addresses.map((address) => {
                       const addressId = getId(address);
-                      const selected = addressId === selectedAddressId;
+                      const selected =
+                        addressId === selectedAddressId;
 
                       return (
                         <label
@@ -415,7 +529,9 @@ const Checkout = () => {
                             name="deliveryAddress"
                             value={addressId}
                             checked={selected}
-                            onChange={() => setSelectedAddressId(addressId)}
+                            onChange={() =>
+                              setSelectedAddressId(addressId)
+                            }
                             className="mt-1 accent-[#9A7B3F]"
                           />
 
@@ -452,14 +568,6 @@ const Checkout = () => {
                               Phone: {address.phone}
                             </p>
                           </div>
-
-                          <span
-                            className={`mt-1 h-4 w-4 shrink-0 rounded-full border ${
-                              selected
-                                ? "border-[5px] border-[#9A7B3F]"
-                                : "border-gray-300"
-                            }`}
-                          />
                         </label>
                       );
                     })}
@@ -472,76 +580,77 @@ const Checkout = () => {
                 <p className="text-xs font-semibold uppercase tracking-widest text-[#9A7B3F]">
                   Step 02
                 </p>
+
                 <h2 className="mt-1 text-xl font-semibold">
                   Payment method
                 </h2>
 
                 <div className="mt-5 space-y-3">
-                  <label
-                    className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 ${
-                      paymentMethod === "COD"
-                        ? "border-[#9A7B3F] bg-[#9A7B3F]/5"
-                        : "border-gray-200"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="COD"
-                      checked={paymentMethod === "COD"}
-                      onChange={() => setPaymentMethod("COD")}
-                      className="mt-1 accent-[#9A7B3F]"
-                    />
-                    <div>
-                      <p className="font-medium">Cash on delivery</p>
-                      <p className="mt-1 text-sm text-gray-500">
-                        Pay when your order is delivered.
-                      </p>
-                    </div>
-                  </label>
+                  {[
+                    {
+                      value: "COD",
+                      title: "Cash on delivery",
+                      description:
+                        "Pay when your order is delivered.",
+                    },
+                    {
+                      value: "ONLINE",
+                      title: "Online payment",
+                      description:
+                        "Continue to your payment provider.",
+                    },
+                  ].map((method) => (
+                    <label
+                      key={method.value}
+                      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 ${
+                        paymentMethod === method.value
+                          ? "border-[#9A7B3F] bg-[#9A7B3F]/5"
+                          : "border-gray-200"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value={method.value}
+                        checked={paymentMethod === method.value}
+                        onChange={() =>
+                          setPaymentMethod(method.value)
+                        }
+                        className="mt-1 accent-[#9A7B3F]"
+                      />
 
-                  <label
-                    className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 ${
-                      paymentMethod === "ONLINE"
-                        ? "border-[#9A7B3F] bg-[#9A7B3F]/5"
-                        : "border-gray-200"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="ONLINE"
-                      checked={paymentMethod === "ONLINE"}
-                      onChange={() => setPaymentMethod("ONLINE")}
-                      className="mt-1 accent-[#9A7B3F]"
-                    />
-                    <div>
-                      <p className="font-medium">Online payment</p>
-                      <p className="mt-1 text-sm text-gray-500">
-                        Continue to your payment provider.
-                      </p>
-                    </div>
-                  </label>
+                      <div>
+                        <p className="font-medium">
+                          {method.title}
+                        </p>
+
+                        <p className="mt-1 text-sm text-gray-500">
+                          {method.description}
+                        </p>
+                      </div>
+                    </label>
+                  ))}
                 </div>
 
                 <p className="mt-4 text-xs leading-5 text-gray-400">
-                  Online payment requires a configured payment gateway and
-                  server-side payment verification. Cash on delivery must also
-                  be enabled by your backend.
+                  Online payment requires a configured payment
+                  gateway and server-side verification.
                 </p>
               </section>
 
-              {/* Items */}
+              {/* Order items and automatic offers */}
               <section className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
                 <div className="mb-5 flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-widest text-[#9A7B3F]">
                       Step 03
                     </p>
+
                     <h2 className="mt-1 text-xl font-semibold">
                       Order items
                     </h2>
                   </div>
+
                   <span className="text-sm text-gray-500">
                     {normalizedItems.length}{" "}
                     {normalizedItems.length === 1 ? "item" : "items"}
@@ -549,76 +658,129 @@ const Checkout = () => {
                 </div>
 
                 <div className="divide-y divide-gray-100">
-                  {normalizedItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex gap-4 py-4 first:pt-0 last:pb-0"
-                    >
-                      <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
-                        {item.image ? (
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            className="h-full w-full object-contain mix-blend-multiply"
-                          />
-                        ) : (
-                          <span className="px-2 text-center text-xs text-gray-400">
-                            No image
-                          </span>
-                        )}
-                      </div>
+                  {normalizedItems.map((item) => {
+                    const hasOffer =
+                      item.offerSavings > 0 &&
+                      item.finalPrice < item.originalPrice;
 
-                      <div className="min-w-0 flex-1">
-                        {item.brand && (
-                          <p className="text-xs uppercase tracking-widest text-[#9A7B3F]">
-                            {item.brand}
+                    const percentage =
+                      item.offer.discountType === "percentage"
+                        ? item.offer.discountValue
+                        : null;
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex gap-4 py-4 first:pt-0 last:pb-0"
+                      >
+                        <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
+                          {item.image ? (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="h-full w-full object-contain p-2"
+                            />
+                          ) : (
+                            <span className="px-2 text-center text-xs text-gray-400">
+                              No image
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          {item.brand && (
+                            <p className="text-xs uppercase tracking-widest text-[#9A7B3F]">
+                              {item.brand}
+                            </p>
+                          )}
+
+                          <h3 className="mt-1 font-medium">
+                            {item.name}
+                          </h3>
+
+                          {(item.variant?.sku ||
+                            item.variant?.strapMaterial ||
+                            item.variant?.caseSize) && (
+                            <p className="mt-1 text-xs text-gray-500">
+                              {[
+                                item.variant?.strapMaterial,
+                                item.variant?.caseSize
+                                  ? `${item.variant.caseSize} mm`
+                                  : "",
+                                item.variant?.sku
+                                  ? `SKU: ${item.variant.sku}`
+                                  : "",
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </p>
+                          )}
+
+                          <p className="mt-2 text-sm text-gray-500">
+                            Qty: {item.quantity}
                           </p>
-                        )}
 
-                        <h3 className="mt-1 font-medium">{item.name}</h3>
+                          {hasOffer && (
+                            <div className="mt-2">
+                              <span className="rounded bg-green-50 px-2 py-1 text-xs font-semibold text-green-700">
+                                {percentage != null
+                                  ? `${percentage}% OFF`
+                                  : "OFFER APPLIED"}
+                              </span>
 
-                        {(item.variant?.sku ||
-                          item.variant?.strapMaterial ||
-                          item.variant?.caseSize) && (
-                          <p className="mt-1 text-xs text-gray-500">
-                            {[
-                              item.variant?.strapMaterial,
-                              item.variant?.caseSize
-                                ? `${item.variant.caseSize} mm`
-                                : "",
-                              item.variant?.sku
-                                ? `SKU: ${item.variant.sku}`
-                                : "",
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
+                              {item.offer.name && (
+                                <p className="mt-2 text-xs font-medium text-[#9A7B3F]">
+                                  {item.offer.name}
+                                </p>
+                              )}
+
+                              <p className="mt-1 text-xs text-green-700">
+                                You save{" "}
+                                {formatPrice(
+                                  item.offerSavings * item.quantity
+                                )}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="shrink-0 text-right">
+                          {hasOffer && (
+                            <p className="text-xs text-gray-400 line-through">
+                              {formatPrice(
+                                item.originalPrice * item.quantity
+                              )}
+                            </p>
+                          )}
+
+                          <p className="mt-1 text-sm font-semibold">
+                            {formatPrice(
+                              item.finalPrice * item.quantity
+                            )}
                           </p>
-                        )}
-
-                        <p className="mt-2 text-sm text-gray-500">
-                          Qty: {item.quantity}
-                        </p>
+                        </div>
                       </div>
-
-                      <p className="shrink-0 text-right text-sm font-semibold">
-                        {formatPrice(item.price * item.quantity)}
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             </div>
 
-            {/* Right column: order summary */}
+            {/* Order summary and coupon */}
             <aside className="lg:sticky lg:top-6">
               <div className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
-                <h2 className="text-xl font-semibold">Order summary</h2>
+                <h2 className="text-xl font-semibold">
+                  Order summary
+                </h2>
+
                 <p className="mt-1 text-sm text-gray-500">
-                  Review your purchase before placing the order.
+                  Apply a coupon and review your savings.
                 </p>
 
-                {/* Coupon */}
-                <form onSubmit={handleApplyCoupon} className="mt-6">
+                <form
+                  onSubmit={handleApplyCoupon}
+                  className="mt-6"
+                >
                   <label
                     htmlFor="couponCode"
                     className="mb-2 block text-sm font-medium"
@@ -627,15 +789,17 @@ const Checkout = () => {
                   </label>
 
                   {appliedCoupon ? (
-                    <div className="flex items-center justify-between gap-3 rounded-lg border border-[#9A7B3F]/40 bg-[#9A7B3F]/5 p-3">
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 p-3">
                       <div>
-                        <p className="text-sm font-semibold">
+                        <p className="text-sm font-semibold text-green-800">
                           {appliedCoupon.code}
                         </p>
-                        <p className="mt-1 text-xs text-gray-500">
+
+                        <p className="mt-1 text-xs text-green-700">
                           You saved {formatPrice(discount)}
                         </p>
                       </div>
+
                       <button
                         type="button"
                         onClick={handleRemoveCoupon}
@@ -650,9 +814,12 @@ const Checkout = () => {
                         id="couponCode"
                         type="text"
                         value={couponCode}
-                        onChange={(event) =>
-                          setCouponCode(event.target.value.toUpperCase())
-                        }
+                        onChange={(event) => {
+                          setCouponCode(
+                            event.target.value.toUpperCase()
+                          );
+                          setCouponMessage("");
+                        }}
                         placeholder="Enter code"
                         className="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-[#9A7B3F] focus:ring-1 focus:ring-[#9A7B3F]"
                       />
@@ -671,7 +838,9 @@ const Checkout = () => {
                     <p
                       role="status"
                       className={`mt-2 text-xs ${
-                        appliedCoupon ? "text-green-700" : "text-gray-500"
+                        appliedCoupon
+                          ? "text-green-700"
+                          : "text-gray-500"
                       }`}
                     >
                       {couponMessage}
@@ -679,54 +848,92 @@ const Checkout = () => {
                   )}
                 </form>
 
-                {/* Totals */}
                 <div className="mt-6 space-y-4 border-t border-gray-200 pt-5 text-sm">
                   <div className="flex justify-between gap-4">
-                    <span className="text-gray-500">Subtotal</span>
+                    <span className="text-gray-500">
+                      Original subtotal
+                    </span>
+
                     <span className="font-medium">
                       {formatPrice(subtotal)}
                     </span>
                   </div>
 
                   <div className="flex justify-between gap-4">
-                    <span className="text-gray-500">Discount</span>
+                    <span className="text-gray-500">
+                      Offer savings
+                    </span>
+
                     <span className="font-medium text-green-700">
-                      {discount > 0 ? `−${formatPrice(discount)}` : "—"}
+                      {offerSavings > 0
+                        ? `−${formatPrice(offerSavings)}`
+                        : "—"}
                     </span>
                   </div>
 
                   <div className="flex justify-between gap-4">
-                    <span className="text-gray-500">Shipping</span>
+                    <span className="text-gray-500">
+                      Subtotal after offers
+                    </span>
+
                     <span className="font-medium">
-                      {shipping === 0 ? "Free" : formatPrice(shipping)}
+                      {formatPrice(discountedSubtotal)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-500">
+                      Coupon discount
+                    </span>
+
+                    <span className="font-medium text-green-700">
+                      {discount > 0
+                        ? `−${formatPrice(discount)}`
+                        : "—"}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-500">
+                      Shipping
+                    </span>
+
+                    <span className="font-medium">
+                      {shipping === 0
+                        ? "Free"
+                        : formatPrice(shipping)}
                     </span>
                   </div>
 
                   <div className="flex items-end justify-between gap-4 border-t border-gray-200 pt-5">
                     <div>
                       <p className="font-semibold">Total</p>
+
                       <p className="mt-1 text-xs text-gray-400">
-                        Inclusive of applicable taxes
+                        Final amount subject to server validation
                       </p>
                     </div>
+
                     <p className="text-2xl font-semibold tracking-tight">
                       {formatPrice(total)}
                     </p>
                   </div>
                 </div>
 
-                {/* Selected address summary */}
                 {selectedAddress && (
                   <div className="mt-6 rounded-lg bg-gray-50 p-4">
                     <p className="text-xs font-semibold uppercase tracking-widest text-[#9A7B3F]">
                       Delivering to
                     </p>
+
                     <p className="mt-2 text-sm font-medium">
                       {selectedAddress.fullName}
                     </p>
+
                     <p className="mt-1 text-sm leading-5 text-gray-500">
                       {selectedAddress.addressLine1},{" "}
-                      {selectedAddress.city} - {selectedAddress.pincode}
+                      {selectedAddress.city} -{" "}
+                      {selectedAddress.pincode}
                     </p>
                   </div>
                 )}
@@ -750,8 +957,8 @@ const Checkout = () => {
                 </button>
 
                 <p className="mt-4 text-center text-xs leading-5 text-gray-400">
-                  Your order total and stock availability will be validated
-                  by the server before the order is confirmed.
+                  The server must validate offers, coupon eligibility,
+                  the final amount, and stock before confirming the order.
                 </p>
               </div>
             </aside>

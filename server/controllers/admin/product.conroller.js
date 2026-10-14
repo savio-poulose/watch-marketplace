@@ -26,6 +26,8 @@ import {
   offerUpdate,
 } from "../../services/admin/offer.service.js";
 
+import User from "../../models/user.model.js";
+
 const parseJSON = (value, fallback) => {
   if (value === undefined || value === null || value === "") {
     return fallback;
@@ -524,3 +526,18 @@ export const toggleStatus = async (req, res) => {
     });
   }
 };
+
+
+export const getAllBlokedUsers = async(req,res)=>{
+  try{
+
+    const BlockedUsers = await User.find({isBlocked:true})
+
+    console.log(BlockedUsers)
+
+  }catch(err){
+    res.status(err).json({
+      message:err.message
+    })
+  }
+} 

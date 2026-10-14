@@ -1,7 +1,10 @@
+
 import mongoose from "mongoose";
+
 import Cart from "../../models/cart.module.js";
 import Variant from "../../models/variant.model.js";
-import Product from "../../models/product.model.js"
+import Product from "../../models/product.model.js";
+import Offer from "../../models/offer.model.js";
 
 const createError = (message, statusCode) => {
   const error = new Error(message);
@@ -15,22 +18,199 @@ const validateId = (id, label = "ID") => {
   }
 };
 
+// --------------------------------------------------
+// Calculate the current offer price for each cart item
+// --------------------------------------------------
+
+
 const getPopulatedCart = async (userId) => {
-  return Cart.findOne({ userId })
-    .populate({
-      path: "items.variantId",
-      model: Variant,
-    })
-    .populate({
-      path: "items.variantId",
-      populate: {
-        path: "productId",
-        model: Product,
-      },
+  const cart = await Cart.findOne({ userId }).populate({
+    path: "items.variantId",
+    model: Variant,
+    populate: {
+      path: "productId",
+      model: Product,
+    },
+  });
+
+  if (!cart) return null;
+
+  const cartData = cart.toObject();
+  const now = new Date();
+
+  const getId = (value) => {
+    if (!value) return null;
+
+    if (typeof value === "object" && value._id) {
+      return value._id.toString();
+    }
+
+    return value.toString();
+  };
+
+  const products = cartData.items
+    .map((item) => item.variantId?.productId)
+    .filter(Boolean);
+
+  const productIds = [
+    ...new Set(products.map((product) => getId(product._id))),
+  ];
+
+  const categoryIds = [
+    ...new Set(
+      products
+        .map((product) => getId(product.categoryId))
+        .filter(Boolean)
+    ),
+  ];
+
+  // Fetch both product and category offers.
+  const offerConditions = [];
+
+  if (productIds.length) {
+    offerConditions.push({
+      productId: { $in: productIds },
     });
+  }
+
+  if (categoryIds.length) {
+    offerConditions.push({
+      categoryId: { $in: categoryIds },
+    });
+  }
+
+  const offers = offerConditions.length
+    ? await Offer.find({
+        $or: offerConditions,
+        isActive: true,
+        startDate: { $lte: now },
+        endDate: { $gt: now },
+      }).lean()
+    : [];
+
+  const items = cartData.items.map((item) => {
+    const variant = item.variantId;
+    const product = variant?.productId;
+
+    const originalPrice = Math.max(
+      0,
+      Number(variant?.price ?? 0)
+    );
+
+    const productId = getId(product?._id);
+    const categoryId = getId(product?.categoryId);
+
+    // Find the highest valid product/category discount.
+    const applicableOffers = offers.filter((offer) => {
+      const matchesProduct =
+        productId && getId(offer.productId) === productId;
+
+      const matchesCategory =
+        categoryId && getId(offer.categoryId) === categoryId;
+
+      return matchesProduct || matchesCategory;
+    });
+
+    const getDiscount = (offer) => {
+      const value = Number(offer.discountValue);
+
+      if (!Number.isFinite(value) || value <= 0) return 0;
+
+      const type = String(offer.discountType).toLowerCase();
+
+      let discount = 0;
+
+      if (type === "percentage") {
+        if (value > 100) return 0;
+        discount = (originalPrice * value) / 100;
+      } else if (type === "fixed") {
+        discount = value;
+      }
+
+      return Math.min(originalPrice, Math.max(0, discount));
+    };
+
+    let winningOffer = null;
+    let winningDiscount = 0;
+
+    for (const offer of applicableOffers) {
+      const discount = getDiscount(offer);
+
+      if (discount > winningDiscount) {
+        winningDiscount = discount;
+        winningOffer = offer;
+      }
+    }
+
+    const discountedPrice = Number(
+      (originalPrice - winningDiscount).toFixed(2)
+    );
+
+    const offerSavings = Number(
+      (originalPrice - discountedPrice).toFixed(2)
+    );
+
+    return {
+      ...item,
+
+      originalPrice,
+      discountedPrice,
+      price: discountedPrice,
+      offerSavings,
+
+      offer: winningOffer
+        ? {
+            _id: winningOffer._id,
+            name: winningOffer.name,
+            discountType: winningOffer.discountType,
+            discountValue: winningOffer.discountValue,
+            offerFor: getId(winningOffer.productId)
+              ? "PRODUCT"
+              : "CATEGORY",
+            startDate: winningOffer.startDate,
+            endDate: winningOffer.endDate,
+          }
+        : null,
+    };
+  });
+
+  const subtotal = Number(
+    items
+      .reduce(
+        (total, item) =>
+          total +
+          item.discountedPrice * Number(item.quantity || 0),
+        0
+      )
+      .toFixed(2)
+  );
+
+  const originalSubtotal = Number(
+    items
+      .reduce(
+        (total, item) =>
+          total +
+          item.originalPrice * Number(item.quantity || 0),
+        0
+      )
+      .toFixed(2)
+  );
+
+  return {
+    ...cartData,
+    items,
+    subtotal,
+    originalSubtotal,
+    offerSavings: Number(
+      (originalSubtotal - subtotal).toFixed(2)
+    ),
+  };
 };
 
-// ADD ITEM
+
+
+// --------------------------------------------------
+
 export const addItemToCartService = async ({
   userId,
   variantId,
@@ -40,19 +220,13 @@ export const addItemToCartService = async ({
   validateId(variantId, "variant ID");
 
   if (!Number.isSafeInteger(quantity) || quantity < 1) {
-    throw createError(
-      "Quantity must be a positive integer.",
-      400
-    );
+    throw createError("Quantity must be a positive integer.", 400);
   }
 
   const variant = await Variant.findById(variantId);
 
   if (!variant || !variant.isActive) {
-    throw createError(
-      "Product variant is unavailable.",
-      404
-    );
+    throw createError("Product variant is unavailable.", 404);
   }
 
   const product = await Product.findById(variant.productId);
@@ -104,7 +278,9 @@ export const addItemToCartService = async ({
   return getPopulatedCart(userId);
 };
 
-// GET CART
+
+// --------------------------------------------------
+
 export const getCartService = async (userId) => {
   validateId(userId, "user ID");
 
@@ -114,13 +290,18 @@ export const getCartService = async (userId) => {
     return {
       userId,
       items: [],
+      subtotal: 0,
+      originalSubtotal: 0,
+      offerSavings: 0,
     };
   }
 
   return cart;
 };
 
-// UPDATE QUANTITY
+
+// --------------------------------------------------
+
 export const updateCartItemService = async ({
   userId,
   variantId,
@@ -130,19 +311,13 @@ export const updateCartItemService = async ({
   validateId(variantId, "variant ID");
 
   if (!Number.isSafeInteger(quantity) || quantity < 1) {
-    throw createError(
-      "Quantity must be a positive integer.",
-      400
-    );
+    throw createError("Quantity must be a positive integer.", 400);
   }
 
   const variant = await Variant.findById(variantId);
 
   if (!variant || !variant.isActive) {
-    throw createError(
-      "Product variant is unavailable.",
-      404
-    );
+    throw createError("Product variant is unavailable.", 404);
   }
 
   const product = await Product.findById(variant.productId);
@@ -180,7 +355,8 @@ export const updateCartItemService = async ({
   return getPopulatedCart(userId);
 };
 
-// REMOVE ITEM
+//  --------------------------------------------------
+
 export const removeCartItemService = async ({
   userId,
   variantId,

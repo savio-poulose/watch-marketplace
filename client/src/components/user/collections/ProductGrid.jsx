@@ -1,7 +1,7 @@
 import ProductCard from "./ProductCard";
 
-const ProductGrid = ({ products }) => {
-  if (products.length === 0) {
+const ProductGrid = ({ products = [] }) => {
+  if (!Array.isArray(products) || products.length === 0) {
     return (
       <div className="flex min-h-[400px] items-center justify-center rounded-sm border border-gray-200 bg-white">
         <div className="text-center">
@@ -18,9 +18,14 @@ const ProductGrid = ({ products }) => {
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-      {products.map((product) => (  
-        <ProductCard key={product.id} product={product} />
-      ))}
+      {products
+        .filter(Boolean)
+        .map((product) => (
+          <ProductCard
+            key={product.id || product._id}
+            product={product}
+          />
+        ))}
     </div>
   );
 };

@@ -1,27 +1,37 @@
-import { productsGetAll,getCollectionFilters,getActiveProductById } from "../../services/user/product.service.js"
-import {getActiveVariantsByProductId} from "../../services/user/variant.service.js"
+
 import mongoose from "mongoose";
 
-export const getAllProducts = async (req,res)=>{
-    try{
+import {
+  productsGetAll,
+  getCollectionFilters,
+  getActiveProductById,
+} from "../../services/user/product.service.js";
 
-        const products = await productsGetAll()
+import {
+  getActiveVariantsByProductId,
+} from "../../services/user/variant.service.js";
 
-        // console.log(products)
+import {
+  getActiveOfferByProductId,
+} from "../../services/user/offer.service.js";
 
-        res.status(200).json({
-            products:products
-        })
-        
-    }catch(err){
-        res.status(404).json({
-            message:err.message
-        })
-    }
-}
+export const getAllProducts = async (req, res) => {
+  try {
+    const products = await productsGetAll();
 
+    return res.status(200).json({
+      success: true,
+      products,
+    });
+  } catch (err) {
+    console.error("getAllProducts:", err);
 
-
+    return res.status(500).json({
+      success: false,
+      message: "Unable to fetch products",
+    });
+  }
+};
 
 export const collectionFilters = async (req, res) => {
   try {
@@ -32,13 +42,14 @@ export const collectionFilters = async (req, res) => {
       filters,
     });
   } catch (error) {
+    console.error("collectionFilters:", error);
+
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Unable to fetch collection filters",
     });
   }
 };
-
 
 export const getProductDetails = async (req, res) => {
   try {
@@ -60,12 +71,16 @@ export const getProductDetails = async (req, res) => {
       });
     }
 
-    const variants = await getActiveVariantsByProductId(product._id);
+    const [variants, offer] = await Promise.all([
+      getActiveVariantsByProductId(product._id),
+      getActiveOfferByProductId(product._id),
+    ]);
 
     return res.status(200).json({
       success: true,
       product,
       variants,
+      offer,
     });
   } catch (error) {
     console.error("getProductDetails:", error);

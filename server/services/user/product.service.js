@@ -1,3 +1,4 @@
+
 import Product from "../../models/product.model.js";
 import Variant from "../../models/variant.model.js";
 import Offer from "../../models/offer.model.js";
@@ -5,7 +6,12 @@ import Offer from "../../models/offer.model.js";
 export const productsGetAll = async () => {
   const products = await Product.find({ isActive: true }).lean();
 
+  if (products.length === 0) {
+    return [];
+  }
+
   const productIds = products.map((product) => product._id);
+  const now = new Date();
 
   const [variants, offers] = await Promise.all([
     Variant.find({
@@ -16,70 +22,88 @@ export const productsGetAll = async () => {
     Offer.find({
       productId: { $in: productIds },
       isActive: true,
+      startDate: { $lte: now },
+      endDate: { $gte: now },
     }).lean(),
   ]);
 
-  const now = new Date();
-
   return products.map((product) => {
+    const productId = product._id.toString();
+
     const productVariants = variants.filter(
-      (variant) => variant.productId.toString() === product._id.toString(),
+      (variant) => variant.productId.toString() === productId
     );
 
-    // Default variant: cheapest active variant
+    // Use the cheapest active variant for collection listing.
     const defaultVariant = [...productVariants].sort(
-      (a, b) => a.price - b.price,
+      (a, b) => Number(a.price) - Number(b.price)
     )[0];
 
-    const originalPrice = defaultVariant?.price ?? 0;
+    const originalPrice = Number(defaultVariant?.price ?? 0);
 
-    // Find the currently valid offer for this product
     const offer = offers.find(
-      (item) =>
-        item.productId.toString() === product._id.toString() &&
-        new Date(item.startDate) <= now &&
-        new Date(item.endDate) >= now,
+      (item) => item.productId.toString() === productId
     );
 
     let discountAmount = 0;
-    let discountPercentage = 0;
 
     if (offer && originalPrice > 0) {
       if (offer.discountType === "percentage") {
-        discountPercentage = Math.min(Math.max(offer.discountValue, 0), 100);
-
-        discountAmount = (originalPrice * discountPercentage) / 100;
-      } else if (offer.discountType === "fixed") {
-        discountAmount = Math.min(
-          Math.max(offer.discountValue, 0),
-          originalPrice,
+        const percentage = Math.min(
+          100,
+          Math.max(0, Number(offer.discountValue) || 0)
         );
 
-        discountPercentage = Math.round((discountAmount / originalPrice) * 100);
+        discountAmount = (originalPrice * percentage) / 100;
+      } else if (offer.discountType === "fixed") {
+        discountAmount = Math.min(
+          originalPrice,
+          Math.max(0, Number(offer.discountValue) || 0)
+        );
       }
     }
 
-    const finalPrice = Math.round((originalPrice - discountAmount) * 100) / 100;
+    discountAmount = Math.round(discountAmount * 100) / 100;
+
+    const finalPrice = Math.round(
+      (originalPrice - discountAmount) * 100
+    ) / 100;
+
+    const hasOffer = discountAmount > 0;
+
+    const discountPercentage =
+      originalPrice > 0
+        ? Math.round((discountAmount / originalPrice) * 100)
+        : 0;
 
     return {
       id: product._id,
       name: product.name,
       brand: product.brand,
 
-      image: defaultVariant?.images?.[0] || product.images?.[0] || "",
+      image:
+        defaultVariant?.images?.[0] ||
+        product.images?.[0] ||
+        "",
 
-      // Original price, displayed as the crossed-out price
-      oldPrice: offer ? originalPrice : null,
+      // Price before discount.
+      oldPrice: hasOffer ? originalPrice : null,
 
-      // Final discounted price
+      // Price after discount.
       price: finalPrice,
 
-      // Discount badge, e.g. "15% OFF"
-      discount: discountPercentage,
+      // Percentage saved, including fixed-amount offers.
+      discount: hasOffer ? discountPercentage : 0,
 
-      // Temporary dummy review data
+      // Useful for showing offer information in the UI.
+      hasOffer,
+      offerType: hasOffer ? offer.discountType : null,
+      discountAmount: hasOffer ? discountAmount : 0,
+
+      // Existing temporary review data.
       rating: 4.5,
-      reviews: Math.floor(Math.random() * 90) + 10,
+      reviews: 20,
+
       dialColor: defaultVariant?.dialColor ?? "",
       strapMaterial: defaultVariant?.strapMaterial ?? "",
     };
@@ -100,10 +124,8 @@ export const getCollectionFilters = async () => {
   };
 };
 
-
-
 export const getActiveProductById = async (id) => {
-  return await Product.findOne({
+  return Product.findOne({
     _id: id,
     isActive: true,
   })

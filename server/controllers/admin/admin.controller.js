@@ -41,7 +41,7 @@ export const adminLogin = async (req, res) => {
 
 export const getCurrentAdmin = async (req, res) => {
   try {
-    console.log("CURRENT ADMIN:", req.user);
+    // console.log("CURRENT ADMIN:", req.user);
 
     return res.status(200).json({
       success: true,
