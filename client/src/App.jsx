@@ -23,6 +23,7 @@ import Checkout from "./pages/user/Checkout.jsx";
 import MyOrders from "./pages/user/MyOrders.jsx";
 import OrderDetails from "./pages/user/OrderDetails.jsx"
 import AdminOrder from "./pages/admin/AdminOrder.jsx";
+import AdminCoupon from "./pages/admin/AdminCoupon.jsx";
 
 import ProtectedRoute from "./components/user/ProtectedRoute.jsx";
 import GuestRoute from "./components/user/GuestRoute.jsx";
@@ -95,6 +96,7 @@ function App() {
             <Route path="/admin/categories" element={<AdminCategory />} />
             <Route path="/admin/users" element={<AdminUserManage />} />
             <Route path="/admin/orders" element={<AdminOrder />} />
+            <Route path="/admin/coupon" element={<AdminCoupon />} />
           </Route>
         </Routes>
       </BrowserRouter>

@@ -13,7 +13,7 @@ import addressRouter from "./routes/user/address.route.js"
 import orderRouter from "./routes/user/order.route.js"
 import adminOrderRouter from "./routes/admin/order.route.js"
 import paymentRouter from "./routes/user/payment.route.js"
-
+import couponRouter from "./routes/admin/coupon.route.js"
 
 import cors from "cors"
 
@@ -41,12 +41,14 @@ app.use("/api/admin/category", categoryRouter);
 app.use("/api/admin/users",adminUsersRouter)
 app.use("/api/admin/", adminRouter);
 app.use("/api/admin/orders", adminOrderRouter);
+app.use("/api/admin/coupons",couponRouter)
 
 app.use("/api/user/products",userProductRouter)
 app.use("/api/user/cart",cartRouter)
 app.use("/api/user/address",addressRouter)
 app.use("/api/user/order",orderRouter)
 app.use("/api/user/payment",paymentRouter)
+
 
 
 //admin@watchstore.com
