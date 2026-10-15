@@ -46,7 +46,7 @@ const Navbar = () => {
 
           {/* WISHLIST */}
           <div className="relative cursor-pointer text-center">
-            <Link to="/wishlist">
+            <Link to="/user/wishlist">
               <HiOutlineHeart className="h-5 w-5" />
             </Link>
           </div>

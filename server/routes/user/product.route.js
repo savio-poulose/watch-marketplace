@@ -7,9 +7,6 @@ router.get("/",getAllProducts)
 
 router.get("/filters",collectionFilters);
 
-router.get("/:id", (req,res,next)=>{
-    console.log("product:id route is working")
-    next()
-},getProductDetails);
+router.get("/:id",getProductDetails);
 
 export default router

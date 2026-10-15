@@ -21,8 +21,7 @@ import Footer from "../../components/common/Footer.jsx";
 import ReviewsSection from "../../components/user/collections/ReviewsSection.jsx";
 import toast from "react-hot-toast";
 
-const formatPrice = (price) =>
-  `₹${Number(price || 0).toLocaleString("en-IN")}`;
+const formatPrice = (price) => `₹${Number(price || 0).toLocaleString("en-IN")}`;
 
 const calculateOfferPrice = (originalPrice, offer) => {
   const price = Number(originalPrice || 0);
@@ -62,26 +61,23 @@ const calculateOfferPrice = (originalPrice, offer) => {
   if (offer.discountType === "percentage") {
     const percentage = Math.min(
       Math.max(Number(offer.discountValue) || 0, 0),
-      100
+      100,
     );
 
     discountAmount = (price * percentage) / 100;
   } else if (offer.discountType === "fixed") {
     discountAmount = Math.min(
       Math.max(Number(offer.discountValue) || 0, 0),
-      price
+      price,
     );
   }
 
   discountAmount = Math.round(discountAmount * 100) / 100;
 
-  const finalPrice =
-    Math.round((price - discountAmount) * 100) / 100;
+  const finalPrice = Math.round((price - discountAmount) * 100) / 100;
 
   const discountPercentage =
-    price > 0
-      ? Math.round((discountAmount / price) * 100)
-      : 0;
+    price > 0 ? Math.round((discountAmount / price) * 100) : 0;
 
   return {
     originalPrice: price,
@@ -134,9 +130,7 @@ const ProductDetails = () => {
         setOffer(fetchedOffer);
 
         const initialVariant =
-          fetchedVariants.find(
-            (variant) => Number(variant.quantity) > 0
-          ) ??
+          fetchedVariants.find((variant) => Number(variant.quantity) > 0) ??
           fetchedVariants[0] ??
           null;
 
@@ -144,10 +138,7 @@ const ProductDetails = () => {
       } catch (err) {
         if (err.code === "ERR_CANCELED") return;
 
-        setError(
-          err.response?.data?.message ||
-            "Unable to load this product."
-        );
+        setError(err.response?.data?.message || "Unable to load this product.");
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
@@ -169,7 +160,7 @@ const ProductDetails = () => {
 
   const pricing = useMemo(
     () => calculateOfferPrice(selectedVariant?.price, offer),
-    [selectedVariant, offer]
+    [selectedVariant, offer],
   );
 
   const selectVariant = (variant) => {
@@ -182,9 +173,7 @@ const ProductDetails = () => {
   const handlePreviousImage = () => {
     if (!images.length) return;
 
-    setActiveImage(
-      (current) => (current - 1 + images.length) % images.length
-    );
+    setActiveImage((current) => (current - 1 + images.length) % images.length);
   };
 
   const handleNextImage = () => {
@@ -205,9 +194,7 @@ const ProductDetails = () => {
     }
 
     if (quantity > Number(selectedVariant.quantity)) {
-      setCartMessage(
-        `Only ${selectedVariant.quantity} item(s) are available.`
-      );
+      setCartMessage(`Only ${selectedVariant.quantity} item(s) are available.`);
       return;
     }
 
@@ -220,8 +207,7 @@ const ProductDetails = () => {
         quantity,
       });
 
-      const message =
-        response.data.message || "Item added to your bag.";
+      const message = response.data.message || "Item added to your bag.";
 
       toast.success(message);
       setCartMessage(message);
@@ -232,7 +218,7 @@ const ProductDetails = () => {
       } else {
         setCartMessage(
           err.response?.data?.message ||
-            "Unable to add item to your bag. Please try again."
+            "Unable to add item to your bag. Please try again.",
         );
       }
     } finally {
@@ -240,14 +226,72 @@ const ProductDetails = () => {
     }
   };
 
+  const handleToggleWishlist = async () => {
+    if (!product?._id) return;
+
+    try {
+      if (isFavorite) {
+        await api.delete(`/user/wishlist/${product._id}`);
+
+        setIsFavorite(false);
+        toast.success("Removed from wishlist");
+      } else {
+        const response = await api.post("/user/wishlist", {
+          productId: product._id,
+        });
+
+        setIsFavorite(true);
+        toast.success(response.data.message || "Added to wishlist");
+      }
+    } catch (error) {
+      if (error.response?.status === 401) {
+        toast.error("Please log in to manage your wishlist");
+        return;
+      }
+
+      toast.error(error.response?.data?.message || "Failed to update wishlist");
+
+      console.error("Wishlist error:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (!product?._id) return;
+
+    let cancelled = false;
+
+    const fetchWishlistStatus = async () => {
+      try {
+        const response = await api.get(`/user/wishlist/${product._id}/status`);
+
+        if (!cancelled) {
+          setIsFavorite(Boolean(response.data.isFavorite));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setIsFavorite(false);
+
+          if (error.response?.status !== 401) {
+            console.error("Failed to fetch wishlist status:", error);
+          }
+        }
+      }
+    };
+
+    setIsFavorite(false);
+    fetchWishlistStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [product?._id]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white">
         <Navbar />
         <div className="flex min-h-[60vh] items-center justify-center">
-          <p className="text-sm text-gray-500">
-            Loading product details...
-          </p>
+          <p className="text-sm text-gray-500">Loading product details...</p>
         </div>
         <Footer />
       </div>
@@ -280,9 +324,7 @@ const ProductDetails = () => {
   }
 
   const category =
-    typeof product.categoryId === "object"
-      ? product.categoryId?.name
-      : "";
+    typeof product.categoryId === "object" ? product.categoryId?.name : "";
 
   const selectedStock = Number(selectedVariant?.quantity ?? 0);
   const maxSelectableQuantity = Math.min(selectedStock, 5);
@@ -295,9 +337,7 @@ const ProductDetails = () => {
       {/* Breadcrumb */}
       <div className="mx-auto max-w-[1440px] px-5 pt-6 text-[10px] text-gray-400 lg:px-10">
         {category && <span>{category}</span>}
-        {category && (
-          <FaChevronRight className="mx-2 inline text-[7px]" />
-        )}
+        {category && <FaChevronRight className="mx-2 inline text-[7px]" />}
         <span className="text-[#111827]">{product.name}</span>
       </div>
 
@@ -404,10 +444,22 @@ const ProductDetails = () => {
 
                     <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
                       <Spec label="CASE SIZE" value={selectedVariant.size} />
-                      <Spec label="DIAL COLOUR" value={selectedVariant.dialColor} />
-                      <Spec label="STRAP COLOUR" value={selectedVariant.strapColor} />
-                      <Spec label="STRAP MATERIAL" value={selectedVariant.strapMaterial} />
-                      <Spec label="CASE MATERIAL" value={selectedVariant.caseMaterial} />
+                      <Spec
+                        label="DIAL COLOUR"
+                        value={selectedVariant.dialColor}
+                      />
+                      <Spec
+                        label="STRAP COLOUR"
+                        value={selectedVariant.strapColor}
+                      />
+                      <Spec
+                        label="STRAP MATERIAL"
+                        value={selectedVariant.strapMaterial}
+                      />
+                      <Spec
+                        label="CASE MATERIAL"
+                        value={selectedVariant.caseMaterial}
+                      />
 
                       <Spec
                         label="STOCK"
@@ -481,14 +533,13 @@ const ProductDetails = () => {
                     const variantImage =
                       variant.images?.[0] || product.images?.[0];
 
-                    const isSelected =
-                      selectedVariant?._id === variant._id;
+                    const isSelected = selectedVariant?._id === variant._id;
 
                     const stock = Number(variant.quantity ?? 0);
 
                     const variantPricing = calculateOfferPrice(
                       variant.price,
-                      offer
+                      offer,
                     );
 
                     return (
@@ -541,9 +592,7 @@ const ProductDetails = () => {
                               stock > 0 ? "text-green-700" : "text-red-600"
                             }`}
                           >
-                            {stock > 0
-                              ? `${stock} available`
-                              : "Out of stock"}
+                            {stock > 0 ? `${stock} available` : "Out of stock"}
                           </p>
 
                           {isSelected && (
@@ -580,13 +629,10 @@ const ProductDetails = () => {
                   <button
                     type="button"
                     aria-label="Increase quantity"
-                    disabled={
-                      isOutOfStock ||
-                      quantity >= maxSelectableQuantity
-                    }
+                    disabled={isOutOfStock || quantity >= maxSelectableQuantity}
                     onClick={() =>
                       setQuantity((current) =>
-                        Math.min(current + 1, maxSelectableQuantity)
+                        Math.min(current + 1, maxSelectableQuantity),
                       )
                     }
                     className="p-3 text-xs disabled:opacity-30"
@@ -605,15 +651,13 @@ const ProductDetails = () => {
                   {isOutOfStock
                     ? "OUT OF STOCK"
                     : addingToCart
-                      ? "ADDING..."
-                      : "ADD TO BAG"}
+                    ? "ADDING..."
+                    : "ADD TO BAG"}
                 </button>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setIsFavorite((current) => !current)
-                  }
+                  onClick={handleToggleWishlist}
                   aria-label="Toggle wishlist"
                   aria-pressed={isFavorite}
                   className={`flex items-center justify-center border px-5 py-4 ${
@@ -668,9 +712,7 @@ const Spec = ({ label, value }) => (
     <p className="text-[9px] font-medium tracking-wider text-gray-400">
       {label}
     </p>
-    <p className="mt-1 text-xs font-medium text-[#111827]">
-      {value || "—"}
-    </p>
+    <p className="mt-1 text-xs font-medium text-[#111827]">{value || "—"}</p>
   </div>
 );
 

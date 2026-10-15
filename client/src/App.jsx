@@ -24,12 +24,12 @@ import MyOrders from "./pages/user/MyOrders.jsx";
 import OrderDetails from "./pages/user/OrderDetails.jsx"
 import AdminOrder from "./pages/admin/AdminOrder.jsx";
 import AdminCoupon from "./pages/admin/AdminCoupon.jsx";
-
 import ProtectedRoute from "./components/user/ProtectedRoute.jsx";
 import GuestRoute from "./components/user/GuestRoute.jsx";
 import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute.jsx";
 import GuestAdminRoute from "./components/admin/GuestAdminRoute.jsx";
 import OrderSuccess from "./pages/user/OrderSuccess.jsx";
+import Wishlist from "./pages/user/Wishlist.jsx";
 
 function App() {
   return (
@@ -87,6 +87,7 @@ function App() {
             <Route path="/user/order-success/:orderId" element={<OrderSuccess />} />
             <Route path="/user/orders" element={<MyOrders />} />
             <Route path="/user/order/:orderId" element={<OrderDetails />} />
+            <Route path="/user/wishlist" element={<Wishlist />} />
           </Route>
 
           {/* Admin Protected Routes */}
