@@ -8,11 +8,12 @@ import Variant from "../../models/variant.model.js";
 import Product from "../../models/product.model.js";
 import Order from "../../models/order.module.js";
 import Address from "../../models/address.module.js";
+import Offer from "../../models/offer.model.js";
+import Coupon from "../../models/coupon.model.js";
 
 // --------------------------------------------------
 // 1. Calculate cart items using database prices
 // --------------------------------------------------
-
 const calculateCart = async (userId) => {
   const cart = await Cart.findOne({ userId }).populate({
     path: "items.variantId",
@@ -28,6 +29,9 @@ const calculateCart = async (userId) => {
 
   const items = [];
   let subtotal = 0;
+  let offerDiscount = 0;
+
+  const now = new Date();
 
   for (const cartItem of cart.items) {
     const variant = cartItem.variantId;
@@ -55,23 +59,56 @@ const calculateCart = async (userId) => {
       throw new Error("One of your products is unavailable.");
     }
 
-    const unitPrice = Number(variant.price);
+    const originalPrice = Number(variant.price);
 
-    if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+    if (!Number.isFinite(originalPrice) || originalPrice <= 0) {
       throw new Error("Invalid product price.");
     }
 
-    const originalPrice = unitPrice;
-    const lineTotal = unitPrice * quantity;
+    // Find the active product offer, if one exists.
+    const productOffer = await Offer.findOne({
+      productId: product._id,
+      isActive: true,
+      startDate: { $lte: now },
+      endDate: { $gte: now },
+    }).lean();
 
-    subtotal += lineTotal;
+    let unitDiscount = 0;
+
+    if (productOffer) {
+      if (productOffer.discountType === "percentage") {
+        const percentage = Number(productOffer.discountValue);
+
+        if (percentage > 0 && percentage <= 100) {
+          unitDiscount = (originalPrice * percentage) / 100;
+        }
+      } else if (productOffer.discountType === "fixed") {
+        const fixedDiscount = Number(productOffer.discountValue);
+
+        if (fixedDiscount > 0) {
+          unitDiscount = fixedDiscount;
+        }
+      }
+    }
+
+    // Never allow an offer to reduce the price below zero.
+    unitDiscount = Math.min(originalPrice, Math.max(0, unitDiscount));
+
+    const lineSubtotal = originalPrice * quantity;
+    const lineOfferDiscount = unitDiscount * quantity;
+
+    subtotal += lineSubtotal;
+    offerDiscount += lineOfferDiscount;
 
     const rawImage = variant.images?.[0] || product.images?.[0] || "";
 
     const image =
       typeof rawImage === "string"
         ? rawImage
-        : rawImage?.secure_url || rawImage?.url || rawImage?.imageUrl || "";
+        : rawImage?.secure_url ||
+          rawImage?.url ||
+          rawImage?.imageUrl ||
+          "";
 
     items.push({
       productId: product._id,
@@ -80,17 +117,25 @@ const calculateCart = async (userId) => {
       variantSku: `VAR-${variant._id}`,
       image,
       quantity,
-      originalPrice: unitPrice,
-      unitPrice,
-      offerDiscount: 0,
-      subtotal: lineTotal,
+      originalPrice,
+      unitPrice: originalPrice,
+      offerDiscount: lineOfferDiscount,
+      subtotal: lineSubtotal,
     });
   }
+
+  // Avoid floating-point currency precision issues.
+  subtotal = Math.round((subtotal + Number.EPSILON) * 100) / 100;
+  offerDiscount = Math.round(
+    (offerDiscount + Number.EPSILON) * 100
+  ) / 100;
 
   return {
     cart,
     items,
     subtotal,
+    offerDiscount,
+    discountedSubtotal: Math.max(0, subtotal - offerDiscount),
   };
 };
 
@@ -132,27 +177,148 @@ const getShippingAddress = async (userId, addressId) => {
 // 3. Create Razorpay order and save pending order
 // --------------------------------------------------
 
+const calculateCouponDiscount = async (
+  userId,
+  couponCode,
+  discountedSubtotal
+) => {
+  if (!couponCode) {
+    return {
+      couponCode: null,
+      couponDiscount: 0,
+    };
+  }
+
+  const code = String(couponCode).trim().toUpperCase();
+
+  const coupon = await Coupon.findOne({ code });
+
+  if (!coupon) {
+    throw new Error("Invalid coupon code.");
+  }
+
+  const now = new Date();
+
+  if (!coupon.isActive) {
+    throw new Error("This coupon is inactive.");
+  }
+
+  if (now < new Date(coupon.startDate)) {
+    throw new Error("This coupon is not active yet.");
+  }
+
+  if (now > new Date(coupon.endDate)) {
+    throw new Error("This coupon has expired.");
+  }
+
+  if (
+    coupon.usageLimit != null &&
+    coupon.usedCount >= coupon.usageLimit
+  ) {
+    throw new Error("This coupon has reached its usage limit.");
+  }
+
+  if (discountedSubtotal < Number(coupon.minOrderAmount || 0)) {
+    throw new Error(
+      `Minimum order amount is ₹${coupon.minOrderAmount}.`
+    );
+  }
+
+  // Enforce the per-user limit against already-paid orders.
+  if (coupon.perUserLimit != null) {
+    const previousRedemptions = await Order.countDocuments({
+      userId,
+      couponCode: coupon.code,
+      paymentStatus: "PAID",
+    });
+
+    if (previousRedemptions >= coupon.perUserLimit) {
+      throw new Error("You have already used this coupon the maximum number of times.");
+    }
+  }
+
+  let couponDiscount = 0;
+
+  if (coupon.discountType === "PERCENTAGE") {
+    const percentage = Number(coupon.discountValue);
+
+    if (percentage <= 0 || percentage > 100) {
+      throw new Error("Invalid coupon percentage.");
+    }
+
+    couponDiscount = (discountedSubtotal * percentage) / 100;
+
+    if (coupon.maxDiscount != null) {
+      couponDiscount = Math.min(
+        couponDiscount,
+        Number(coupon.maxDiscount)
+      );
+    }
+  } else if (coupon.discountType === "FIXED") {
+    couponDiscount = Number(coupon.discountValue);
+
+    if (couponDiscount <= 0) {
+      throw new Error("Invalid fixed coupon discount.");
+    }
+  } else {
+    throw new Error("Unsupported coupon discount type.");
+  }
+
+  couponDiscount = Math.min(
+    discountedSubtotal,
+    Math.max(0, couponDiscount)
+  );
+
+  couponDiscount = Math.round(
+    (couponDiscount + Number.EPSILON) * 100
+  ) / 100;
+
+  return {
+    couponCode: coupon.code,
+    couponDiscount,
+  };
+};
+
 export const createPaymentOrderService = async (userId, payload) => {
-  const { addressId } = payload;
+  const { addressId, couponCode } = payload || {};
 
-  const { items, subtotal } = await calculateCart(userId);
+  // Calculate original prices and active product offers.
+  const {
+    items,
+    subtotal,
+    offerDiscount,
+    discountedSubtotal,
+  } = await calculateCart(userId);
 
-  const shippingAddress = await getShippingAddress(userId, addressId);
+  const shippingAddress = await getShippingAddress(
+    userId,
+    addressId
+  );
 
-  // Keep these consistent with your existing checkout calculation.
-  // Offer and coupon discounts are not applied in this baseline.
-  const offerDiscount = 0;
-  const couponDiscount = 0;
+  // Validate coupon against the subtotal after offers.
+  const {
+    couponCode: appliedCouponCode,
+    couponDiscount,
+  } = await calculateCouponDiscount(
+    userId,
+    couponCode,
+    discountedSubtotal
+  );
+
   const shippingCharge = 0;
 
-  const totalAmount =
-    subtotal - offerDiscount - couponDiscount + shippingCharge;
+  const totalAmount = Math.round(
+    Math.max(
+      0,
+      discountedSubtotal - couponDiscount + shippingCharge
+    ) * 100
+  ) / 100;
 
   if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
     throw new Error("The payment amount must be greater than zero.");
   }
 
-  // Razorpay requires the amount in paise.
+  // Razorpay expects the amount in paise, not rupees.
   const amountInPaise = Math.round(totalAmount * 100);
 
   const receipt = `pay_${new mongoose.Types.ObjectId()}`;
@@ -163,6 +329,7 @@ export const createPaymentOrderService = async (userId, payload) => {
     receipt,
     notes: {
       userId: String(userId),
+      couponCode: appliedCouponCode || "",
     },
   });
 
@@ -180,6 +347,7 @@ export const createPaymentOrderService = async (userId, payload) => {
 
     subtotal,
     offerDiscount,
+    couponCode: appliedCouponCode,
     couponDiscount,
     shippingCharge,
     totalAmount,
@@ -199,6 +367,13 @@ export const createPaymentOrderService = async (userId, payload) => {
     razorpayOrderId: razorpayOrder.id,
     orderId: String(order._id),
     orderNumber: order.orderNumber,
+
+    // Useful for confirming the breakdown in the frontend.
+    subtotal,
+    offerDiscount,
+    couponDiscount,
+    shippingCharge,
+    totalAmount,
   };
 };
 

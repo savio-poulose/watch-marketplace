@@ -14,6 +14,7 @@ import orderRouter from "./routes/user/order.route.js"
 import adminOrderRouter from "./routes/admin/order.route.js"
 import paymentRouter from "./routes/user/payment.route.js"
 import couponRouter from "./routes/admin/coupon.route.js"
+import userCouponRouter from "./routes/user/coupon.route.js"
 
 import cors from "cors"
 
@@ -48,6 +49,7 @@ app.use("/api/user/cart",cartRouter)
 app.use("/api/user/address",addressRouter)
 app.use("/api/user/order",orderRouter)
 app.use("/api/user/payment",paymentRouter)
+app.use("/api/user/coupon", userCouponRouter);
 
 
 

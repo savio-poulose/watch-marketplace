@@ -707,21 +707,6 @@ const Checkout = () => {
 
 
 
-    // Coupon integration in the payment service is not complete yet.
-
-    // Do not charge an amount that ignores the displayed coupon.
-
-    if (appliedCoupon?.code) {
-
-      setOrderError(
-
-        "Online payment does not support coupons yet. Remove the coupon or choose Cash on Delivery.",
-
-      );
-
-      return;
-
-    }
 
 
 
@@ -786,6 +771,7 @@ const Checkout = () => {
         {
 
           addressId: selectedAddressId,
+          couponCode: appliedCoupon?.code || undefined,
 
         },
 
