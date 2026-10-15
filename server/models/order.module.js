@@ -1,4 +1,3 @@
-
 import mongoose from "mongoose";
 
 const orderItemSchema = new mongoose.Schema(
@@ -51,7 +50,7 @@ const orderItemSchema = new mongoose.Schema(
       min: 0,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const shippingAddressSchema = new mongoose.Schema(
@@ -64,7 +63,7 @@ const shippingAddressSchema = new mongoose.Schema(
     pincode: { type: String, required: true },
     landmark: { type: String, default: "" },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const orderSchema = new mongoose.Schema(
@@ -131,6 +130,27 @@ const orderSchema = new mongoose.Schema(
       enum: ["PENDING", "PAID", "FAILED", "REFUNDED"],
       default: "PENDING",
     },
+    razorpayOrderId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    razorpayPaymentId: {
+      type: String,
+      default: null,
+    },
+    razorpaySignature: {
+      type: String,
+      default: null,
+    },
+    paymentExpiresAt: {
+  type: Date,
+  default: null,
+},
+stockReserved: {
+  type: Boolean,
+  default: false,
+},
     orderStatus: {
       type: String,
       enum: [
@@ -154,7 +174,7 @@ const orderSchema = new mongoose.Schema(
       default: null,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Order = mongoose.model("Order", orderSchema);
