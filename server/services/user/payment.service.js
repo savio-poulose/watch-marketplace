@@ -105,10 +105,7 @@ const calculateCart = async (userId) => {
     const image =
       typeof rawImage === "string"
         ? rawImage
-        : rawImage?.secure_url ||
-          rawImage?.url ||
-          rawImage?.imageUrl ||
-          "";
+        : rawImage?.secure_url || rawImage?.url || rawImage?.imageUrl || "";
 
     items.push({
       productId: product._id,
@@ -126,9 +123,7 @@ const calculateCart = async (userId) => {
 
   // Avoid floating-point currency precision issues.
   subtotal = Math.round((subtotal + Number.EPSILON) * 100) / 100;
-  offerDiscount = Math.round(
-    (offerDiscount + Number.EPSILON) * 100
-  ) / 100;
+  offerDiscount = Math.round((offerDiscount + Number.EPSILON) * 100) / 100;
 
   return {
     cart,
@@ -180,7 +175,7 @@ const getShippingAddress = async (userId, addressId) => {
 const calculateCouponDiscount = async (
   userId,
   couponCode,
-  discountedSubtotal
+  discountedSubtotal,
 ) => {
   if (!couponCode) {
     return {
@@ -211,17 +206,12 @@ const calculateCouponDiscount = async (
     throw new Error("This coupon has expired.");
   }
 
-  if (
-    coupon.usageLimit != null &&
-    coupon.usedCount >= coupon.usageLimit
-  ) {
+  if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) {
     throw new Error("This coupon has reached its usage limit.");
   }
 
   if (discountedSubtotal < Number(coupon.minOrderAmount || 0)) {
-    throw new Error(
-      `Minimum order amount is ₹${coupon.minOrderAmount}.`
-    );
+    throw new Error(`Minimum order amount is ₹${coupon.minOrderAmount}.`);
   }
 
   // Enforce the per-user limit against already-paid orders.
@@ -233,7 +223,9 @@ const calculateCouponDiscount = async (
     });
 
     if (previousRedemptions >= coupon.perUserLimit) {
-      throw new Error("You have already used this coupon the maximum number of times.");
+      throw new Error(
+        "You have already used this coupon the maximum number of times.",
+      );
     }
   }
 
@@ -249,10 +241,7 @@ const calculateCouponDiscount = async (
     couponDiscount = (discountedSubtotal * percentage) / 100;
 
     if (coupon.maxDiscount != null) {
-      couponDiscount = Math.min(
-        couponDiscount,
-        Number(coupon.maxDiscount)
-      );
+      couponDiscount = Math.min(couponDiscount, Number(coupon.maxDiscount));
     }
   } else if (coupon.discountType === "FIXED") {
     couponDiscount = Number(coupon.discountValue);
@@ -264,14 +253,9 @@ const calculateCouponDiscount = async (
     throw new Error("Unsupported coupon discount type.");
   }
 
-  couponDiscount = Math.min(
-    discountedSubtotal,
-    Math.max(0, couponDiscount)
-  );
+  couponDiscount = Math.min(discountedSubtotal, Math.max(0, couponDiscount));
 
-  couponDiscount = Math.round(
-    (couponDiscount + Number.EPSILON) * 100
-  ) / 100;
+  couponDiscount = Math.round((couponDiscount + Number.EPSILON) * 100) / 100;
 
   return {
     couponCode: coupon.code,
@@ -283,36 +267,21 @@ export const createPaymentOrderService = async (userId, payload) => {
   const { addressId, couponCode } = payload || {};
 
   // Calculate original prices and active product offers.
-  const {
-    items,
-    subtotal,
-    offerDiscount,
-    discountedSubtotal,
-  } = await calculateCart(userId);
+  const { items, subtotal, offerDiscount, discountedSubtotal } =
+    await calculateCart(userId);
 
-  const shippingAddress = await getShippingAddress(
-    userId,
-    addressId
-  );
+  const shippingAddress = await getShippingAddress(userId, addressId);
 
   // Validate coupon against the subtotal after offers.
-  const {
-    couponCode: appliedCouponCode,
-    couponDiscount,
-  } = await calculateCouponDiscount(
-    userId,
-    couponCode,
-    discountedSubtotal
-  );
+  const { couponCode: appliedCouponCode, couponDiscount } =
+    await calculateCouponDiscount(userId, couponCode, discountedSubtotal);
 
   const shippingCharge = 0;
 
-  const totalAmount = Math.round(
-    Math.max(
-      0,
-      discountedSubtotal - couponDiscount + shippingCharge
-    ) * 100
-  ) / 100;
+  const totalAmount =
+    Math.round(
+      Math.max(0, discountedSubtotal - couponDiscount + shippingCharge) * 100,
+    ) / 100;
 
   if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
     throw new Error("The payment amount must be greater than zero.");
@@ -354,7 +323,7 @@ export const createPaymentOrderService = async (userId, payload) => {
 
     paymentMethod: "RAZORPAY",
     paymentStatus: "PENDING",
-    orderStatus: "PLACED",
+    orderStatus: "PAYMENT_PENDING",
 
     razorpayOrderId: razorpayOrder.id,
     paymentExpiresAt: new Date(Date.now() + 15 * 60 * 1000),
@@ -576,7 +545,9 @@ export const markPaymentFailedService = async (
   reason = "Payment failed or checkout was closed",
 ) => {
   if (!orderId || !mongoose.isValidObjectId(orderId)) {
-    throw new Error("Invalid order ID.");
+    const error = new Error("Invalid order ID.");
+    error.statusCode = 400;
+    throw error;
   }
 
   const order = await Order.findOneAndUpdate(
@@ -585,48 +556,219 @@ export const markPaymentFailedService = async (
       userId,
       paymentMethod: "RAZORPAY",
       paymentStatus: "PENDING",
+      orderStatus: { $ne: "CANCELLED" },
     },
     {
       $set: {
         paymentStatus: "FAILED",
-        orderStatus: "CANCELLED",
-        cancelledAt: new Date(),
-        cancellationReason: reason,
+        orderStatus: "PAYMENT_PENDING",
+        cancelledAt: null,
+        cancellationReason: String(reason).slice(0, 500),
       },
     },
-    { new: true },
+    { returnDocument: "after" },
   );
 
-  // A payment may already have been verified successfully.
-  if (!order) {
-    const existingOrder = await Order.findOne({
-      _id: orderId,
-      userId,
-    });
-
-    if (!existingOrder) {
-      throw new Error("Payment order not found.");
-    }
-
-    if (existingOrder.paymentStatus === "PAID") {
-      return {
-        success: true,
-        alreadyPaid: true,
-        message: "Payment was already successful.",
-      };
-    }
-
+  if (order) {
     return {
       success: true,
-      alreadyProcessed: true,
-      paymentStatus: existingOrder.paymentStatus,
+      paymentStatus: order.paymentStatus,
+      orderStatus: order.orderStatus,
+      message: "Payment failure recorded. You can retry payment.",
     };
   }
 
-  // Do not clear the cart or deduct stock here.
+  // A failure callback must never overwrite an already-paid order.
+  const existingOrder = await Order.findOne({
+    _id: orderId,
+    userId,
+    paymentMethod: "RAZORPAY",
+  });
+
+  if (!existingOrder) {
+    const error = new Error("Payment order not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (existingOrder.paymentStatus === "PAID") {
+    return {
+      success: true,
+      alreadyPaid: true,
+      paymentStatus: "PAID",
+      message: "Payment was already successful.",
+    };
+  }
+
   return {
     success: true,
-    paymentStatus: order.paymentStatus,
-    orderStatus: order.orderStatus,
+    alreadyProcessed: true,
+    paymentStatus: existingOrder.paymentStatus,
+    orderStatus: existingOrder.orderStatus,
+  };
+};
+
+export const retryPaymentService = async (userId, orderId) => {
+  if (!orderId || !mongoose.isValidObjectId(orderId)) {
+    const error = new Error("Invalid order ID.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const order = await Order.findOne({
+    _id: orderId,
+    userId,
+    paymentMethod: "RAZORPAY",
+  });
+
+  if (!order) {
+    const error = new Error("Payment order not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (order.paymentStatus === "PAID") {
+    const error = new Error("This order has already been paid.");
+    error.statusCode = 409;
+    throw error;
+  }
+
+  if (
+    ["DELIVERED", "RETURNED", "RETURN_REQUESTED"].includes(order.orderStatus)
+  ) {
+    const error = new Error("This order is no longer eligible for payment.");
+    error.statusCode = 409;
+    throw error;
+  }
+
+  // Support legacy orders that were marked CANCELLED when a payment failed.
+  // Do not reopen an order cancelled for an unrelated reason.
+  if (order.orderStatus === "CANCELLED") {
+    const reason = String(order.cancellationReason || "");
+
+    const wasPaymentCancellation =
+      order.paymentStatus === "FAILED" &&
+      /(payment|razorpay|checkout|closed|failed)/i.test(reason);
+
+    if (!wasPaymentCancellation) {
+      const error = new Error(
+        "This order was cancelled and cannot be paid again.",
+      );
+      error.statusCode = 409;
+      throw error;
+    }
+  }
+
+  const isFailed = order.paymentStatus === "FAILED";
+  const isExpiredPending =
+    order.paymentStatus === "PENDING" &&
+    order.paymentExpiresAt &&
+    order.paymentExpiresAt.getTime() <= Date.now();
+
+  if (!isFailed && !isExpiredPending) {
+    const error = new Error(
+      "This payment is still active. Finish it or wait for it to expire before retrying.",
+    );
+    error.statusCode = 409;
+    throw error;
+  }
+
+  // Recheck stock and product availability before opening another payment attempt.
+  // Stock is not deducted here; it is deducted only after successful verification.
+  for (const item of order.items) {
+    const variant = await Variant.findOne({
+      _id: item.variantId,
+      isActive: { $ne: false },
+      quantity: { $gte: item.quantity },
+    });
+
+    if (!variant) {
+      const error = new Error(
+        `Insufficient stock or unavailable variant for ${item.productName}.`,
+      );
+      error.statusCode = 409;
+      throw error;
+    }
+
+    const product = await Product.findOne({
+      _id: item.productId,
+      isActive: { $ne: false },
+    });
+
+    if (!product) {
+      const error = new Error(`${item.productName} is no longer available.`);
+      error.statusCode = 409;
+      throw error;
+    }
+  }
+
+  if (!process.env.RAZORPAY_KEY_SECRET || !keyId) {
+    const error = new Error("Razorpay is not configured.");
+    error.statusCode = 500;
+    throw error;
+  }
+
+  const amountInPaise = Math.round(Number(order.totalAmount) * 100);
+
+  if (!Number.isSafeInteger(amountInPaise) || amountInPaise <= 0) {
+    const error = new Error("Invalid payment amount.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Create a NEW Razorpay attempt for the EXISTING purchase order.
+  const razorpayOrder = await razorpay.orders.create({
+    amount: amountInPaise,
+    currency: "INR",
+    receipt: `r_${String(order._id).slice(-12)}_${Date.now()
+      .toString()
+      .slice(-10)}`,
+    notes: {
+      userId: String(userId),
+      orderId: String(order._id),
+      orderNumber: order.orderNumber,
+      retry: "true",
+    },
+  });
+
+  // Do not overwrite an order that became paid while the retry was being prepared.
+  const updatedOrder = await Order.findOneAndUpdate(
+    {
+      _id: order._id,
+      userId,
+      paymentMethod: "RAZORPAY",
+      paymentStatus: { $ne: "PAID" },
+    },
+    {
+      $set: {
+        razorpayOrderId: razorpayOrder.id,
+        paymentStatus: "PENDING",
+        paymentExpiresAt: new Date(Date.now() + 15 * 60 * 1000),
+        orderStatus: "PAYMENT_PENDING",
+        cancelledAt: null,
+        cancellationReason: null,
+        razorpayPaymentId: null,
+        razorpaySignature: null,
+      },
+    },
+    { returnDocument: "after" },
+  );
+
+  if (!updatedOrder) {
+    const error = new Error(
+      "The order changed while retrying. Refresh and check its payment status.",
+    );
+    error.statusCode = 409;
+    throw error;
+  }
+
+  return {
+    keyId,
+    amount: razorpayOrder.amount,
+    currency: razorpayOrder.currency,
+    razorpayOrderId: razorpayOrder.id,
+    orderId: String(updatedOrder._id),
+    orderNumber: updatedOrder.orderNumber,
+    totalAmount: updatedOrder.totalAmount,
   };
 };

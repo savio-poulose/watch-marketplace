@@ -144,16 +144,17 @@ const orderSchema = new mongoose.Schema(
       default: null,
     },
     paymentExpiresAt: {
-  type: Date,
-  default: null,
-},
-stockReserved: {
-  type: Boolean,
-  default: false,
-},
+      type: Date,
+      default: null,
+    },
+    stockReserved: {
+      type: Boolean,
+      default: false,
+    },
     orderStatus: {
       type: String,
       enum: [
+        "PAYMENT_PENDING",
         "PLACED",
         "CONFIRMED",
         "PROCESSING",

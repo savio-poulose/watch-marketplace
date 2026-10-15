@@ -6,11 +6,7 @@ import api from "../../api/axios.js";
 
 import loadRazorpay from "../../utils/loadRazorpay.js";
 
-
-
 const SHIPPING_FEE = 0;
-
-
 
 const API = {
 
@@ -24,8 +20,6 @@ const API = {
 
 };
 
-
-
 const formatPrice = (amount) =>
 
   new Intl.NumberFormat("en-IN", {
@@ -38,8 +32,6 @@ const formatPrice = (amount) =>
 
   }).format(Number(amount) || 0);
 
-
-
 const getId = (value) => {
 
   if (!value) return "";
@@ -49,8 +41,6 @@ const getId = (value) => {
   return value._id || value.id || "";
 
 };
-
-
 
 const getCartItems = (data) => {
 
@@ -64,70 +54,94 @@ const getCartItems = (data) => {
 
     (Array.isArray(data?.cart) ? data.cart : []);
 
-
-
   return Array.isArray(items) ? items : [];
 
 };
 
-
-
 const getImageUrl = (image) => {
+
   if (!image) return "";
 
   if (typeof image === "string") {
+
     const value = image.trim();
-    return value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/")
+
+    return value.startsWith("http\://") || value.startsWith("https\://") || value.startsWith("/")
+
       ? value
+
       : "";
+
   }
 
   if (Array.isArray(image)) {
+
     for (const candidate of image) {
+
       const url = getImageUrl(candidate);
+
       if (url) return url;
+
     }
+
     return "";
+
   }
 
   if (typeof image === "object") {
+
     const directUrl =
+
       image.secure_url ||
+
       image.url ||
+
       image.imageUrl ||
+
       image.imageURL ||
+
       image.src ||
+
       image.path ||
+
       image.location ||
+
       image.downloadURL ||
+
       image.publicUrl;
 
     if (typeof directUrl === "string" && directUrl.trim()) {
+
       return directUrl.trim();
+
     }
 
     // Handle APIs that nest the actual image object.
     return (
+
       getImageUrl(image.image) ||
+
       getImageUrl(image.thumbnail) ||
+
       getImageUrl(image.file) ||
+
       getImageUrl(image.images) ||
+
       ""
+
     );
+
   }
 
   return "";
+
 };
-
-
 
 const Checkout = () => {
 
   const navigate = useNavigate();
 
   const location = useLocation();
-
-
 
   const [cartItems, setCartItems] = useState([]);
 
@@ -137,8 +151,6 @@ const Checkout = () => {
 
   const [paymentMethod, setPaymentMethod] = useState("COD");
 
-
-
   const [couponCode, setCouponCode] = useState(
 
     location.state?.couponCode || "",
@@ -147,26 +159,20 @@ const Checkout = () => {
 
   const [appliedCoupon, setAppliedCoupon] = useState(null);
 
-
-
   const [loading, setLoading] = useState(true);
 
   const [placingOrder, setPlacingOrder] = useState(false);
 
   const [applyingCoupon, setApplyingCoupon] = useState(false);
 
-
-
   const [error, setError] = useState("");
 
   const [couponMessage, setCouponMessage] = useState("");
 
   const [orderError, setOrderError] = useState("");
-
-
+  const [retryOrderId, setRetryOrderId] = useState("");
 
   // Fetch cart and saved addresses.
-
   const loadCheckout = useCallback(async () => {
 
     try {
@@ -174,8 +180,6 @@ const Checkout = () => {
       setLoading(true);
 
       setError("");
-
-
 
       const [cartResponse, addressResponse] = await Promise.all([
 
@@ -185,11 +189,7 @@ const Checkout = () => {
 
       ]);
 
-
-
       setCartItems(getCartItems(cartResponse.data));
-
-
 
       const addressData =
 
@@ -201,27 +201,19 @@ const Checkout = () => {
 
         [];
 
-
-
       const savedAddresses = Array.isArray(addressData)
 
         ? addressData
 
         : [];
 
-
-
       setAddresses(savedAddresses);
-
-
 
       const defaultAddress = savedAddresses.find(
 
         (address) => address.isDefault,
 
       );
-
-
 
       setSelectedAddressId(
 
@@ -232,8 +224,6 @@ const Checkout = () => {
     } catch (err) {
 
       console.error("Checkout loading failed:", err);
-
-
 
       setError(
 
@@ -251,18 +241,13 @@ const Checkout = () => {
 
   }, []);
 
-
-
   useEffect(() => {
 
     loadCheckout();
 
   }, [loadCheckout]);
 
-
-
   // Normalize cart response for display.
-
   const normalizedItems = useMemo(() => {
 
     return cartItems.map((item, index) => {
@@ -274,8 +259,6 @@ const Checkout = () => {
           ? item.variantId
 
           : item.variant || {};
-
-
 
       const product =
 
@@ -289,8 +272,6 @@ const Checkout = () => {
 
             : item.product || {};
 
-
-
       const quantity = Math.max(
 
         1,
@@ -298,8 +279,6 @@ const Checkout = () => {
         Math.floor(Number(item.quantity) || 1),
 
       );
-
-
 
       const originalPrice = Math.max(
 
@@ -321,8 +300,6 @@ const Checkout = () => {
 
       );
 
-
-
       const finalPrice = Math.max(
 
         0,
@@ -343,8 +320,6 @@ const Checkout = () => {
 
       );
 
-
-
       const offerSavings = Math.max(
 
         0,
@@ -352,8 +327,6 @@ const Checkout = () => {
         originalPrice - finalPrice,
 
       );
-
-
 
       const backendOffer =
 
@@ -365,21 +338,26 @@ const Checkout = () => {
 
         null;
 
-
-
       // Search all image locations; an empty variant.images array must not block fallback images.
       const image =
+
         getImageUrl(variant.images) ||
+
         getImageUrl(variant.image) ||
+
         getImageUrl(product.images) ||
+
         getImageUrl(product.image) ||
+
         getImageUrl(product.thumbnail) ||
+
         getImageUrl(item.images) ||
+
         getImageUrl(item.image) ||
+
         getImageUrl(item.thumbnail) ||
+
         "";
-
-
 
       return {
 
@@ -429,10 +407,7 @@ const Checkout = () => {
 
   }, [cartItems]);
 
-
-
   // Original subtotal before offers.
-
   const subtotal = useMemo(
 
     () =>
@@ -451,10 +426,7 @@ const Checkout = () => {
 
   );
 
-
-
   // Total product offer savings.
-
   const offerSavings = useMemo(
 
     () =>
@@ -473,10 +445,7 @@ const Checkout = () => {
 
   );
 
-
-
   // Subtotal after automatic offers.
-
   const discountedSubtotal = useMemo(
 
     () =>
@@ -495,8 +464,6 @@ const Checkout = () => {
 
   );
 
-
-
   const discount = Math.min(
 
     discountedSubtotal,
@@ -505,13 +472,9 @@ const Checkout = () => {
 
   );
 
-
-
   const shipping =
 
     discountedSubtotal > 0 ? SHIPPING_FEE : 0;
-
-
 
   const total = Math.max(
 
@@ -521,27 +484,18 @@ const Checkout = () => {
 
   );
 
-
-
   const selectedAddress = addresses.find(
 
     (address) => getId(address) === selectedAddressId,
 
   );
 
-
-
   // Apply coupon using the existing backend endpoint.
-
   const handleApplyCoupon = async (event) => {
 
     event.preventDefault();
 
-
-
     const code = couponCode.trim().toUpperCase();
-
-
 
     if (!code) {
 
@@ -551,8 +505,6 @@ const Checkout = () => {
 
     }
 
-
-
     if (normalizedItems.length === 0) {
 
       setCouponMessage("Your cart is empty.");
@@ -560,8 +512,6 @@ const Checkout = () => {
       return;
 
     }
-
-
 
     try {
 
@@ -571,8 +521,6 @@ const Checkout = () => {
 
       setOrderError("");
 
-
-
       const response = await api.post(API.applyCoupon, {
 
         code,
@@ -581,8 +529,6 @@ const Checkout = () => {
 
       });
 
-
-
       const result =
 
         response.data?.coupon ||
@@ -590,8 +536,6 @@ const Checkout = () => {
         response.data?.data?.coupon ||
 
         response.data;
-
-
 
       if (result?.success === false) {
 
@@ -603,11 +547,7 @@ const Checkout = () => {
 
       }
 
-
-
       const discountAmount = Number(result?.discountAmount);
-
-
 
       if (
 
@@ -627,15 +567,11 @@ const Checkout = () => {
 
       }
 
-
-
       const normalizedCode = String(
 
         result.code || result.coupon?.code || code,
 
       ).toUpperCase();
-
-
 
       setAppliedCoupon({
 
@@ -651,8 +587,6 @@ const Checkout = () => {
 
       });
 
-
-
       setCouponCode(normalizedCode);
 
       setCouponMessage("Coupon applied successfully.");
@@ -661,11 +595,7 @@ const Checkout = () => {
 
       console.error("Coupon application failed:", err);
 
-
-
       setAppliedCoupon(null);
-
-
 
       setCouponMessage(
 
@@ -685,8 +615,6 @@ const Checkout = () => {
 
   };
 
-
-
   const handleRemoveCoupon = () => {
 
     setAppliedCoupon(null);
@@ -697,18 +625,10 @@ const Checkout = () => {
 
   };
 
-
-
   // Razorpay Test Mode payment flow.
-
-  const handleOnlinePayment = async () => {
+  const handleOnlinePayment = async (existingOrderId = "") => {
 
     if (placingOrder) return;
-
-
-
-
-
 
     try {
 
@@ -716,9 +636,7 @@ const Checkout = () => {
 
       setOrderError("");
 
-
-
-      if (!selectedAddressId) {
+      if (!existingOrderId && !selectedAddressId) {
 
         setOrderError("Please select a delivery address.");
 
@@ -728,9 +646,7 @@ const Checkout = () => {
 
       }
 
-
-
-      if (normalizedItems.length === 0) {
+      if (!existingOrderId && normalizedItems.length === 0) {
 
         setOrderError("Your cart is empty.");
 
@@ -740,11 +656,7 @@ const Checkout = () => {
 
       }
 
-
-
       const loaded = await loadRazorpay();
-
-
 
       if (!loaded) {
 
@@ -760,24 +672,13 @@ const Checkout = () => {
 
       }
 
-
-
-      // The backend calculates the payable amount.
-
-      const response = await api.post(
-
-        "/user/payment/create-order",
-
-        {
-
-          addressId: selectedAddressId,
-          couponCode: appliedCoupon?.code || undefined,
-
-        },
-
-      );
-
-
+      // Server recalculates current offers and the applied coupon.
+      const response = existingOrderId
+        ? await api.post(`/user/payment/retry/${existingOrderId}`)
+        : await api.post("/user/payment/create-order", {
+            addressId: selectedAddressId,
+            couponCode: appliedCoupon?.code || undefined,
+          });
 
       const paymentOrder =
 
@@ -786,8 +687,6 @@ const Checkout = () => {
         response.data?.data ??
 
         response.data;
-
-
 
       if (
 
@@ -809,8 +708,6 @@ const Checkout = () => {
 
       }
 
-
-
       let verificationStarted = false;
 
       const options = {
@@ -826,8 +723,6 @@ const Checkout = () => {
         description: "Luxury Watch Purchase",
 
         order_id: paymentOrder.razorpayOrderId,
-
-
 
         handler: async (paymentResponse) => {
 
@@ -859,8 +754,6 @@ const Checkout = () => {
 
             );
 
-
-
             if (verification.data?.success) {
 
               navigate(
@@ -874,8 +767,6 @@ const Checkout = () => {
               return;
 
             }
-
-
 
             setOrderError(
 
@@ -893,8 +784,6 @@ const Checkout = () => {
 
             );
 
-
-
             setOrderError(
 
               verifyError.response?.data?.message ||
@@ -911,32 +800,54 @@ const Checkout = () => {
 
         },
 
-
-
         modal: {
+
           ondismiss: async () => {
+
             if (!verificationStarted) {
+
               try {
-                await api.post("/user/payment/fail", {
+
+                const failureResponse = await api.post("/user/payment/fail", {
+
                   orderId: paymentOrder.orderId,
+
                   reason: "Customer closed the payment window",
+
                 });
+                if (
+                  !failureResponse.data?.alreadyPaid &&
+                  failureResponse.data?.paymentStatus !== "PAID"
+                ) {
+                  setRetryOrderId(paymentOrder.orderId);
+                  setPaymentMethod("ONLINE");
+                }
+
               } catch (failError) {
+
                 console.error(
+
                   "Could not update abandoned payment status:",
+
                   failError.response?.data || failError,
+
                 );
+
               }
+
             }
 
             setPlacingOrder(false);
+
             setOrderError(
+
               "Payment window closed. Your items are still in your cart. If you completed payment, check your order status before trying again.",
+
             );
+
           },
+
         },
-
-
 
         theme: {
 
@@ -946,32 +857,46 @@ const Checkout = () => {
 
       };
 
-
-
       const razorpay = new window.Razorpay(options);
 
-
-
       razorpay.on("payment.failed", async (event) => {
+
         console.error("Razorpay payment failed:", event.error);
 
         try {
-          await api.post("/user/payment/fail", {
+
+          const failureResponse = await api.post("/user/payment/fail", {
+
             orderId: paymentOrder.orderId,
+
             reason: event.error?.description || "Razorpay payment failed",
+
           });
+          if (
+            !failureResponse.data?.alreadyPaid &&
+            failureResponse.data?.paymentStatus !== "PAID"
+          ) {
+            setRetryOrderId(paymentOrder.orderId);
+            setPaymentMethod("ONLINE");
+          }
+
         } catch (failError) {
+
           console.error(
+
             "Could not update failed payment status:",
+
             failError.response?.data || failError,
+
           );
+
         }
 
         setPlacingOrder(false);
+
         setOrderError("Payment failed. Your items are still in your cart.");
+
       });
-
-
 
       razorpay.open();
 
@@ -985,8 +910,6 @@ const Checkout = () => {
 
       );
 
-
-
       setOrderError(
 
         paymentError.response?.data?.message ||
@@ -997,27 +920,18 @@ const Checkout = () => {
 
       );
 
-
-
       setPlacingOrder(false);
 
     }
 
   };
 
-
-
   // COD checkout remains on the existing order endpoint.
-
   const handlePlaceOrder = async () => {
 
     if (placingOrder) return;
 
-
-
     setOrderError("");
-
-
 
     if (!selectedAddressId) {
 
@@ -1027,8 +941,6 @@ const Checkout = () => {
 
     }
 
-
-
     if (normalizedItems.length === 0) {
 
       setOrderError("Your cart is empty.");
@@ -1036,8 +948,6 @@ const Checkout = () => {
       return;
 
     }
-
-
 
     if (paymentMethod === "ONLINE") {
 
@@ -1047,8 +957,6 @@ const Checkout = () => {
 
     }
 
-
-
     if (paymentMethod !== "COD") {
 
       setOrderError("Please select a valid payment method.");
@@ -1057,13 +965,9 @@ const Checkout = () => {
 
     }
 
-
-
     try {
 
       setPlacingOrder(true);
-
-
 
       const response = await api.post(API.createOrder, {
 
@@ -1075,11 +979,7 @@ const Checkout = () => {
 
       });
 
-
-
       const order = response.data?.order;
-
-
 
       if (!order?._id) {
 
@@ -1091,8 +991,6 @@ const Checkout = () => {
 
       }
 
-
-
       navigate(`/user/order-success/${order._id}`, {
 
         replace: true,
@@ -1102,8 +1000,6 @@ const Checkout = () => {
     } catch (err) {
 
       console.error("Order placement failed:", err);
-
-
 
       setOrderError(
 
@@ -1123,8 +1019,6 @@ const Checkout = () => {
 
   };
 
-
-
   if (loading) {
 
     return (
@@ -1142,8 +1036,6 @@ const Checkout = () => {
     );
 
   }
-
-
 
   return (
 
@@ -1167,23 +1059,17 @@ const Checkout = () => {
 
           </button>
 
-
-
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-[#9A7B3F]">
 
             Secure checkout
 
           </p>
 
-
-
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
 
             Complete your order
 
           </h1>
-
-
 
           <p className="mt-2 text-sm text-gray-500">
 
@@ -1192,8 +1078,6 @@ const Checkout = () => {
           </p>
 
         </header>
-
-
 
         {error && (
 
@@ -1206,8 +1090,6 @@ const Checkout = () => {
           >
 
             {error}
-
-
 
             <button
 
@@ -1227,8 +1109,6 @@ const Checkout = () => {
 
         )}
 
-
-
         {normalizedItems.length === 0 ? (
 
           <div className="rounded-xl border border-gray-200 bg-white px-6 py-16 text-center">
@@ -1239,15 +1119,11 @@ const Checkout = () => {
 
             </h2>
 
-
-
             <p className="mt-2 text-sm text-gray-500">
 
               Add a watch before checking out.
 
             </p>
-
-
 
             <button
 
@@ -1285,8 +1161,6 @@ const Checkout = () => {
 
                     </p>
 
-
-
                     <h2 className="mt-1 text-xl font-semibold">
 
                       Delivery address
@@ -1294,8 +1168,6 @@ const Checkout = () => {
                     </h2>
 
                   </div>
-
-
 
                   <button
 
@@ -1321,8 +1193,6 @@ const Checkout = () => {
 
                 </div>
 
-
-
                 {addresses.length === 0 ? (
 
                   <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center">
@@ -1332,8 +1202,6 @@ const Checkout = () => {
                       You have not saved a delivery address yet.
 
                     </p>
-
-
 
                     <button
 
@@ -1370,8 +1238,6 @@ const Checkout = () => {
                       const selected =
 
                         addressId === selectedAddressId;
-
-
 
                       return (
 
@@ -1411,8 +1277,6 @@ const Checkout = () => {
 
                           />
 
-
-
                           <div className="min-w-0 flex-1">
 
                             <div className="flex flex-wrap items-center gap-2">
@@ -1423,8 +1287,6 @@ const Checkout = () => {
 
                               </span>
 
-
-
                               {address.addressType && (
 
                                 <span className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600">
@@ -1434,8 +1296,6 @@ const Checkout = () => {
                                 </span>
 
                               )}
-
-
 
                               {address.isDefault && (
 
@@ -1449,15 +1309,11 @@ const Checkout = () => {
 
                             </div>
 
-
-
                             <p className="mt-2 text-sm leading-6 text-gray-600">
 
                               {address.addressLine1 ||
 
                                 address.addressLine}
-
-
 
                               {address.addressLine2
 
@@ -1465,19 +1321,13 @@ const Checkout = () => {
 
                                 : ""}
 
-
-
                               <br />
-
-
 
                               {address.city}, {address.state} -{" "}
 
                               {address.pincode}
 
                             </p>
-
-
 
                             <p className="mt-1 text-sm text-gray-500">
 
@@ -1499,8 +1349,6 @@ const Checkout = () => {
 
               </section>
 
-
-
               {/* Payment method */}
 
               <section className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
@@ -1511,15 +1359,11 @@ const Checkout = () => {
 
                 </p>
 
-
-
                 <h2 className="mt-1 text-xl font-semibold">
 
                   Payment method
 
                 </h2>
-
-
 
                 <div className="mt-5 space-y-3">
 
@@ -1593,8 +1437,6 @@ const Checkout = () => {
 
                       />
 
-
-
                       <div>
 
                         <p className="font-medium">
@@ -1602,8 +1444,6 @@ const Checkout = () => {
                           {method.title}
 
                         </p>
-
-
 
                         <p className="mt-1 text-sm text-gray-500">
 
@@ -1619,8 +1459,6 @@ const Checkout = () => {
 
                 </div>
 
-
-
                 {paymentMethod === "ONLINE" && (
 
                   <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-800">
@@ -1634,8 +1472,6 @@ const Checkout = () => {
                 )}
 
               </section>
-
-
 
               {/* Order items */}
 
@@ -1651,8 +1487,6 @@ const Checkout = () => {
 
                     </p>
 
-
-
                     <h2 className="mt-1 text-xl font-semibold">
 
                       Order items
@@ -1660,8 +1494,6 @@ const Checkout = () => {
                     </h2>
 
                   </div>
-
-
 
                   <span className="text-sm text-gray-500">
 
@@ -1677,8 +1509,6 @@ const Checkout = () => {
 
                 </div>
 
-
-
                 <div className="divide-y divide-gray-100">
 
                   {normalizedItems.map((item) => {
@@ -1689,8 +1519,6 @@ const Checkout = () => {
 
                       item.finalPrice < item.originalPrice;
 
-
-
                     const percentage =
 
                       item.offer.discountType === "percentage"
@@ -1698,8 +1526,6 @@ const Checkout = () => {
                         ? item.offer.discountValue
 
                         : null;
-
-
 
                     return (
 
@@ -1716,18 +1542,31 @@ const Checkout = () => {
                           {item.image ? (
 
                             <img
+
                               src={item.image}
+
                               alt={item.name}
+
                               loading="lazy"
+
                               onError={(event) => {
+
                                 console.error("Checkout product image failed to load:", {
+
                                   image: item.image,
+
                                   productId: getId(item.product),
+
                                   variantId: getId(item.variant),
+
                                 });
+
                                 event.currentTarget.style.display = "none";
+
                               }}
+
                               className="h-full w-full object-contain p-2"
+
                             />
 
                           ) : (
@@ -1742,8 +1581,6 @@ const Checkout = () => {
 
                         </div>
 
-
-
                         <div className="min-w-0 flex-1">
 
                           {item.brand && (
@@ -1756,15 +1593,11 @@ const Checkout = () => {
 
                           )}
 
-
-
                           <h3 className="mt-1 font-medium">
 
                             {item.name}
 
                           </h3>
-
-
 
                           {(item.variant?.sku ||
 
@@ -1800,15 +1633,11 @@ const Checkout = () => {
 
                           )}
 
-
-
                           <p className="mt-2 text-sm text-gray-500">
 
                             Qty: {item.quantity}
 
                           </p>
-
-
 
                           {hasOffer && (
 
@@ -1824,8 +1653,6 @@ const Checkout = () => {
 
                               </span>
 
-
-
                               {item.offer.name && (
 
                                 <p className="mt-2 text-xs font-medium text-[#9A7B3F]">
@@ -1835,8 +1662,6 @@ const Checkout = () => {
                                 </p>
 
                               )}
-
-
 
                               <p className="mt-1 text-xs text-green-700">
 
@@ -1856,8 +1681,6 @@ const Checkout = () => {
 
                         </div>
 
-
-
                         <div className="shrink-0 text-right">
 
                           {hasOffer && (
@@ -1873,8 +1696,6 @@ const Checkout = () => {
                             </p>
 
                           )}
-
-
 
                           <p className="mt-1 text-sm font-semibold">
 
@@ -1900,8 +1721,6 @@ const Checkout = () => {
 
             </div>
 
-
-
             {/* Order summary */}
 
             <aside className="lg:sticky lg:top-6">
@@ -1914,15 +1733,11 @@ const Checkout = () => {
 
                 </h2>
 
-
-
                 <p className="mt-1 text-sm text-gray-500">
 
                   Apply a coupon and review your savings.
 
                 </p>
-
-
 
                 <form
 
@@ -1944,8 +1759,6 @@ const Checkout = () => {
 
                   </label>
 
-
-
                   {appliedCoupon ? (
 
                     <div className="flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 p-3">
@@ -1958,8 +1771,6 @@ const Checkout = () => {
 
                         </p>
 
-
-
                         <p className="mt-1 text-xs text-green-700">
 
                           You saved {formatPrice(discount)}
@@ -1967,8 +1778,6 @@ const Checkout = () => {
                         </p>
 
                       </div>
-
-
 
                       <button
 
@@ -2016,8 +1825,6 @@ const Checkout = () => {
 
                       />
 
-
-
                       <button
 
                         type="submit"
@@ -2039,8 +1846,6 @@ const Checkout = () => {
                     </div>
 
                   )}
-
-
 
                   {couponMessage && (
 
@@ -2068,8 +1873,6 @@ const Checkout = () => {
 
                 </form>
 
-
-
                 <div className="mt-6 space-y-4 border-t border-gray-200 pt-5 text-sm">
 
                   <div className="flex justify-between gap-4">
@@ -2080,8 +1883,6 @@ const Checkout = () => {
 
                     </span>
 
-
-
                     <span className="font-medium">
 
                       {formatPrice(subtotal)}
@@ -2090,8 +1891,6 @@ const Checkout = () => {
 
                   </div>
 
-
-
                   <div className="flex justify-between gap-4">
 
                     <span className="text-gray-500">
@@ -2099,8 +1898,6 @@ const Checkout = () => {
                       Offer savings
 
                     </span>
-
-
 
                     <span className="font-medium text-green-700">
 
@@ -2114,8 +1911,6 @@ const Checkout = () => {
 
                   </div>
 
-
-
                   <div className="flex justify-between gap-4">
 
                     <span className="text-gray-500">
@@ -2123,8 +1918,6 @@ const Checkout = () => {
                       Subtotal after offers
 
                     </span>
-
-
 
                     <span className="font-medium">
 
@@ -2134,8 +1927,6 @@ const Checkout = () => {
 
                   </div>
 
-
-
                   <div className="flex justify-between gap-4">
 
                     <span className="text-gray-500">
@@ -2143,8 +1934,6 @@ const Checkout = () => {
                       Coupon discount
 
                     </span>
-
-
 
                     <span className="font-medium text-green-700">
 
@@ -2158,8 +1947,6 @@ const Checkout = () => {
 
                   </div>
 
-
-
                   <div className="flex justify-between gap-4">
 
                     <span className="text-gray-500">
@@ -2167,8 +1954,6 @@ const Checkout = () => {
                       Shipping
 
                     </span>
-
-
 
                     <span className="font-medium">
 
@@ -2182,15 +1967,11 @@ const Checkout = () => {
 
                   </div>
 
-
-
                   <div className="flex items-end justify-between gap-4 border-t border-gray-200 pt-5">
 
                     <div>
 
                       <p className="font-semibold">Total</p>
-
-
 
                       <p className="mt-1 text-xs text-gray-400">
 
@@ -2199,8 +1980,6 @@ const Checkout = () => {
                       </p>
 
                     </div>
-
-
 
                     <p className="text-2xl font-semibold tracking-tight">
 
@@ -2212,8 +1991,6 @@ const Checkout = () => {
 
                 </div>
 
-
-
                 {selectedAddress && (
 
                   <div className="mt-6 rounded-lg bg-gray-50 p-4">
@@ -2224,8 +2001,6 @@ const Checkout = () => {
 
                     </p>
 
-
-
                     <p className="mt-2 text-sm font-medium">
 
                       {selectedAddress.fullName ||
@@ -2234,15 +2009,11 @@ const Checkout = () => {
 
                     </p>
 
-
-
                     <p className="mt-1 text-sm leading-5 text-gray-500">
 
                       {selectedAddress.addressLine1 ||
 
                         selectedAddress.addressLine}
-
-
 
                       {selectedAddress.addressLine2
 
@@ -2250,11 +2021,7 @@ const Checkout = () => {
 
                         : ""}
 
-
-
                       <br />
-
-
 
                       {selectedAddress.city},{" "}
 
@@ -2267,8 +2034,6 @@ const Checkout = () => {
                   </div>
 
                 )}
-
-
 
                 {orderError && (
 
@@ -2286,13 +2051,15 @@ const Checkout = () => {
 
                 )}
 
-
-
                 <button
 
                   type="button"
 
-                  onClick={handlePlaceOrder}
+                  onClick={() =>
+                    paymentMethod === "ONLINE" && retryOrderId
+                      ? handleOnlinePayment(retryOrderId)
+                      : handlePlaceOrder()
+                  }
 
                   disabled={
 
@@ -2322,8 +2089,6 @@ const Checkout = () => {
 
                 </button>
 
-
-
                 <p className="mt-4 text-center text-xs leading-5 text-gray-400">
 
                   The server must validate prices, offers, coupons,
@@ -2347,7 +2112,5 @@ const Checkout = () => {
   );
 
 };
-
-
 
 export default Checkout;
