@@ -55,7 +55,7 @@ export const getCart = async (req, res) => {
 
     const cart = await getCartService(userId);
 
-    console.log(cart)
+    // console.log(cart)
 
     return res.status(200).json({
       message: "Cart fetched successfully.",

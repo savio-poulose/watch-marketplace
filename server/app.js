@@ -16,6 +16,8 @@ import paymentRouter from "./routes/user/payment.route.js"
 import couponRouter from "./routes/admin/coupon.route.js"
 import userCouponRouter from "./routes/user/coupon.route.js"
 import wishlistRouter from "./routes/user/wishlist.route.js"
+import walletRouter from "./routes/user/wallet.route.js"
+import adminWalletRouter from "./routes/admin/adminWallet.route.js"
 
 import cors from "cors"
 
@@ -44,6 +46,7 @@ app.use("/api/admin/users",adminUsersRouter)
 app.use("/api/admin/", adminRouter);
 app.use("/api/admin/orders", adminOrderRouter);
 app.use("/api/admin/coupons",couponRouter)
+app.use("/api/admin/wallets", adminWalletRouter);
 
 app.use("/api/user/products",userProductRouter)
 app.use("/api/user/cart",cartRouter)
@@ -52,6 +55,7 @@ app.use("/api/user/order",orderRouter)
 app.use("/api/user/payment",paymentRouter)
 app.use("/api/user/coupon", userCouponRouter);
 app.use("/api/user/wishlist",wishlistRouter)
+app.use("/api/user/wallet", walletRouter);
 
 
 

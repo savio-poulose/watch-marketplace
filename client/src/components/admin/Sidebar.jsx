@@ -9,6 +9,7 @@ import {
   FaSignOutAlt,
   FaTimes,
   FaTicketAlt ,
+  FaWallet
 } from "react-icons/fa";
 import { useAdminAuth } from "../../context/useAdminAuth";
 import axios from "axios"
@@ -168,6 +169,21 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
             >
               <FaUsers className="text-xs" />
               Users
+            </NavLink>
+
+            <NavLink
+              to="/admin/wallet"
+              onClick={handleNavClick}
+              className={({ isActive }) =>
+                `w-full flex items-center gap-3 px-3 py-3 text-sm transition ${
+                  isActive
+                    ? "bg-white text-[#111827]"
+                    : "text-gray-300 hover:bg-gray-800"
+                }`
+              }
+            >
+              <FaWallet  className="text-xs" />
+              Wallet
             </NavLink>
 
             <NavLink

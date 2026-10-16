@@ -3,6 +3,8 @@ import Order from "../../models/order.module.js";
 import Cart from "../../models/cart.module.js";
 import Variant from "../../models/variant.model.js";
 import Address from "../../models/address.module.js";
+import Wallet from "../../models/wallet.module.js";
+import WalletTransaction from "../../models/walletTransaction.js";
 
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);
@@ -207,6 +209,7 @@ export const createOrderService = async (userId, payload) => {
             paymentMethod,
             paymentStatus: "PENDING",
             orderStatus: "PLACED",
+            stockReserved: true,  
           },
         ],
         { session },
@@ -248,63 +251,207 @@ export const getMyOrderByIdService = async (userId, orderId) => {
   return order;
 };
 
-export const cancelMyOrderService = async (userId, orderId, reason = "") => {
+export const cancelMyOrderService = async (
+  userId,
+  orderId,
+  reason = ""
+) => {
   if (!mongoose.isValidObjectId(orderId)) {
     throw createError("Invalid order ID.", 400);
   }
 
-  const order = await Order.findOne({
-    _id: orderId,
-    userId,
-  });
-
-  if (!order) {
-    throw createError("Order not found.", 404);
-  }
-
-  // Once shipped or delivered, use a return workflow instead.
-  if (!["PLACED", "CONFIRMED", "PROCESSING"].includes(order.orderStatus)) {
-    throw createError("This order can no longer be cancelled.", 400);
-  }
-
-  if (order.paymentStatus === "PAID") {
-    throw createError(
-      "A paid order needs the refund workflow before cancellation.",
-      400,
-    );
-  }
+  const allowedStatuses = [
+    "PAYMENT_PENDING",
+    "PLACED",
+    "CONFIRMED",
+    "PROCESSING",
+  ];
 
   const session = await mongoose.startSession();
 
   try {
     await session.withTransaction(async () => {
-      const latestOrder = await Order.findOne({
+      const order = await Order.findOne({
         _id: orderId,
         userId,
-        orderStatus: { $in: ["PLACED", "CONFIRMED", "PROCESSING"] },
-        paymentStatus: { $ne: "PAID" },
       }).session(session);
 
-      if (!latestOrder) {
-        throw createError("Order can no longer be cancelled.", 409);
+      if (!order) {
+        throw createError("Order not found.", 404);
       }
 
-      for (const item of latestOrder.items) {
-        await Variant.updateOne(
-          { _id: item.variantId },
-          { $inc: { quantity: item.quantity } },
-          { session },
+      if (order.orderStatus === "CANCELLED") {
+        throw createError("This order is already cancelled.", 409);
+      }
+
+      if (!allowedStatuses.includes(order.orderStatus)) {
+        throw createError(
+          "This order can no longer be cancelled. Use the return workflow if applicable.",
+          400
         );
       }
 
-      latestOrder.orderStatus = "CANCELLED";
-      latestOrder.cancelledAt = new Date();
-      latestOrder.cancellationReason = String(reason).slice(0, 500);
-      await latestOrder.save({ session });
+      if (order.paymentStatus === "REFUNDED") {
+        throw createError("This order has already been refunded.", 409);
+      }
+
+      const wasPaid = order.paymentStatus === "PAID";
+
+      if (wasPaid && order.paymentMethod !== "RAZORPAY") {
+        throw createError(
+          "This paid order requires manual refund review.",
+          409
+        );
+      }
+
+      const shouldCreditWallet =
+        order.paymentMethod === "RAZORPAY" && wasPaid;
+
+      const refundAmount = money(Number(order.totalAmount));
+
+      if (
+        shouldCreditWallet &&
+        (!Number.isFinite(refundAmount) || refundAmount <= 0)
+      ) {
+        throw createError("Invalid refund amount.", 400);
+      }
+
+      // Restore stock only if it was actually deducted/reserved.
+      // COD orders in the existing implementation reserve stock
+      // when the order is created.
+      const shouldRestoreStock =
+        order.stockReserved === true ||
+        order.paymentMethod === "COD" ||
+        wasPaid;
+
+      if (shouldRestoreStock) {
+        for (const item of order.items) {
+          const result = await Variant.updateOne(
+            { _id: item.variantId },
+            { $inc: { quantity: item.quantity } },
+            { session }
+          );
+
+          if (result.modifiedCount !== 1) {
+            throw createError(
+              `Could not restore stock for ${item.productName}.`,
+              409
+            );
+          }
+        }
+
+        order.stockReserved = false;
+      }
+
+      // Credit the wallet only for successfully paid Razorpay orders.
+      if (shouldCreditWallet) {
+        const reference = `ORDER_REFUND_${order._id}`;
+
+        let wallet = await Wallet.findOne({
+          userId: order.userId,
+        }).session(session);
+
+        if (!wallet) {
+          const [createdWallet] = await Wallet.create(
+            [{ userId: order.userId, balance: 0 }],
+            { session }
+          );
+
+          wallet = createdWallet;
+        }
+
+        if (!wallet.isActive) {
+          throw createError(
+            "Your wallet is inactive. Please contact support.",
+            403
+          );
+        }
+
+        // A unique reference prevents duplicate refund credits.
+        const existingTransaction =
+          await WalletTransaction.findOne({
+            reference,
+          }).session(session);
+
+        if (existingTransaction) {
+          if (
+            String(existingTransaction.userId) !==
+              String(order.userId) ||
+            String(existingTransaction.orderId) !==
+              String(order._id) ||
+            existingTransaction.type !== "CREDIT" ||
+            existingTransaction.status !== "COMPLETED" ||
+            Number(existingTransaction.amount) !== refundAmount
+          ) {
+            throw createError(
+              "Refund transaction conflict. Please contact support.",
+              409
+            );
+          }
+        } else {
+          const updatedWallet = await Wallet.findOneAndUpdate(
+            {
+              _id: wallet._id,
+              isActive: true,
+            },
+            {
+              $inc: { balance: refundAmount },
+            },
+            {
+              new: true,
+              session,
+            }
+          );
+
+          if (!updatedWallet) {
+            throw createError(
+              "Could not credit your wallet.",
+              500
+            );
+          }
+
+          await WalletTransaction.create(
+            [
+              {
+                walletId: updatedWallet._id,
+                userId: order.userId,
+                orderId: order._id,
+                type: "CREDIT",
+                source: "ORDER_REFUND",
+                amount: refundAmount,
+                balanceAfter: updatedWallet.balance,
+                status: "COMPLETED",
+                description: `Wallet refund for order ${
+                  order.orderNumber
+                }`,
+                reference,
+              },
+            ],
+            { session }
+          );
+        }
+
+        // Mark as refunded only within the same transaction
+        // that records the wallet credit.
+        order.paymentStatus = "REFUNDED";
+      }
+
+      order.orderStatus = "CANCELLED";
+      order.cancelledAt = new Date();
+      order.cancellationReason = String(reason || "").slice(
+        0,
+        500
+      );
+
+      await order.save({ session });
     });
 
-    return Order.findOne({ _id: orderId, userId }).lean();
+    return await Order.findOne({
+      _id: orderId,
+      userId,
+    }).lean();
   } finally {
     await session.endSession();
   }
 };
+

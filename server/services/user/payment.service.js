@@ -10,6 +10,8 @@ import Order from "../../models/order.module.js";
 import Address from "../../models/address.module.js";
 import Offer from "../../models/offer.model.js";
 import Coupon from "../../models/coupon.model.js";
+import Wallet from "../../models/wallet.module.js";
+import WalletTransaction from "../../models/walletTransaction.js";
 
 // --------------------------------------------------
 // 1. Calculate cart items using database prices
@@ -262,17 +264,14 @@ const calculateCouponDiscount = async (
     couponDiscount,
   };
 };
-
 export const createPaymentOrderService = async (userId, payload) => {
-  const { addressId, couponCode } = payload || {};
+  const { addressId, couponCode, useWallet = false } = payload || {};
 
-  // Calculate original prices and active product offers.
   const { items, subtotal, offerDiscount, discountedSubtotal } =
     await calculateCart(userId);
 
   const shippingAddress = await getShippingAddress(userId, addressId);
 
-  // Validate coupon against the subtotal after offers.
   const { couponCode: appliedCouponCode, couponDiscount } =
     await calculateCouponDiscount(userId, couponCode, discountedSubtotal);
 
@@ -287,8 +286,174 @@ export const createPaymentOrderService = async (userId, payload) => {
     throw new Error("The payment amount must be greater than zero.");
   }
 
-  // Razorpay expects the amount in paise, not rupees.
-  const amountInPaise = Math.round(totalAmount * 100);
+  // Read the current wallet balance on the server.
+  let walletBalance = 0;
+
+  if (useWallet) {
+    const wallet = await Wallet.findOne({ userId }).lean();
+
+    if (wallet && !wallet.isActive) {
+      throw new Error("Your wallet is inactive.");
+    }
+
+    walletBalance = Math.max(0, Number(wallet?.balance) || 0);
+  }
+
+  const walletAppliedAmount = useWallet
+    ? Math.round(Math.min(walletBalance, totalAmount) * 100) / 100
+    : 0;
+
+  const amountDue =
+    Math.round(Math.max(0, totalAmount - walletAppliedAmount) * 100) / 100;
+
+  const orderNumber = `ORD-${Date.now()}-${crypto
+    .randomBytes(3)
+    .toString("hex")
+    .toUpperCase()}`;
+
+  const orderData = {
+    orderNumber,
+    userId,
+    items,
+    shippingAddress,
+    subtotal,
+    offerDiscount,
+    couponCode: appliedCouponCode,
+    couponDiscount,
+    shippingCharge,
+    totalAmount,
+    walletAppliedAmount,
+    amountDue,
+    paymentMethod: amountDue > 0 ? "RAZORPAY" : "WALLET",
+    paymentStatus: amountDue > 0 ? "PENDING" : "PAID",
+    orderStatus: amountDue > 0 ? "PAYMENT_PENDING" : "CONFIRMED",
+    stockReserved: false,
+  };
+
+  // CASE 1: Wallet covers the full order. No Razorpay order is created.
+  if (amountDue === 0) {
+    const session = await mongoose.startSession();
+
+    try {
+      let completedOrder;
+
+      await session.withTransaction(async () => {
+        const cart = await Cart.findOne({ userId }).session(session);
+
+        if (!cart?.items?.length) {
+          throw new Error("Your cart is empty.");
+        }
+
+        const [order] = await Order.create([orderData], { session });
+
+        // Deduct wallet funds atomically; never allow a negative balance.
+        const wallet = await Wallet.findOneAndUpdate(
+          {
+            userId,
+            isActive: true,
+            balance: { $gte: walletAppliedAmount },
+          },
+          {
+            $inc: { balance: -walletAppliedAmount },
+          },
+          {
+            new: true,
+            session,
+          },
+        );
+
+        if (!wallet) {
+          throw new Error(
+            "Your wallet balance changed. Refresh checkout and try again.",
+          );
+        }
+
+        const reference = `WALLET_PAYMENT_${order._id}`;
+
+        await WalletTransaction.create(
+          [
+            {
+              walletId: wallet._id,
+              userId,
+              orderId: order._id,
+              type: "DEBIT",
+              source: "WALLET_PAYMENT",
+              amount: walletAppliedAmount,
+              balanceAfter: wallet.balance,
+              status: "COMPLETED",
+              description: `Wallet payment for order ${order.orderNumber}`,
+              reference,
+            },
+          ],
+          { session },
+        );
+
+        // Reserve/deduct stock in the same transaction.
+        for (const item of order.items) {
+          const stockUpdate = await Variant.updateOne(
+            {
+              _id: item.variantId,
+              isActive: true,
+              quantity: { $gte: item.quantity },
+            },
+            {
+              $inc: { quantity: -item.quantity },
+            },
+            { session },
+          );
+
+          if (stockUpdate.modifiedCount !== 1) {
+            throw new Error(`Insufficient stock for ${item.productName}.`);
+          }
+        }
+
+        order.stockReserved = true;
+        await order.save({ session });
+
+        // Remove only the purchased variants from the cart.
+        const purchasedVariantIds = order.items.map((item) =>
+          String(item.variantId),
+        );
+
+        cart.items = cart.items.filter((cartItem) => {
+          const variantId = cartItem.variantId?._id
+            ? cartItem.variantId._id
+            : cartItem.variantId;
+
+          return !purchasedVariantIds.includes(String(variantId));
+        });
+
+        await cart.save({ session });
+
+        completedOrder = order;
+      });
+
+      return {
+        paymentRequired: false,
+        orderId: String(completedOrder._id),
+        orderNumber: completedOrder.orderNumber,
+        paymentStatus: "PAID",
+        totalAmount,
+        walletAppliedAmount,
+        amountDue: 0,
+        remainingWalletBalance: walletBalance - walletAppliedAmount,
+      };
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  // CASE 2: Partial wallet payment or no wallet payment.
+  // Razorpay receives ONLY the remaining payable amount.
+  if (!process.env.RAZORPAY_KEY_SECRET || !keyId) {
+    throw new Error("Razorpay is not configured.");
+  }
+
+  const amountInPaise = Math.round(amountDue * 100);
+
+  if (!Number.isSafeInteger(amountInPaise) || amountInPaise <= 0) {
+    throw new Error("Invalid payment amount.");
+  }
 
   const receipt = `pay_${new mongoose.Types.ObjectId()}`;
 
@@ -299,50 +464,31 @@ export const createPaymentOrderService = async (userId, payload) => {
     notes: {
       userId: String(userId),
       couponCode: appliedCouponCode || "",
+      walletAppliedAmount: String(walletAppliedAmount),
     },
   });
 
-  const orderNumber = `ORD-${Date.now()}-${crypto
-    .randomBytes(3)
-    .toString("hex")
-    .toUpperCase()}`;
-
   const order = await Order.create({
-    orderNumber,
-    userId,
-
-    items,
-    shippingAddress,
-
-    subtotal,
-    offerDiscount,
-    couponCode: appliedCouponCode,
-    couponDiscount,
-    shippingCharge,
-    totalAmount,
-
-    paymentMethod: "RAZORPAY",
-    paymentStatus: "PENDING",
-    orderStatus: "PAYMENT_PENDING",
-
+    ...orderData,
     razorpayOrderId: razorpayOrder.id,
     paymentExpiresAt: new Date(Date.now() + 15 * 60 * 1000),
   });
 
   return {
+    paymentRequired: true,
     keyId,
     amount: razorpayOrder.amount,
     currency: razorpayOrder.currency,
     razorpayOrderId: razorpayOrder.id,
     orderId: String(order._id),
     orderNumber: order.orderNumber,
-
-    // Useful for confirming the breakdown in the frontend.
     subtotal,
     offerDiscount,
     couponDiscount,
     shippingCharge,
     totalAmount,
+    walletAppliedAmount,
+    amountDue,
   };
 };
 
@@ -439,7 +585,9 @@ export const verifyPaymentService = async (userId, payload) => {
     throw new Error("Payment is linked to a different Razorpay order.");
   }
 
-  const expectedAmount = Math.round(Number(order.totalAmount) * 100);
+  const expectedAmount = Math.round(
+    Number(order.amountDue ?? order.totalAmount) * 100,
+  );
 
   if (payment.amount !== expectedAmount || payment.currency !== "INR") {
     throw new Error("Payment amount or currency does not match the order.");
@@ -476,6 +624,71 @@ export const verifyPaymentService = async (userId, payload) => {
         throw new Error("This order has already been paid.");
       }
 
+      // Debit the wallet only after Razorpay payment is verified.
+      // This runs in the same MongoDB transaction as the order update.
+      const walletDebitAmount =
+        Math.round(Number(freshOrder.walletAppliedAmount || 0) * 100) / 100;
+
+      if (walletDebitAmount > 0) {
+        const reference = `WALLET_PAYMENT_${freshOrder._id}`;
+
+        const existingWalletTransaction = await WalletTransaction.findOne({
+          reference,
+        }).session(session);
+
+        if (existingWalletTransaction) {
+          if (
+            String(existingWalletTransaction.userId) !== String(userId) ||
+            String(existingWalletTransaction.orderId) !==
+              String(freshOrder._id) ||
+            existingWalletTransaction.type !== "DEBIT" ||
+            existingWalletTransaction.status !== "COMPLETED" ||
+            Number(existingWalletTransaction.amount) !== walletDebitAmount
+          ) {
+            throw new Error("Wallet transaction conflict. Contact support.");
+          }
+        } else {
+          const wallet = await Wallet.findOneAndUpdate(
+            {
+              userId,
+              isActive: true,
+              balance: { $gte: walletDebitAmount },
+            },
+            {
+              $inc: { balance: -walletDebitAmount },
+            },
+            {
+              new: true,
+              session,
+            },
+          );
+
+          if (!wallet) {
+            throw new Error(
+              "Insufficient wallet balance. Please contact support before retrying.",
+            );
+          }
+
+          await WalletTransaction.create(
+            [
+              {
+                walletId: wallet._id,
+                userId,
+                orderId: freshOrder._id,
+                type: "DEBIT",
+                source: "WALLET_PAYMENT",
+                amount: walletDebitAmount,
+                balanceAfter: wallet.balance,
+                status: "COMPLETED",
+                description: `Wallet payment for order ${freshOrder.orderNumber}`,
+                reference,
+              },
+            ],
+            { session },
+          );
+        }
+      }
+
       for (const item of freshOrder.items) {
         const result = await Variant.updateOne(
           {
@@ -502,8 +715,18 @@ export const verifyPaymentService = async (userId, payload) => {
       freshOrder.razorpayPaymentId = razorpay_payment_id;
       freshOrder.razorpaySignature = razorpay_signature;
       freshOrder.orderStatus = "CONFIRMED";
+      freshOrder.stockReserved = true;
 
       await freshOrder.save({ session });
+
+      if (
+        freshOrder.orderStatus === "CANCELLED" ||
+        freshOrder.paymentStatus === "REFUNDED"
+      ) {
+        throw new Error(
+          "This order has been cancelled or refunded and cannot be paid again.",
+        );
+      }
 
       // Remove purchased variants from the cart.
       const cart = await Cart.findOne({ userId }).session(session);

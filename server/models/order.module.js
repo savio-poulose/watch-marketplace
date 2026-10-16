@@ -122,7 +122,7 @@ const orderSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["COD", "RAZORPAY"],
+      enum: ["COD", "RAZORPAY", "WALLET"],
       required: true,
     },
     paymentStatus: {
@@ -165,6 +165,19 @@ const orderSchema = new mongoose.Schema(
         "RETURNED",
       ],
       default: "PLACED",
+    },
+    walletAppliedAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    amountDue: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: function () {
+        return this.totalAmount;
+      },
     },
     cancelledAt: {
       type: Date,

@@ -30,6 +30,8 @@ import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute.jsx";
 import GuestAdminRoute from "./components/admin/GuestAdminRoute.jsx";
 import OrderSuccess from "./pages/user/OrderSuccess.jsx";
 import Wishlist from "./pages/user/Wishlist.jsx";
+import Wallet from "./pages/user/Wallet.jsx"
+import AdminWallet from "./pages/admin/AdminWallet.jsx";
 
 function App() {
   return (
@@ -88,6 +90,7 @@ function App() {
             <Route path="/user/orders" element={<MyOrders />} />
             <Route path="/user/order/:orderId" element={<OrderDetails />} />
             <Route path="/user/wishlist" element={<Wishlist />} />
+            <Route path="/user/wallet" element={<Wallet />} />
           </Route>
 
           {/* Admin Protected Routes */}
@@ -98,6 +101,7 @@ function App() {
             <Route path="/admin/users" element={<AdminUserManage />} />
             <Route path="/admin/orders" element={<AdminOrder />} />
             <Route path="/admin/coupon" element={<AdminCoupon />} />
+             <Route path="/admin/wallet" element={<AdminWallet />} />
           </Route>
         </Routes>
       </BrowserRouter>

@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -6,6 +5,7 @@ import toast from "react-hot-toast";
 import Navbar from "../../components/layout/Navbar";
 import api from "../../api/axios.js";
 import { useAuth } from "../../context/useAuth";
+import { Wallet,TicketPercent  } from "lucide-react";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -38,9 +38,7 @@ const Profile = () => {
       } catch (err) {
         if (!active) return;
 
-        toast.error(
-          err.response?.data?.message || "Failed to load profile."
-        );
+        toast.error(err.response?.data?.message || "Failed to load profile.");
       } finally {
         if (active) setLoading(false);
       }
@@ -61,9 +59,7 @@ const Profile = () => {
       const response = await api.get("/user/address");
       setAddresses(response.data.addresses || []);
     } catch (err) {
-      toast.error(
-        err.response?.data?.message || "Failed to load addresses."
-      );
+      toast.error(err.response?.data?.message || "Failed to load addresses.");
     } finally {
       setAddressLoading(false);
     }
@@ -94,10 +90,9 @@ const Profile = () => {
     try {
       setSaving(true);
 
-      const response = await api.put(
-        `/user/profile/${user._id}`,
-        { userName: editUserName.trim() }
-      );
+      const response = await api.put(`/user/profile/${user._id}`, {
+        userName: editUserName.trim(),
+      });
 
       setUser(response.data.user);
       setEditUserName(response.data.user.userName);
@@ -105,9 +100,7 @@ const Profile = () => {
 
       toast.success("Profile updated successfully.");
     } catch (err) {
-      toast.error(
-        err.response?.data?.message || "Failed to update profile."
-      );
+      toast.error(err.response?.data?.message || "Failed to update profile.");
     } finally {
       setSaving(false);
     }
@@ -139,15 +132,14 @@ const Profile = () => {
 
       const response = await api.put(
         `/user/profile/${user._id}/photo`,
-        formData
+        formData,
       );
 
       setUser(response.data.user);
       toast.success("Profile photo updated successfully.");
     } catch (err) {
       toast.error(
-        err.response?.data?.message ||
-          "Failed to update profile photo."
+        err.response?.data?.message || "Failed to update profile photo.",
       );
     } finally {
       setSaving(false);
@@ -167,25 +159,19 @@ const Profile = () => {
   // Delete address
   const handleDeleteAddress = async (addressId) => {
     const confirmed = window.confirm(
-      "Are you sure you want to delete this address?"
+      "Are you sure you want to delete this address?",
     );
 
     if (!confirmed) return;
 
     try {
-      const response = await api.delete(
-        `/user/address/${addressId}`
-      );
+      const response = await api.delete(`/user/address/${addressId}`);
 
-      toast.success(
-        response.data.message || "Address deleted successfully."
-      );
+      toast.success(response.data.message || "Address deleted successfully.");
 
       await fetchAddresses();
     } catch (err) {
-      toast.error(
-        err.response?.data?.message || "Failed to delete address."
-      );
+      toast.error(err.response?.data?.message || "Failed to delete address.");
     }
   };
 
@@ -194,18 +180,15 @@ const Profile = () => {
     try {
       const response = await api.patch(
         `/user/address/${addressId}/default`,
-        {}
+        {},
       );
 
-      toast.success(
-        response.data.message || "Default address updated."
-      );
+      toast.success(response.data.message || "Default address updated.");
 
       await fetchAddresses();
     } catch (err) {
       toast.error(
-        err.response?.data?.message ||
-          "Failed to update default address."
+        err.response?.data?.message || "Failed to update default address.",
       );
     }
   };
@@ -215,9 +198,7 @@ const Profile = () => {
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <div className="flex items-center justify-center py-20">
-          <p className="text-sm text-gray-500">
-            Loading profile...
-          </p>
+          <p className="text-sm text-gray-500">Loading profile...</p>
         </div>
       </div>
     );
@@ -228,9 +209,7 @@ const Profile = () => {
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <div className="flex items-center justify-center py-20">
-          <p className="text-sm text-gray-500">
-            Unable to load profile.
-          </p>
+          <p className="text-sm text-gray-500">Unable to load profile.</p>
         </div>
       </div>
     );
@@ -244,9 +223,7 @@ const Profile = () => {
         <div className="mx-auto max-w-5xl">
           {/* Header */}
           <header className="mb-8">
-            <h1 className="text-2xl font-semibold text-gray-900">
-              My Profile
-            </h1>
+            <h1 className="text-2xl font-semibold text-gray-900">My Profile</h1>
             <p className="mt-1 text-sm text-gray-500">
               Manage your account information and addresses.
             </p>
@@ -273,9 +250,7 @@ const Profile = () => {
                   {user.userName}
                 </h2>
 
-                <p className="break-all text-sm text-gray-500">
-                  {user.email}
-                </p>
+                <p className="break-all text-sm text-gray-500">{user.email}</p>
 
                 <input
                   type="file"
@@ -350,9 +325,7 @@ const Profile = () => {
                     id="userName"
                     type="text"
                     value={editUserName}
-                    onChange={(event) =>
-                      setEditUserName(event.target.value)
-                    }
+                    onChange={(event) => setEditUserName(event.target.value)}
                     readOnly={!isEditing}
                     className={`h-11 w-full border border-gray-300 px-3 text-sm text-gray-700 outline-none focus:border-[#9A7B3F] ${
                       isEditing ? "bg-white" : "bg-gray-50"
@@ -403,15 +376,11 @@ const Profile = () => {
 
             {addressLoading ? (
               <div className="py-10 text-center">
-                <p className="text-sm text-gray-500">
-                  Loading addresses...
-                </p>
+                <p className="text-sm text-gray-500">Loading addresses...</p>
               </div>
             ) : addresses.length === 0 ? (
               <div className="border border-dashed border-gray-300 py-10 text-center">
-                <p className="text-sm text-gray-500">
-                  No addresses added yet.
-                </p>
+                <p className="text-sm text-gray-500">No addresses added yet.</p>
 
                 <button
                   type="button"
@@ -448,12 +417,9 @@ const Profile = () => {
                     {/* Address details */}
                     <p className="text-sm leading-6 text-gray-600">
                       {address.addressLine1}
-                      {address.addressLine2
-                        ? `, ${address.addressLine2}`
-                        : ""}
+                      {address.addressLine2 ? `, ${address.addressLine2}` : ""}
                       <br />
-                      {address.city}, {address.state} -{" "}
-                      {address.pincode}
+                      {address.city}, {address.state} - {address.pincode}
                     </p>
 
                     {address.isDefault && (
@@ -466,9 +432,7 @@ const Profile = () => {
                     <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-gray-100 pt-4">
                       <button
                         type="button"
-                        onClick={() =>
-                          handleEditAddress(address._id)
-                        }
+                        onClick={() => handleEditAddress(address._id)}
                         className="cursor-pointer text-sm font-medium text-gray-700 transition hover:text-[#9A7B3F]"
                       >
                         Edit
@@ -476,9 +440,7 @@ const Profile = () => {
 
                       <button
                         type="button"
-                        onClick={() =>
-                          handleDeleteAddress(address._id)
-                        }
+                        onClick={() => handleDeleteAddress(address._id)}
                         className="cursor-pointer text-sm font-medium text-red-600 transition hover:text-red-700"
                       >
                         Delete
@@ -487,9 +449,7 @@ const Profile = () => {
                       {!address.isDefault && (
                         <button
                           type="button"
-                          onClick={() =>
-                            handleDefaultAddress(address._id)
-                          }
+                          onClick={() => handleDefaultAddress(address._id)}
                           className="cursor-pointer text-sm font-medium text-gray-700 transition hover:text-[#9A7B3F]"
                         >
                           Set as Default
@@ -500,6 +460,41 @@ const Profile = () => {
                 ))}
               </div>
             )}
+          </section>
+
+          {/* Wallet and Coupons */}
+          <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => navigate("/user/wallet")}
+              className="flex items-center justify-between border border-gray-200 bg-white p-6 text-left transition hover:border-[#9A7B3F] hover:shadow-sm cursor-pointer"
+            >
+              <div>
+                <h2 className="text-lg font-semibold text-[#111827]">
+                  My Wallet
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  View balance and refund transactions.
+                </p>
+              </div>
+              <Wallet className="h-8 w-8 text-[#9A7B3F]" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/user/coupons")}
+              className="flex items-center justify-between border border-gray-200 bg-white p-6 text-left transition hover:border-[#9A7B3F] hover:shadow-sm cursor-pointer"
+            >
+              <div>
+                <h2 className="text-lg font-semibold text-[#111827]">
+                  My Coupons
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  View available offers and coupons.
+                </p>
+              </div>
+              <TicketPercent className="h-8 w-8 text-[#9A7B3F]" />
+            </button>
           </section>
 
           {/* Account security */}
