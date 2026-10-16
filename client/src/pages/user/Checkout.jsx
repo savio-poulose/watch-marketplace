@@ -149,7 +149,10 @@ const Checkout = () => {
 
   const [selectedAddressId, setSelectedAddressId] = useState("");
 
-  const [paymentMethod, setPaymentMethod] = useState("COD");
+  const [paymentMethod, setPaymentMethod] = useState(
+  location.state?.retryOrderId ? "ONLINE" : "COD"
+);
+
 
   const [couponCode, setCouponCode] = useState(
 
@@ -170,7 +173,9 @@ const Checkout = () => {
   const [couponMessage, setCouponMessage] = useState("");
 
   const [orderError, setOrderError] = useState("");
-  const [retryOrderId, setRetryOrderId] = useState("");
+  const [retryOrderId, setRetryOrderId] = useState(
+  location.state?.retryOrderId || ""
+);
 
   // Fetch cart and saved addresses.
   const loadCheckout = useCallback(async () => {
@@ -2082,9 +2087,9 @@ const Checkout = () => {
                     ? "Processing..."
 
                     : paymentMethod === "ONLINE"
-
-                      ? "Continue to payment"
-
+                      ? retryOrderId
+                        ? "Retry Payment"
+                        : "Continue to payment"
                       : "Place order"}
 
                 </button>

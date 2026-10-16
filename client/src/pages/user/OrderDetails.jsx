@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams,useNavigate } from "react-router-dom";
 import api from "../../api/axios.js";
 import Navbar from "../../components/layout/Navbar.jsx";
 
@@ -48,6 +48,8 @@ const OrderDetails = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const navigate = useNavigate()
 
   useEffect(() => {
     let ignore = false;
@@ -122,6 +124,7 @@ const OrderDetails = () => {
             >
               Back to My Orders
             </Link>
+            
           </div>
         </main>
       </div>
@@ -362,12 +365,33 @@ const OrderDetails = () => {
             My Orders
           </Link>
 
+          {order.paymentMethod !== "COD" &&
+  order.paymentStatus !== "PAID" &&
+  !["CANCELLED", "RETURNED"].includes(
+    String(order.orderStatus || "").toUpperCase()
+  ) && (
+    <button
+      type="button"
+      onClick={() =>
+        navigate("/user/checkout", {
+          state: {
+            retryOrderId: order._id,
+          },
+        })
+      }
+      className="inline-flex items-center justify-center bg-[#9A7B3F] px-6 py-3 text-sm font-medium text-white transition hover:bg-[#111827]"
+    >
+      Retry Payment
+    </button>
+  )}
+
           <Link
             to="/user/products"
             className="inline-flex items-center justify-center bg-[#111827] px-6 py-3 text-sm font-medium text-white transition hover:bg-[#9A7B3F]"
           >
             Continue Shopping
           </Link>
+
         </div>
       </main>
     </div>
