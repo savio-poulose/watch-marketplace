@@ -19,6 +19,8 @@ import wishlistRouter from "./routes/user/wishlist.route.js"
 import walletRouter from "./routes/user/wallet.route.js"
 import adminWalletRouter from "./routes/admin/adminWallet.route.js"
 import salesReportRouter from "./routes/admin/salesReport.route.js"
+import adminReturnRouter from "./routes/admin/return.route.js";
+import adminDashboardRouter from './routes/admin/dashboard.route.js'
 
 
 import cors from "cors"
@@ -50,6 +52,8 @@ app.use("/api/admin/orders", adminOrderRouter);
 app.use("/api/admin/coupons",couponRouter)
 app.use("/api/admin/wallets", adminWalletRouter);
 app.use("/api/admin/reports/sales",salesReportRouter)
+app.use("/api/admin/returns", adminReturnRouter);
+app.use("/api/admin/dashboard",adminDashboardRouter)
 
 app.use("/api/user/products",userProductRouter)
 app.use("/api/user/cart",cartRouter)

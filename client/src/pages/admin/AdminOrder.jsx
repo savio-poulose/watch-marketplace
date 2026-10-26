@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import MainLayout from "../../components/admin/MainLayout";
 import api from "../../api/axios.js";
 import toast from "react-hot-toast";
+import { Link } from "react-router-dom";
 
 const ORDER_STATUSES = [
   "PLACED",
@@ -406,6 +407,11 @@ const AdminOrder = () => {
           >
             Export CSV
           </button>
+         <Link 
+         to="/admin/return"
+         className="border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium hover:border-[#9A7B3F]">
+          Returns
+         </Link>
         </div>
 
         <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">

@@ -33,6 +33,7 @@ import Wishlist from "./pages/user/Wishlist.jsx";
 import Wallet from "./pages/user/Wallet.jsx"
 import AdminWallet from "./pages/admin/AdminWallet.jsx";
 import SalesReport from "./pages/admin/SalesReport.jsx";
+import AdminReturns from "./pages/admin/AdminReturns.jsx";
 
 function App() {
   return (
@@ -104,6 +105,7 @@ function App() {
             <Route path="/admin/coupon" element={<AdminCoupon />} />
              <Route path="/admin/wallet" element={<AdminWallet />} />
              <Route path="/admin/sales-report" element={<SalesReport />} />
+             <Route path="/admin/return" element={<AdminReturns />} />
           </Route>
         </Routes>
       </BrowserRouter>

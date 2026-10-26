@@ -4,7 +4,8 @@ import {
   getMyOrdersService,
   getMyOrderByIdService,
   cancelMyOrderService,
-  requestOrderReturnService
+  requestOrderReturnService,
+  getUserReturnRequestsService
 } from "../../services/user/order.service.js";
 
 export const createOrder = async (req, res, next) => {
@@ -85,6 +86,25 @@ export const requestOrderReturn = async (req, res, next) => {
       success: true,
       message: "Return request submitted successfully.",
       returnRequest: result,
+    });
+  } catch (error) {
+    console.log("requrest error :"+error)
+    next(error);
+  }
+};
+
+
+
+export const getUserReturnRequests = async (req, res, next) => {
+  try {
+    const returns = await getUserReturnRequestsService({
+      orderId: req.params.orderId,
+      userId: req.user.id || req.user._id,
+    });
+
+    res.status(200).json({
+      success: true,
+      returns,
     });
   } catch (error) {
     next(error);

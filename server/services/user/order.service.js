@@ -5,6 +5,7 @@ import Variant from "../../models/variant.model.js";
 import Address from "../../models/address.module.js";
 import Wallet from "../../models/wallet.module.js";
 import WalletTransaction from "../../models/walletTransaction.js";
+import ReturnRequest from "../../models/returnRequest.model.js"
 
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);
@@ -541,4 +542,31 @@ export const requestOrderReturnService = async ({
   });
 
   return returnRequest;
+};
+
+
+
+export const getUserReturnRequestsService = async ({
+  orderId,
+  userId,
+}) => {
+  if (
+    !mongoose.isValidObjectId(orderId) ||
+    !mongoose.isValidObjectId(userId)
+  ) {
+    throw createError("Invalid order ID.", 400);
+  }
+
+  const order = await Order.findOne({
+    _id: orderId,
+    userId,
+  }).select("_id");
+
+  if (!order) {
+    throw createError("Order not found.", 404);
+  }
+
+  return ReturnRequest.find({ orderId, userId })
+    .sort({ createdAt: -1 })
+    .lean();
 };
