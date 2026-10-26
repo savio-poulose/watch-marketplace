@@ -4,6 +4,7 @@ import {
   getMyOrdersService,
   getMyOrderByIdService,
   cancelMyOrderService,
+  requestOrderReturnService
 } from "../../services/user/order.service.js";
 
 export const createOrder = async (req, res, next) => {
@@ -61,6 +62,29 @@ export const cancelMyOrder = async (req, res, next) => {
       success: true,
       message: "Order cancelled successfully.",
       order,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
+export const requestOrderReturn = async (req, res, next) => {
+  try {
+    const result = await requestOrderReturnService({
+      orderId: req.params.orderId,
+      userId: req.user.id, // Match this to your auth middleware's user field.
+      reason: req.body.reason,
+      productId: req.body.productId,
+      variantId: req.body.variantId,
+      quantity: req.body.quantity,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Return request submitted successfully.",
+      returnRequest: result,
     });
   } catch (error) {
     next(error);

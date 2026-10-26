@@ -5,6 +5,7 @@ import {
   getMyOrders,
   getMyOrderById,
   cancelMyOrder,
+  requestOrderReturn
 } from "../../controllers/user/order.controller.js";
 
 import { authMiddleware } from "../../middlewares/auth.middleware.js";
@@ -20,5 +21,7 @@ router.get("/", getMyOrders);
 router.get("/:orderId", getMyOrderById);
 
 router.patch("/:orderId/cancel", cancelMyOrder);
+
+router.post("/:orderId/return", requestOrderReturn);
 
 export default router;

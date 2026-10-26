@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { Link, useParams,useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import api from "../../api/axios.js";
 import Navbar from "../../components/layout/Navbar.jsx";
 
@@ -15,7 +15,6 @@ const formatDate = (date) => {
   if (!date) return "Unavailable";
 
   const parsedDate = new Date(date);
-
   if (Number.isNaN(parsedDate.getTime())) return "Unavailable";
 
   return parsedDate.toLocaleString("en-IN", {
@@ -42,33 +41,75 @@ const formatStatus = (status) => {
   return value.charAt(0) + value.slice(1).toLowerCase();
 };
 
+// Resolve product IDs from common order-item structures.
+// The backend must retain the purchased product ID in each order item.
+const getProductId = (item) =>
+  item.productId?._id ||
+  item.productId ||
+  item.product?._id ||
+  item.variantId?.productId?._id ||
+  item.variantId?.productId ||
+  item.variant?.productId?._id ||
+  item.variant?.productId ||
+  null;
+
 const OrderDetails = () => {
   const { orderId } = useParams();
+  const navigate = useNavigate();
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const navigate = useNavigate()
+  const [activeForm, setActiveForm] = useState(null);
+  const [returnReason, setReturnReason] = useState("");
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+
+  const [submitting, setSubmitting] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [actionSuccess, setActionSuccess] = useState("");
+
+  const fetchOrder = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await api.get(`/user/order/${orderId}`);
+      const fetchedOrder = response.data?.order || null;
+
+      setOrder(fetchedOrder);
+
+      if (!fetchedOrder) {
+        setError("Order details could not be found.");
+      }
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Unable to load order details. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     let ignore = false;
 
-    const fetchOrder = async () => {
+    const loadOrder = async () => {
       try {
         setLoading(true);
         setError("");
 
-        const response = await api.get(
-          `/user/order/${orderId}`
-        );
+        const response = await api.get(`/user/order/${orderId}`);
 
-        if (!ignore) {
-          setOrder(response.data?.order || null);
+        if (ignore) return;
 
-          if (!response.data?.order) {
-            setError("Order details could not be found.");
-          }
+        const fetchedOrder = response.data?.order || null;
+        setOrder(fetchedOrder);
+
+        if (!fetchedOrder) {
+          setError("Order details could not be found.");
         }
       } catch (err) {
         if (!ignore) {
@@ -82,12 +123,140 @@ const OrderDetails = () => {
       }
     };
 
-    fetchOrder();
+    loadOrder();
 
     return () => {
       ignore = true;
     };
   }, [orderId]);
+
+  const openReturnForm = (item, index) => {
+    setActiveForm({
+      type: "return",
+      item,
+      index,
+    });
+    setReturnReason("");
+    setActionError("");
+    setActionSuccess("");
+  };
+
+  const openReviewForm = (item, index) => {
+    setActiveForm({
+      type: "review",
+      item,
+      index,
+    });
+    setReviewRating(5);
+    setReviewComment("");
+    setActionError("");
+    setActionSuccess("");
+  };
+
+  const closeForm = () => {
+    if (submitting) return;
+
+    setActiveForm(null);
+    setActionError("");
+    setActionSuccess("");
+  };
+
+  const handleReturnSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!activeForm?.item || !order) return;
+
+    if (!returnReason.trim()) {
+      setActionError("Please provide a reason for the return.");
+      return;
+    }
+
+    const item = activeForm.item;
+    const productId = getProductId(item);
+
+    if (!productId) {
+      setActionError(
+        "The product ID is missing from this order item. Update the backend order data to include productId."
+      );
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setActionError("");
+      setActionSuccess("");
+
+      // Expected backend endpoint:
+      // POST /user/order/:orderId/return
+      await api.post(`/user/order/${order._id}/return`, {
+        productId,
+        variantId: item.variantId?._id || item.variantId || null,
+        quantity: Number(item.quantity) || 1,
+        reason: returnReason.trim(),
+      });
+
+      setActionSuccess("Your return request has been submitted.");
+
+      await fetchOrder();
+
+      setActiveForm(null);
+      setReturnReason("");
+    } catch (err) {
+      setActionError(
+        err.response?.data?.message ||
+          "Unable to submit the return request. Please try again."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleReviewSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!activeForm?.item || !order) return;
+
+    if (!reviewComment.trim()) {
+      setActionError("Please write a comment for your review.");
+      return;
+    }
+
+    const item = activeForm.item;
+    const productId = getProductId(item);
+
+    if (!productId) {
+      setActionError(
+        "The product ID is missing from this order item. Update the backend order data to include productId."
+      );
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setActionError("");
+      setActionSuccess("");
+
+      // Expected backend endpoint:
+      // POST /user/reviews
+      await api.post("/user/reviews", {
+        orderId: order._id,
+        productId,
+        rating: Number(reviewRating),
+        comment: reviewComment.trim(),
+      });
+
+      setActionSuccess("Your review has been submitted.");
+      setActiveForm(null);
+      setReviewComment("");
+    } catch (err) {
+      setActionError(
+        err.response?.data?.message ||
+          "Unable to submit your review. Please try again."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -110,21 +279,16 @@ const OrderDetails = () => {
         <Navbar />
         <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
           <div className="border border-gray-200 bg-white px-6 py-12 text-center">
-            <h1 className="text-2xl font-semibold">
-              Unable to load order
-            </h1>
-
+            <h1 className="text-2xl font-semibold">Unable to load order</h1>
             <p className="mt-3 text-sm text-gray-500">
               {error || "Order details could not be found."}
             </p>
-
             <Link
               to="/user/orders"
               className="mt-6 inline-flex bg-[#111827] px-6 py-3 text-sm font-medium text-white hover:bg-[#9A7B3F]"
             >
               Back to My Orders
             </Link>
-            
           </div>
         </main>
       </div>
@@ -134,23 +298,21 @@ const OrderDetails = () => {
   const items = Array.isArray(order.items) ? order.items : [];
   const address = order.shippingAddress || {};
   const status = String(order.orderStatus || "PLACED").toUpperCase();
-
   const statusStyle =
-    STATUS_STYLES[status] ||
-    "border-gray-200 bg-gray-50 text-gray-700";
+    STATUS_STYLES[status] || "border-gray-200 bg-gray-50 text-gray-700";
+
+  const isDelivered = status === "DELIVERED";
 
   return (
     <div className="min-h-screen bg-[#F8F8F6] text-[#111827]">
       <Navbar />
 
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-12 lg:px-8">
-        
-
         {/* Heading */}
         <div className="mt-7 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
             <p className="mb-2 text-xs font-medium uppercase tracking-[0.25em] text-[#9A7B3F]">
-              OCEANUS · Your collection
+              HORAE · Your collection
             </p>
 
             <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -174,12 +336,22 @@ const OrderDetails = () => {
           </span>
         </div>
 
+        {actionSuccess && (
+          <div
+            role="status"
+            className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"
+          >
+            {actionSuccess}
+          </div>
+        )}
+
         {/* Order items */}
         <section className="mt-8 border border-gray-200 bg-white">
           <div className="border-b border-gray-100 px-5 py-5 sm:px-7">
             <h2 className="text-lg font-semibold">Items Ordered</h2>
             <p className="mt-1 text-sm text-gray-500">
-              {items.length} {items.length === 1 ? "item" : "items"} in this order
+              {items.length} {items.length === 1 ? "item" : "items"} in this
+              order
             </p>
           </div>
 
@@ -191,78 +363,245 @@ const OrderDetails = () => {
             <div className="divide-y divide-gray-100">
               {items.map((item, index) => (
                 <div
-                  key={item._id || item.variantId || index}
-                  className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:p-7"
+                  key={item._id || item.variantId?._id || item.variantId || index}
+                  className="flex flex-col gap-4 p-5 sm:p-7"
                 >
-                  <div className="flex h-28 w-28 shrink-0 items-center justify-center bg-[#F8F8F6]">
-                    {item.image ? (
-                      <img
-                        src={item.image}
-                        alt={item.productName || "Ordered watch"}
-                        className="h-full w-full object-contain p-2"
-                      />
-                    ) : (
-                      <span className="text-xs text-gray-400">
-                        No image
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs uppercase tracking-[0.18em] text-[#9A7B3F]">
-                      HORAE Timepiece
-                    </p>
-
-                    <h3 className="mt-2 text-base font-medium sm:text-lg">
-                      {item.productName || "Watch"}
-                    </h3>
-
-                    {item.variantSku && (
-                      <p className="mt-1 break-all text-xs text-gray-400">
-                        SKU: {item.variantSku}
-                      </p>
-                    )}
-
-                    <p className="mt-2 text-sm text-gray-500">
-                      Quantity: {item.quantity}
-                    </p>
-
-                    <p className="mt-1 text-sm text-gray-500">
-                      Unit price: {formatPrice(item.unitPrice)}
-                    </p>
-                  </div>
-
-                  <div className="border-t border-gray-100 pt-3 sm:min-w-32 sm:border-0 sm:pt-0 sm:text-right">
-                    <p className="text-xs text-gray-500">
-                      Item total
-                    </p>
-
-                    <p className="mt-1 text-lg font-semibold">
-                      {formatPrice(
-                        item.subtotal ??
-                          Number(item.unitPrice || 0) *
-                            Number(item.quantity || 0)
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                    <div className="flex h-28 w-28 shrink-0 items-center justify-center bg-[#F8F8F6]">
+                      {item.image ? (
+                        <img
+                          src={item.image}
+                          alt={item.productName || "Ordered watch"}
+                          className="h-full w-full object-contain p-2"
+                        />
+                      ) : (
+                        <span className="text-xs text-gray-400">
+                          No image
+                        </span>
                       )}
-                    </p>
+                    </div>
 
-                    {Number(item.offerDiscount) > 0 && (
-                      <p className="mt-1 text-xs text-emerald-700">
-                        Saved {formatPrice(item.offerDiscount)}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs uppercase tracking-[0.18em] text-[#9A7B3F]">
+                        HORAE Timepiece
                       </p>
-                    )}
+
+                      <h3 className="mt-2 text-base font-medium sm:text-lg">
+                        {item.productName || "Watch"}
+                      </h3>
+
+                      {item.variantSku && (
+                        <p className="mt-1 break-all text-xs text-gray-400">
+                          SKU: {item.variantSku}
+                        </p>
+                      )}
+
+                      <p className="mt-2 text-sm text-gray-500">
+                        Quantity: {item.quantity}
+                      </p>
+
+                      <p className="mt-1 text-sm text-gray-500">
+                        Unit price: {formatPrice(item.unitPrice)}
+                      </p>
+                    </div>
+
+                    <div className="border-t border-gray-100 pt-3 sm:min-w-32 sm:border-0 sm:pt-0 sm:text-right">
+                      <p className="text-xs text-gray-500">Item total</p>
+
+                      <p className="mt-1 text-lg font-semibold">
+                        {formatPrice(
+                          item.subtotal ??
+                            Number(item.unitPrice || 0) *
+                              Number(item.quantity || 0)
+                        )}
+                      </p>
+
+                      {Number(item.offerDiscount) > 0 && (
+                        <p className="mt-1 text-xs text-emerald-700">
+                          Saved {formatPrice(item.offerDiscount)}
+                        </p>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Return and review actions only after delivery */}
+                  {isDelivered && (
+                    <div className="flex flex-wrap gap-3 border-t border-gray-100 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => openReturnForm(item, index)}
+                        className="border border-[#111827] px-4 py-2.5 text-sm font-medium transition hover:bg-gray-100"
+                      >
+                        Return Product
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openReviewForm(item, index)}
+                        className="bg-[#9A7B3F] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#806532]"
+                      >
+                        Write a Review
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Item-specific form */}
+                  {activeForm?.index === index && (
+                    <div className="border border-gray-200 bg-[#FAFAF8] p-5 sm:p-6">
+                      {activeForm.type === "return" ? (
+                        <form onSubmit={handleReturnSubmit}>
+                          <h3 className="text-lg font-semibold">
+                            Request a Return
+                          </h3>
+
+                          <p className="mt-1 text-sm text-gray-500">
+                            Product: {item.productName || "Watch"}
+                          </p>
+
+                          <label
+                            htmlFor={`returnReason-${index}`}
+                            className="mt-5 block text-sm font-medium"
+                          >
+                            Reason for return
+                          </label>
+
+                          <textarea
+                            id={`returnReason-${index}`}
+                            value={returnReason}
+                            onChange={(event) =>
+                              setReturnReason(event.target.value)
+                            }
+                            rows={4}
+                            maxLength={1000}
+                            required
+                            placeholder="Explain why you want to return this product..."
+                            className="mt-2 w-full border border-gray-300 bg-white px-3 py-3 text-sm outline-none focus:border-[#9A7B3F]"
+                          />
+
+                          {actionError && (
+                            <p className="mt-3 text-sm text-red-600">
+                              {actionError}
+                            </p>
+                          )}
+
+                          <div className="mt-4 flex flex-wrap gap-3">
+                            <button
+                              type="submit"
+                              disabled={submitting}
+                              className="bg-[#111827] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#9A7B3F] disabled:opacity-50"
+                            >
+                              {submitting
+                                ? "Submitting..."
+                                : "Submit Return Request"}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={closeForm}
+                              disabled={submitting}
+                              className="border border-gray-300 px-5 py-2.5 text-sm font-medium disabled:opacity-50"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <form onSubmit={handleReviewSubmit}>
+                          <h3 className="text-lg font-semibold">
+                            Review this Product
+                          </h3>
+
+                          <p className="mt-1 text-sm text-gray-500">
+                            {item.productName || "Watch"}
+                          </p>
+
+                          <fieldset className="mt-5">
+                            <legend className="text-sm font-medium">
+                              Your rating
+                            </legend>
+
+                            <div className="mt-2 flex gap-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                  key={star}
+                                  type="button"
+                                  aria-label={`${star} star${star > 1 ? "s" : ""}`}
+                                  aria-pressed={reviewRating === star}
+                                  onClick={() => setReviewRating(star)}
+                                  className={`text-3xl transition ${
+                                    star <= reviewRating
+                                      ? "text-[#9A7B3F]"
+                                      : "text-gray-300"
+                                  }`}
+                                >
+                                  ★
+                                </button>
+                              ))}
+                            </div>
+
+                            <p className="mt-1 text-xs text-gray-500">
+                              {reviewRating} out of 5 stars
+                            </p>
+                          </fieldset>
+
+                          <label
+                            htmlFor={`reviewComment-${index}`}
+                            className="mt-5 block text-sm font-medium"
+                          >
+                            Your review
+                          </label>
+
+                          <textarea
+                            id={`reviewComment-${index}`}
+                            value={reviewComment}
+                            onChange={(event) =>
+                              setReviewComment(event.target.value)
+                            }
+                            rows={4}
+                            maxLength={2000}
+                            required
+                            placeholder="Share your experience with this watch..."
+                            className="mt-2 w-full border border-gray-300 bg-white px-3 py-3 text-sm outline-none focus:border-[#9A7B3F]"
+                          />
+
+                          {actionError && (
+                            <p className="mt-3 text-sm text-red-600">
+                              {actionError}
+                            </p>
+                          )}
+
+                          <div className="mt-4 flex flex-wrap gap-3">
+                            <button
+                              type="submit"
+                              disabled={submitting}
+                              className="bg-[#9A7B3F] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#806532] disabled:opacity-50"
+                            >
+                              {submitting ? "Submitting..." : "Submit Review"}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={closeForm}
+                              disabled={submitting}
+                              className="border border-gray-300 px-5 py-2.5 text-sm font-medium disabled:opacity-50"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </section>
 
-        {/* Address and payment */}
+        {/* Shipping address and payment */}
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <section className="border border-gray-200 bg-white p-5 sm:p-7">
-            <h2 className="text-lg font-semibold">
-              Shipping Address
-            </h2>
+            <h2 className="text-lg font-semibold">Shipping Address</h2>
 
             <div className="mt-5 space-y-2 text-sm leading-6 text-gray-600">
               <p className="font-medium text-[#111827]">
@@ -274,27 +613,17 @@ const OrderDetails = () => {
               {address.addressLine && <p>{address.addressLine}</p>}
 
               <p>
-                {[address.city, address.state]
-                  .filter(Boolean)
-                  .join(", ")}
+                {[address.city, address.state].filter(Boolean).join(", ")}
               </p>
 
-              <p>
-                {address.pincode
-                  ? `PIN: ${address.pincode}`
-                  : ""}
-              </p>
+              {address.pincode && <p>PIN: {address.pincode}</p>}
 
-              {address.landmark && (
-                <p>Landmark: {address.landmark}</p>
-              )}
+              {address.landmark && <p>Landmark: {address.landmark}</p>}
             </div>
           </section>
 
           <section className="border border-gray-200 bg-white p-5 sm:p-7">
-            <h2 className="text-lg font-semibold">
-              Payment Information
-            </h2>
+            <h2 className="text-lg font-semibold">Payment Information</h2>
 
             <div className="mt-5 space-y-4 text-sm">
               <div className="flex justify-between gap-4">
@@ -366,24 +695,20 @@ const OrderDetails = () => {
           </Link>
 
           {order.paymentMethod !== "COD" &&
-  order.paymentStatus !== "PAID" &&
-  !["CANCELLED", "RETURNED"].includes(
-    String(order.orderStatus || "").toUpperCase()
-  ) && (
-    <button
-      type="button"
-      onClick={() =>
-        navigate("/user/checkout", {
-          state: {
-            retryOrderId: order._id,
-          },
-        })
-      }
-      className="inline-flex items-center justify-center bg-[#9A7B3F] px-6 py-3 text-sm font-medium text-white transition hover:bg-[#111827]"
-    >
-      Retry Payment
-    </button>
-  )}
+            order.paymentStatus !== "PAID" &&
+            !["CANCELLED", "RETURNED"].includes(status) && (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate("/user/checkout", {
+                    state: { retryOrderId: order._id },
+                  })
+                }
+                className="inline-flex items-center justify-center bg-[#9A7B3F] px-6 py-3 text-sm font-medium text-white transition hover:bg-[#111827]"
+              >
+                Retry Payment
+              </button>
+            )}
 
           <Link
             to="/user/products"
@@ -391,7 +716,6 @@ const OrderDetails = () => {
           >
             Continue Shopping
           </Link>
-
         </div>
       </main>
     </div>

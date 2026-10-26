@@ -455,3 +455,90 @@ export const cancelMyOrderService = async (
   }
 };
 
+
+export const requestOrderReturnService = async ({
+  orderId,
+  userId,
+  productId,
+  variantId,
+  quantity,
+  reason,
+}) => {
+  if (
+    !mongoose.isValidObjectId(orderId) ||
+    !mongoose.isValidObjectId(userId) ||
+    !mongoose.isValidObjectId(productId) ||
+    !mongoose.isValidObjectId(variantId)
+  ) {
+    throw createError("Invalid order, product, or variant ID.");
+  }
+
+  quantity = Number(quantity);
+
+  if (!Number.isInteger(quantity) || quantity < 1) {
+    throw createError("Return quantity must be a positive integer.");
+  }
+
+  if (!reason?.trim()) {
+    throw createError("Return reason is required.");
+  }
+
+  const order = await Order.findOne({
+    _id: orderId,
+    userId,
+  });
+
+  if (!order) {
+    throw createError("Order not found.", 404);
+  }
+
+  if (order.orderStatus !== "DELIVERED") {
+    throw createError("Only delivered orders can be returned.");
+  }
+
+  const orderItem = order.items.find(
+    (item) =>
+      String(item.productId) === String(productId) &&
+      String(item.variantId) === String(variantId)
+  );
+
+  if (!orderItem) {
+    throw createError("This product does not belong to the order.");
+  }
+
+  if (quantity > orderItem.quantity) {
+    throw createError("Return quantity exceeds the purchased quantity.");
+  }
+
+  // Check previously requested quantities for this item.
+  const previousRequests = await ReturnRequest.find({
+    orderId,
+    productId,
+    variantId,
+    status: { $in: ["REQUESTED", "APPROVED", "ITEM_RECEIVED", "REFUND_PENDING", "REFUNDED"] },
+  }).lean();
+
+  const alreadyRequested = previousRequests.reduce(
+    (total, request) => total + request.quantity,
+    0
+  );
+
+  if (alreadyRequested + quantity > orderItem.quantity) {
+    throw createError(
+      "The requested return quantity exceeds the remaining eligible quantity."
+    );
+  }
+
+  const returnRequest = await ReturnRequest.create({
+    orderId,
+    userId,
+    productId,
+    variantId,
+    quantity,
+    reason: reason.trim(),
+    status: "REQUESTED",
+    requestedAt: new Date(),
+  });
+
+  return returnRequest;
+};
