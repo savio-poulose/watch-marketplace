@@ -1,39 +1,60 @@
 import { useEffect, useState } from "react";
+
 import axios from "axios";
+
 import toast from "react-hot-toast";
+
 import Cropper from "react-easy-crop";
+
 import { FaPlus, FaSearch, FaEdit, FaTrash, FaSpinner } from "react-icons/fa";
 
 import MainLayout from "../../components/admin/MainLayout";
 
 const API = "http://localhost:3000/api/admin/product";
+
 const CATEGORY_API = "http://localhost:3000/api/admin/category";
 
 const emptyVariant = () => ({
   size: "",
+
   strapMaterial: "",
+
   caseMaterial: "",
+
   dialColor: "",
+
   strapColor: "",
+
   price: "",
+
   quantity: "",
+
   images: [],
+
   imageFiles: [],
 });
 
 const emptyOffer = () => ({
   isActive: false,
+
   discountType: "percentage",
+
   discountValue: "",
+
   startDate: "",
+
   endDate: "",
 });
 
 const emptyProduct = () => ({
   name: "",
+
   brand: "",
+
   gender: "",
+
   categoryId: "",
+
   description: "",
 });
 
@@ -45,7 +66,9 @@ const formatDateTimeLocal = (value) => {
   if (Number.isNaN(date.getTime())) return "";
 
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+
     .toISOString()
+
     .slice(0, 16);
 };
 
@@ -55,25 +78,36 @@ const getCroppedImage = (imageSrc, pixelCrop, fileName) => {
 
     image.onload = () => {
       const canvas = document.createElement("canvas");
+
       canvas.width = pixelCrop.width;
+
       canvas.height = pixelCrop.height;
 
       const context = canvas.getContext("2d");
 
       if (!context) {
         reject(new Error("Could not create image canvas."));
+
         return;
       }
 
       context.drawImage(
         image,
+
         pixelCrop.x,
+
         pixelCrop.y,
+
         pixelCrop.width,
+
         pixelCrop.height,
+
         0,
+
         0,
+
         pixelCrop.width,
+
         pixelCrop.height,
       );
 
@@ -81,52 +115,72 @@ const getCroppedImage = (imageSrc, pixelCrop, fileName) => {
         (blob) => {
           if (!blob) {
             reject(new Error("Could not crop image."));
+
             return;
           }
 
           resolve(
             new File([blob], fileName, {
               type: "image/jpeg",
+
               lastModified: Date.now(),
             }),
           );
         },
+
         "image/jpeg",
+
         0.92,
       );
     };
 
     image.onerror = () => reject(new Error("Failed to load image."));
+
     image.src = imageSrc;
   });
 };
 
 const AdminProduct = () => {
   const [products, setProducts] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const productsPerPage = 5;
+
   const [categories, setCategories] = useState([]);
 
   const [showForm, setShowForm] = useState(false);
+
   const [loading, setLoading] = useState(false);
 
   const [productData, setProductData] = useState(emptyProduct());
+
   const [variants, setVariants] = useState([emptyVariant()]);
+
   const [offer, setOffer] = useState(emptyOffer());
 
   const [editingId, setEditingId] = useState(null);
+
   const [deleteId, setDeleteId] = useState(null);
+
   const [statusProduct, setStatusProduct] = useState(null);
 
   const [search, setSearch] = useState("");
+
   const [categoryFilter, setCategoryFilter] = useState("");
+
   const [statusFilter, setStatusFilter] = useState("");
 
   const [cropImage, setCropImage] = useState(null);
+
   const [cropFileName, setCropFileName] = useState("image.jpg");
+
   const [cropVariantIndex, setCropVariantIndex] = useState(null);
 
   const [crop, setCrop] = useState({ x: 0, y: 0 });
+
   const [zoom, setZoom] = useState(1);
+
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+
   const [savingCrop, setSavingCrop] = useState(false);
 
   const fetchProducts = async () => {
@@ -155,19 +209,24 @@ const AdminProduct = () => {
 
   useEffect(() => {
     fetchProducts();
+
     fetchCategories();
   }, []);
 
   const resetForm = () => {
     setProductData(emptyProduct());
+
     setVariants([emptyVariant()]);
+
     setOffer(emptyOffer());
+
     setEditingId(null);
   };
 
   const updateProductField = (field, value) => {
     setProductData((previous) => ({
       ...previous,
+
       [field]: value,
     }));
   };
@@ -187,6 +246,7 @@ const AdminProduct = () => {
   const removeVariant = (index) => {
     if (variants.length === 1) {
       toast.error("A product must have at least one variant");
+
       return;
     }
 
@@ -200,26 +260,34 @@ const AdminProduct = () => {
 
     if (!file.type.startsWith("image/")) {
       toast.error("Please select an image file.");
+
       return;
     }
 
     const variant = variants[index];
+
     if (!variant) return;
 
     const currentCount = variant.images.length + variant.imageFiles.length;
 
     if (currentCount >= 3) {
       toast.error("Maximum 3 images per variant");
+
       return;
     }
 
     const imageUrl = URL.createObjectURL(file);
 
     setCropVariantIndex(index);
+
     setCropFileName(file.name);
+
     setCropImage(imageUrl);
+
     setCrop({ x: 0, y: 0 });
+
     setZoom(1);
+
     setCroppedAreaPixels(null);
   };
 
@@ -229,14 +297,18 @@ const AdminProduct = () => {
     }
 
     setCropImage(null);
+
     setCropVariantIndex(null);
+
     setCroppedAreaPixels(null);
+
     setZoom(1);
   };
 
   const saveCroppedImage = async () => {
     if (!cropImage || !croppedAreaPixels || cropVariantIndex === null) {
       toast.error("Please select a crop area.");
+
       return;
     }
 
@@ -245,7 +317,9 @@ const AdminProduct = () => {
     try {
       const croppedFile = await getCroppedImage(
         cropImage,
+
         croppedAreaPixels,
+
         cropFileName,
       );
 
@@ -261,15 +335,18 @@ const AdminProduct = () => {
 
           return {
             ...variant,
+
             imageFiles: [...variant.imageFiles, croppedFile],
           };
         }),
       );
 
       closeCropModal();
+
       toast.success("Cropped image added.");
     } catch (error) {
       console.error("Image crop failed:", error);
+
       toast.error("Failed to crop image.");
     } finally {
       setSavingCrop(false);
@@ -282,6 +359,7 @@ const AdminProduct = () => {
         i === variantIndex
           ? {
               ...variant,
+
               images: variant.images.filter((_, j) => j !== imageIndex),
             }
           : variant,
@@ -295,6 +373,7 @@ const AdminProduct = () => {
         i === variantIndex
           ? {
               ...variant,
+
               imageFiles: variant.imageFiles.filter((_, j) => j !== imageIndex),
             }
           : variant,
@@ -311,6 +390,7 @@ const AdminProduct = () => {
       !productData.description.trim()
     ) {
       toast.error("Complete all product fields");
+
       return false;
     }
 
@@ -325,10 +405,12 @@ const AdminProduct = () => {
         !variant.strapColor.trim()
       ) {
         toast.error(`Complete all fields for variant ${index + 1}`);
+
         return false;
       }
 
       const price = Number(variant.price);
+
       const quantity = Number(variant.quantity);
 
       if (
@@ -340,11 +422,13 @@ const AdminProduct = () => {
         quantity < 0
       ) {
         toast.error(`Invalid price or stock in variant ${index + 1}`);
+
         return false;
       }
 
       if (variant.images.length + variant.imageFiles.length > 3) {
         toast.error(`Variant ${index + 1} can have at most 3 images`);
+
         return false;
       }
     }
@@ -361,6 +445,7 @@ const AdminProduct = () => {
         new Date(offer.startDate) >= new Date(offer.endDate)
       ) {
         toast.error("Enter a valid offer and date range");
+
         return false;
       }
     }
@@ -384,7 +469,9 @@ const AdminProduct = () => {
 
       const variantsForSubmit = variants.map(({ imageFiles, ...variant }) => ({
         ...variant,
+
         price: Number(variant.price),
+
         quantity: Number(variant.quantity),
       }));
 
@@ -411,7 +498,9 @@ const AdminProduct = () => {
       toast.success(data.message || "Product saved successfully");
 
       setShowForm(false);
+
       resetForm();
+
       await fetchProducts();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to save product");
@@ -429,14 +518,20 @@ const AdminProduct = () => {
       });
 
       const product = data.product;
+
       const savedVariants = data.variants || [];
+
       const savedOffer = data.offer;
 
       setProductData({
         name: product.name || "",
+
         brand: product.brand || "",
+
         gender: product.gender || "",
+
         categoryId: product.categoryId?._id || product.categoryId || "",
+
         description: product.description || "",
       });
 
@@ -444,13 +539,21 @@ const AdminProduct = () => {
         savedVariants.length
           ? savedVariants.map((variant) => ({
               size: variant.size || "",
+
               strapMaterial: variant.strapMaterial || "",
+
               caseMaterial: variant.caseMaterial || "",
+
               dialColor: variant.dialColor || "",
+
               strapColor: variant.strapColor || "",
+
               price: variant.price ?? "",
+
               quantity: variant.quantity ?? "",
+
               images: variant.images || [],
+
               imageFiles: [],
             }))
           : [emptyVariant()],
@@ -460,15 +563,20 @@ const AdminProduct = () => {
         savedOffer
           ? {
               isActive: savedOffer.isActive || false,
+
               discountType: savedOffer.discountType || "percentage",
+
               discountValue: savedOffer.discountValue ?? "",
+
               startDate: formatDateTimeLocal(savedOffer.startDate),
+
               endDate: formatDateTimeLocal(savedOffer.endDate),
             }
           : emptyOffer(),
       );
 
       setEditingId(id);
+
       setShowForm(true);
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to load product");
@@ -486,7 +594,9 @@ const AdminProduct = () => {
       });
 
       toast.success(data.message || "Product deleted");
+
       setDeleteId(null);
+
       await fetchProducts();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to delete product");
@@ -499,12 +609,16 @@ const AdminProduct = () => {
     try {
       const { data } = await axios.patch(
         `${API}/status/${statusProduct.id}`,
+
         {},
+
         { withCredentials: true },
       );
 
       toast.success(data.message || "Product status updated");
+
       setStatusProduct(null);
+
       await fetchProducts();
     } catch (error) {
       toast.error(
@@ -531,14 +645,23 @@ const AdminProduct = () => {
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+  const startIndex = (currentPage - 1) * productsPerPage;
+  const paginatedProducts = filteredProducts.slice(
+    startIndex,
+    startIndex + productsPerPage,
+  );
+
   return (
     <MainLayout>
       <div className="mb-8 flex items-center justify-between">
         <div>
           <p className="text-xs tracking-[0.2em] text-[#9A7B3F]">CATALOG</p>
+
           <h1 className="mt-1 text-2xl font-semibold text-[#111827]">
             Products
           </h1>
+
           <p className="mt-1 text-sm text-gray-500">
             Manage products, variants, images and stock
           </p>
@@ -548,6 +671,7 @@ const AdminProduct = () => {
           type="button"
           onClick={() => {
             resetForm();
+
             setShowForm(true);
           }}
           className="flex items-center gap-2 bg-[#111827] cursor-pointer px-5 py-3 text-sm text-white"
@@ -570,6 +694,7 @@ const AdminProduct = () => {
               <label className="mb-2 block text-sm text-gray-600">
                 Product Name
               </label>
+
               <input
                 required
                 value={productData.name}
@@ -580,6 +705,7 @@ const AdminProduct = () => {
 
             <div>
               <label className="mb-2 block text-sm text-gray-600">Brand</label>
+
               <input
                 required
                 value={productData.brand}
@@ -590,6 +716,7 @@ const AdminProduct = () => {
 
             <div>
               <label className="mb-2 block text-sm text-gray-600">Gender</label>
+
               <select
                 required
                 value={productData.gender}
@@ -597,8 +724,11 @@ const AdminProduct = () => {
                 className="w-full border border-gray-200 px-4 py-3 text-sm"
               >
                 <option value="">Select gender</option>
+
                 <option value="Men">Men</option>
+
                 <option value="Women">Women</option>
+
                 <option value="Unisex">Unisex</option>
               </select>
             </div>
@@ -607,6 +737,7 @@ const AdminProduct = () => {
               <label className="mb-2 block text-sm text-gray-600">
                 Category
               </label>
+
               <select
                 required
                 value={productData.categoryId}
@@ -616,6 +747,7 @@ const AdminProduct = () => {
                 className="w-full border border-gray-200 px-4 py-3 text-sm"
               >
                 <option value="">Select category</option>
+
                 {categories.map((category) => (
                   <option key={category._id} value={category._id}>
                     {category.name}
@@ -628,6 +760,7 @@ const AdminProduct = () => {
               <label className="mb-2 block text-sm text-gray-600">
                 Description
               </label>
+
               <textarea
                 required
                 rows={4}
@@ -646,6 +779,7 @@ const AdminProduct = () => {
                 <h3 className="text-sm font-semibold text-[#111827]">
                   Product Variants
                 </h3>
+
                 <p className="mt-1 text-xs text-gray-500">
                   The first variant provides the default product images.
                 </p>
@@ -687,6 +821,7 @@ const AdminProduct = () => {
                     <label className="mb-1 block text-xs text-gray-500">
                       Case Size
                     </label>
+
                     <input
                       required
                       value={variant.size}
@@ -702,13 +837,16 @@ const AdminProduct = () => {
                     <label className="mb-1 block text-xs text-gray-500">
                       Strap Material
                     </label>
+
                     <input
                       required
                       value={variant.strapMaterial}
                       onChange={(e) =>
                         updateVariantField(
                           index,
+
                           "strapMaterial",
+
                           e.target.value,
                         )
                       }
@@ -721,13 +859,16 @@ const AdminProduct = () => {
                     <label className="mb-1 block text-xs text-gray-500">
                       Case Material
                     </label>
+
                     <input
                       required
                       value={variant.caseMaterial}
                       onChange={(e) =>
                         updateVariantField(
                           index,
+
                           "caseMaterial",
+
                           e.target.value,
                         )
                       }
@@ -740,6 +881,7 @@ const AdminProduct = () => {
                     <label className="mb-1 block text-xs text-gray-500">
                       Dial Color
                     </label>
+
                     <input
                       required
                       value={variant.dialColor}
@@ -755,6 +897,7 @@ const AdminProduct = () => {
                     <label className="mb-1 block text-xs text-gray-500">
                       Strap Color
                     </label>
+
                     <input
                       required
                       value={variant.strapColor}
@@ -770,6 +913,7 @@ const AdminProduct = () => {
                     <label className="mb-1 block text-xs text-gray-500">
                       Price (₹)
                     </label>
+
                     <input
                       required
                       type="number"
@@ -788,6 +932,7 @@ const AdminProduct = () => {
                     <label className="mb-1 block text-xs text-gray-500">
                       Stock Quantity
                     </label>
+
                     <input
                       required
                       type="number"
@@ -806,6 +951,7 @@ const AdminProduct = () => {
                 <div className="mt-5">
                   <div className="mb-3 flex items-center justify-between">
                     <p className="text-sm text-gray-600">Variant Images</p>
+
                     <span className="text-xs text-gray-400">
                       {variant.images.length + variant.imageFiles.length}/3
                     </span>
@@ -866,6 +1012,7 @@ const AdminProduct = () => {
                           className="hidden"
                           onChange={(e) => {
                             addImages(index, e.target.files);
+
                             e.target.value = "";
                           }}
                         />
@@ -890,6 +1037,7 @@ const AdminProduct = () => {
                   onChange={(e) =>
                     setOffer((previous) => ({
                       ...previous,
+
                       isActive: e.target.checked,
                     }))
                   }
@@ -904,17 +1052,20 @@ const AdminProduct = () => {
                   <label className="mb-2 block text-sm text-gray-600">
                     Discount Type
                   </label>
+
                   <select
                     value={offer.discountType}
                     onChange={(e) =>
                       setOffer((previous) => ({
                         ...previous,
+
                         discountType: e.target.value,
                       }))
                     }
                     className="w-full border border-gray-200 px-4 py-3 text-sm"
                   >
                     <option value="percentage">Percentage</option>
+
                     <option value="fixed">Fixed Amount</option>
                   </select>
                 </div>
@@ -923,6 +1074,7 @@ const AdminProduct = () => {
                   <label className="mb-2 block text-sm text-gray-600">
                     Discount Value
                   </label>
+
                   <input
                     required
                     type="number"
@@ -933,6 +1085,7 @@ const AdminProduct = () => {
                     onChange={(e) =>
                       setOffer((previous) => ({
                         ...previous,
+
                         discountValue: e.target.value,
                       }))
                     }
@@ -944,6 +1097,7 @@ const AdminProduct = () => {
                   <label className="mb-2 block text-sm text-gray-600">
                     Start Date
                   </label>
+
                   <input
                     required
                     type="datetime-local"
@@ -951,6 +1105,7 @@ const AdminProduct = () => {
                     onChange={(e) =>
                       setOffer((previous) => ({
                         ...previous,
+
                         startDate: e.target.value,
                       }))
                     }
@@ -962,6 +1117,7 @@ const AdminProduct = () => {
                   <label className="mb-2 block text-sm text-gray-600">
                     End Date
                   </label>
+
                   <input
                     required
                     type="datetime-local"
@@ -969,6 +1125,7 @@ const AdminProduct = () => {
                     onChange={(e) =>
                       setOffer((previous) => ({
                         ...previous,
+
                         endDate: e.target.value,
                       }))
                     }
@@ -985,6 +1142,7 @@ const AdminProduct = () => {
               disabled={loading}
               onClick={() => {
                 setShowForm(false);
+
                 resetForm();
               }}
               className="border cursor-pointer border-gray-200 px-5 py-3 text-sm"
@@ -998,6 +1156,7 @@ const AdminProduct = () => {
               className="flex items-center gap-2 bg-[#111827] cursor-pointer px-5 py-3 text-sm text-white disabled:opacity-60"
             >
               {loading && <FaSpinner className="animate-spin" />}
+
               {loading
                 ? "Saving..."
                 : editingId
@@ -1009,13 +1168,18 @@ const AdminProduct = () => {
       )}
 
       {/* Search and filters */}
+
       <div className="mb-6 border border-gray-200 bg-white p-5">
         <div className="flex flex-col gap-4 lg:flex-row">
           <div className="relative flex-1">
             <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="Search products..."
               className="w-full border border-gray-200 py-3 pl-11 pr-4 text-sm"
             />
@@ -1023,10 +1187,14 @@ const AdminProduct = () => {
 
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className="border border-gray-200 px-4 py-3 text-sm"
           >
             <option value="">All Categories</option>
+
             {categories.map((category) => (
               <option key={category._id} value={category.name}>
                 {category.name}
@@ -1036,17 +1204,23 @@ const AdminProduct = () => {
 
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className="border border-gray-200 px-4 py-3 text-sm"
           >
             <option value="">All Statuses</option>
+
             <option value="active">Active</option>
+
             <option value="inactive">Inactive</option>
           </select>
         </div>
       </div>
 
       {/* Product list */}
+
       <div className="border border-gray-200 bg-white">
         <div className="border-b border-gray-200 px-6 py-4">
           <h2 className="text-sm font-semibold text-[#111827]">Product List</h2>
@@ -1058,11 +1232,17 @@ const AdminProduct = () => {
               <tr className="border-b border-gray-200 text-left">
                 {[
                   "PRODUCT",
+
                   "BRAND",
+
                   "CATEGORY",
+
                   "PRICE",
+
                   "STOCK",
+
                   "STATUS",
+
                   "ACTIONS",
                 ].map((heading) => (
                   <th
@@ -1076,7 +1256,7 @@ const AdminProduct = () => {
             </thead>
 
             <tbody>
-              {filteredProducts.map((product) => (
+              {paginatedProducts.map((product) => (
                 <tr
                   key={product.id}
                   className="border-b border-gray-100 hover:bg-gray-50"
@@ -1094,6 +1274,7 @@ const AdminProduct = () => {
                           No image
                         </div>
                       )}
+
                       <span className="text-sm font-medium">
                         {product.name}
                       </span>
@@ -1166,11 +1347,56 @@ const AdminProduct = () => {
         </div>
       </div>
 
+      {totalPages > 0 && (
+        <div className="mt-4 flex flex-col gap-4 border border-gray-200 bg-white px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-gray-500">
+            Showing {startIndex + 1}–
+            {Math.min(startIndex + productsPerPage, filteredProducts.length)} of{" "}
+            {filteredProducts.length} products
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((page) => page - 1)}
+              className="border border-gray-200 px-3 py-2 text-sm disabled:opacity-40"
+            >
+              Previous
+            </button>
+            {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+              (page) => (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`px-3 py-2 text-sm ${
+                    currentPage === page
+                      ? "bg-[#111827] text-white"
+                      : "border border-gray-200 text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  {page}
+                </button>
+              ),
+            )}
+            <button
+              type="button"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((page) => page + 1)}
+              className="border border-gray-200 px-3 py-2 text-sm disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Delete confirmation */}
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-md bg-white p-6">
             <h2 className="text-lg font-semibold">Delete Product?</h2>
+
             <p className="mt-3 text-sm text-gray-500">
               This deletes the product and its variants.
             </p>
@@ -1183,6 +1409,7 @@ const AdminProduct = () => {
               >
                 Cancel
               </button>
+
               <button
                 type="button"
                 onClick={handleDelete}
@@ -1196,6 +1423,7 @@ const AdminProduct = () => {
       )}
 
       {/* Status confirmation */}
+
       {statusProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-md bg-white p-6">
@@ -1219,6 +1447,7 @@ const AdminProduct = () => {
               >
                 Cancel
               </button>
+
               <button
                 type="button"
                 onClick={handleToggleStatus}
@@ -1241,6 +1470,7 @@ const AdminProduct = () => {
                 <h2 className="text-lg font-semibold text-[#111827]">
                   Crop Variant Image
                 </h2>
+
                 <p className="mt-1 text-xs text-gray-500">
                   Adjust the image before uploading.
                 </p>
