@@ -105,6 +105,33 @@ const ProductDetails = () => {
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartMessage, setCartMessage] = useState("");
 
+  const [isZooming, setIsZooming] = useState(false);
+  const [zoomPosition, setZoomPosition] = useState({
+    backgroundX: 50,
+    backgroundY: 50,
+  });
+
+  const ZOOM_LEVEL = 2.5;
+
+  const handleImageMouseMove = (event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+
+    const x = Math.min(
+      Math.max((event.clientX - rect.left) / rect.width, 0),
+      1,
+    );
+
+    const y = Math.min(
+      Math.max((event.clientY - rect.top) / rect.height, 0),
+      1,
+    );
+
+    setZoomPosition({
+      backgroundX: x * 100,
+      backgroundY: y * 100,
+    });
+  };
+
   useEffect(() => {
     const controller = new AbortController();
 
@@ -344,48 +371,76 @@ const ProductDetails = () => {
       <main className="mx-auto max-w-[1440px] px-5 pb-16 pt-5 lg:px-10">
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1.1fr_0.9fr] xl:gap-10">
           {/* Product gallery */}
-          <section>
-            <div className="relative overflow-hidden border border-gray-100 bg-[#f3f3f1]">
-              <div className="flex min-h-[350px] items-center justify-center p-5 sm:min-h-[500px] sm:p-10 lg:min-h-[540px]">
-                {images.length > 0 ? (
-                  <img
-                    src={images[activeImage]}
-                    alt={`${product.name} ${selectedVariant?.dialColor || ""}`}
-                    className="h-[300px] w-full object-contain sm:h-[430px]"
-                  />
-                ) : (
-                  <div className="flex h-[300px] items-center justify-center text-sm text-gray-400">
-                    No product images available
-                  </div>
+          {/* Product gallery */}
+          <section className="relative">
+            {/* Main image and zoom interaction */}
+            <div
+              className="relative"
+              onMouseEnter={() => setIsZooming(true)}
+              onMouseMove={handleImageMouseMove}
+              onMouseLeave={() => setIsZooming(false)}
+            >
+              {/* Main image */}
+              <div className="relative border border-gray-100 bg-[#f3f3f1]">
+                <div className="flex min-h-[350px] items-center justify-center p-5 sm:min-h-[500px] sm:p-10 lg:min-h-[540px]">
+                  {images.length > 0 ? (
+                    <img
+                      src={images[activeImage]}
+                      alt={`${product.name} ${
+                        selectedVariant?.dialColor || ""
+                      }`}
+                      className="h-[300px] w-full cursor-crosshair object-contain sm:h-[430px]"
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="flex h-[300px] items-center justify-center text-sm text-gray-400">
+                      No product images available
+                    </div>
+                  )}
+                </div>
+
+                {/* Selected dial label */}
+                {selectedVariant && (
+                  <span className="absolute bottom-5 left-5 bg-[#111827] px-3 py-2 text-[9px] font-medium uppercase tracking-widest text-white">
+                    {selectedVariant.dialColor || "Selected"} Dial
+                  </span>
+                )}
+
+                {/* Previous and next buttons */}
+                {images.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handlePreviousImage}
+                      aria-label="Previous image"
+                      className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-xs shadow-sm hover:bg-[#111827] hover:text-white"
+                    >
+                      <FaArrowLeft />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleNextImage}
+                      aria-label="Next image"
+                      className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-xs shadow-sm hover:bg-[#111827] hover:text-white"
+                    >
+                      <FaArrowRight />
+                    </button>
+                  </>
                 )}
               </div>
 
-              {selectedVariant && (
-                <span className="absolute bottom-5 left-5 bg-[#111827] px-3 py-2 text-[9px] font-medium uppercase tracking-widest text-white">
-                  {selectedVariant.dialColor || "Selected"} Dial
-                </span>
-              )}
-
-              {images.length > 1 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={handlePreviousImage}
-                    aria-label="Previous image"
-                    className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-xs shadow-sm hover:bg-[#111827] hover:text-white"
-                  >
-                    <FaArrowLeft />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleNextImage}
-                    aria-label="Next image"
-                    className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-xs shadow-sm hover:bg-[#111827] hover:text-white"
-                  >
-                    <FaArrowRight />
-                  </button>
-                </>
+              {/* Rectangular zoom preview */}
+              {isZooming && images.length > 0 && (
+                <div
+                  className="pointer-events-none absolute left-full top-0 z-50 ml-3 hidden h-[540px] w-[420px] border border-gray-200 bg-white shadow-xl lg:block"
+                  style={{
+                    backgroundImage: `url("${images[activeImage]}")`,
+                    backgroundRepeat: "no-repeat",
+                    backgroundSize: `${ZOOM_LEVEL * 100}% ${ZOOM_LEVEL * 100}%`,
+                    backgroundPosition: `${zoomPosition.backgroundX}% ${zoomPosition.backgroundY}%`,
+                  }}
+                />
               )}
             </div>
 
