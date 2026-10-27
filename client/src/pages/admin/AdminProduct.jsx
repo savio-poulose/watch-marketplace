@@ -1,14 +1,8 @@
-
 import { useEffect, useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
-import {
-  FaPlus,
-  FaSearch,
-  FaEdit,
-  FaTrash,
-  FaSpinner,
-} from "react-icons/fa";
+import Cropper from "react-easy-crop";
+import { FaPlus, FaSearch, FaEdit, FaTrash, FaSpinner } from "react-icons/fa";
 
 import MainLayout from "../../components/admin/MainLayout";
 
@@ -50,11 +44,61 @@ const formatDateTimeLocal = (value) => {
 
   if (Number.isNaN(date.getTime())) return "";
 
-  return new Date(
-    date.getTime() - date.getTimezoneOffset() * 60000
-  )
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
     .toISOString()
     .slice(0, 16);
+};
+
+const getCroppedImage = (imageSrc, pixelCrop, fileName) => {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = pixelCrop.width;
+      canvas.height = pixelCrop.height;
+
+      const context = canvas.getContext("2d");
+
+      if (!context) {
+        reject(new Error("Could not create image canvas."));
+        return;
+      }
+
+      context.drawImage(
+        image,
+        pixelCrop.x,
+        pixelCrop.y,
+        pixelCrop.width,
+        pixelCrop.height,
+        0,
+        0,
+        pixelCrop.width,
+        pixelCrop.height,
+      );
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("Could not crop image."));
+            return;
+          }
+
+          resolve(
+            new File([blob], fileName, {
+              type: "image/jpeg",
+              lastModified: Date.now(),
+            }),
+          );
+        },
+        "image/jpeg",
+        0.92,
+      );
+    };
+
+    image.onerror = () => reject(new Error("Failed to load image."));
+    image.src = imageSrc;
+  });
 };
 
 const AdminProduct = () => {
@@ -76,6 +120,15 @@ const AdminProduct = () => {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
+  const [cropImage, setCropImage] = useState(null);
+  const [cropFileName, setCropFileName] = useState("image.jpg");
+  const [cropVariantIndex, setCropVariantIndex] = useState(null);
+
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [savingCrop, setSavingCrop] = useState(false);
+
   const fetchProducts = async () => {
     try {
       const { data } = await axios.get(API, {
@@ -84,9 +137,7 @@ const AdminProduct = () => {
 
       setProducts(data.response || []);
     } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Failed to load products"
-      );
+      toast.error(error.response?.data?.message || "Failed to load products");
     }
   };
 
@@ -98,9 +149,7 @@ const AdminProduct = () => {
 
       setCategories(data.categories || []);
     } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Failed to load categories"
-      );
+      toast.error(error.response?.data?.message || "Failed to load categories");
     }
   };
 
@@ -126,16 +175,13 @@ const AdminProduct = () => {
   const updateVariantField = (index, field, value) => {
     setVariants((previous) =>
       previous.map((variant, i) =>
-        i === index ? { ...variant, [field]: value } : variant
-      )
+        i === index ? { ...variant, [field]: value } : variant,
+      ),
     );
   };
 
   const addVariant = () => {
-    setVariants((previous) => [
-      ...previous,
-      emptyVariant(),
-    ]);
+    setVariants((previous) => [...previous, emptyVariant()]);
   };
 
   const removeVariant = (index) => {
@@ -144,34 +190,90 @@ const AdminProduct = () => {
       return;
     }
 
-    setVariants((previous) =>
-      previous.filter((_, i) => i !== index)
-    );
+    setVariants((previous) => previous.filter((_, i) => i !== index));
   };
 
   const addImages = (index, fileList) => {
-    const files = Array.from(fileList || []);
+    const file = Array.from(fileList || [])[0];
 
-    setVariants((previous) =>
-      previous.map((variant, i) => {
-        if (i !== index) return variant;
+    if (!file) return;
 
-        const available =
-          3 - variant.images.length - variant.imageFiles.length;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file.");
+      return;
+    }
 
-        if (files.length > available) {
-          toast.error("Maximum 3 images per variant");
-        }
+    const variant = variants[index];
+    if (!variant) return;
 
-        return {
-          ...variant,
-          imageFiles: [
-            ...variant.imageFiles,
-            ...files.slice(0, available),
-          ],
-        };
-      })
-    );
+    const currentCount = variant.images.length + variant.imageFiles.length;
+
+    if (currentCount >= 3) {
+      toast.error("Maximum 3 images per variant");
+      return;
+    }
+
+    const imageUrl = URL.createObjectURL(file);
+
+    setCropVariantIndex(index);
+    setCropFileName(file.name);
+    setCropImage(imageUrl);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+  };
+
+  const closeCropModal = () => {
+    if (cropImage) {
+      URL.revokeObjectURL(cropImage);
+    }
+
+    setCropImage(null);
+    setCropVariantIndex(null);
+    setCroppedAreaPixels(null);
+    setZoom(1);
+  };
+
+  const saveCroppedImage = async () => {
+    if (!cropImage || !croppedAreaPixels || cropVariantIndex === null) {
+      toast.error("Please select a crop area.");
+      return;
+    }
+
+    setSavingCrop(true);
+
+    try {
+      const croppedFile = await getCroppedImage(
+        cropImage,
+        croppedAreaPixels,
+        cropFileName,
+      );
+
+      const index = cropVariantIndex;
+
+      setVariants((previous) =>
+        previous.map((variant, i) => {
+          if (i !== index) return variant;
+
+          const count = variant.images.length + variant.imageFiles.length;
+
+          if (count >= 3) return variant;
+
+          return {
+            ...variant,
+            imageFiles: [...variant.imageFiles, croppedFile],
+          };
+        }),
+      );
+
+      closeCropModal();
+      toast.success("Cropped image added.");
+    } catch (error) {
+      console.error("Image crop failed:", error);
+      toast.error("Failed to crop image.");
+    } finally {
+      setSavingCrop(false);
+    }
   };
 
   const removeSavedImage = (variantIndex, imageIndex) => {
@@ -180,12 +282,10 @@ const AdminProduct = () => {
         i === variantIndex
           ? {
               ...variant,
-              images: variant.images.filter(
-                (_, j) => j !== imageIndex
-              ),
+              images: variant.images.filter((_, j) => j !== imageIndex),
             }
-          : variant
-      )
+          : variant,
+      ),
     );
   };
 
@@ -195,12 +295,10 @@ const AdminProduct = () => {
         i === variantIndex
           ? {
               ...variant,
-              imageFiles: variant.imageFiles.filter(
-                (_, j) => j !== imageIndex
-              ),
+              imageFiles: variant.imageFiles.filter((_, j) => j !== imageIndex),
             }
-          : variant
-      )
+          : variant,
+      ),
     );
   };
 
@@ -245,9 +343,7 @@ const AdminProduct = () => {
         return false;
       }
 
-      if (
-        variant.images.length + variant.imageFiles.length > 3
-      ) {
+      if (variant.images.length + variant.imageFiles.length > 3) {
         toast.error(`Variant ${index + 1} can have at most 3 images`);
         return false;
       }
@@ -286,18 +382,13 @@ const AdminProduct = () => {
         formData.append(key, value);
       });
 
-      const variantsForSubmit = variants.map(
-        ({ imageFiles, ...variant }) => ({
-          ...variant,
-          price: Number(variant.price),
-          quantity: Number(variant.quantity),
-        })
-      );
+      const variantsForSubmit = variants.map(({ imageFiles, ...variant }) => ({
+        ...variant,
+        price: Number(variant.price),
+        quantity: Number(variant.quantity),
+      }));
 
-      formData.append(
-        "variants",
-        JSON.stringify(variantsForSubmit)
-      );
+      formData.append("variants", JSON.stringify(variantsForSubmit));
 
       formData.append("offer", JSON.stringify(offer));
 
@@ -323,9 +414,7 @@ const AdminProduct = () => {
       resetForm();
       await fetchProducts();
     } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Failed to save product"
-      );
+      toast.error(error.response?.data?.message || "Failed to save product");
     } finally {
       setLoading(false);
     }
@@ -347,10 +436,7 @@ const AdminProduct = () => {
         name: product.name || "",
         brand: product.brand || "",
         gender: product.gender || "",
-        categoryId:
-          product.categoryId?._id ||
-          product.categoryId ||
-          "",
+        categoryId: product.categoryId?._id || product.categoryId || "",
         description: product.description || "",
       });
 
@@ -367,7 +453,7 @@ const AdminProduct = () => {
               images: variant.images || [],
               imageFiles: [],
             }))
-          : [emptyVariant()]
+          : [emptyVariant()],
       );
 
       setOffer(
@@ -379,15 +465,13 @@ const AdminProduct = () => {
               startDate: formatDateTimeLocal(savedOffer.startDate),
               endDate: formatDateTimeLocal(savedOffer.endDate),
             }
-          : emptyOffer()
+          : emptyOffer(),
       );
 
       setEditingId(id);
       setShowForm(true);
     } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Failed to load product"
-      );
+      toast.error(error.response?.data?.message || "Failed to load product");
     } finally {
       setLoading(false);
     }
@@ -405,9 +489,7 @@ const AdminProduct = () => {
       setDeleteId(null);
       await fetchProducts();
     } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Failed to delete product"
-      );
+      toast.error(error.response?.data?.message || "Failed to delete product");
     }
   };
 
@@ -418,7 +500,7 @@ const AdminProduct = () => {
       const { data } = await axios.patch(
         `${API}/status/${statusProduct.id}`,
         {},
-        { withCredentials: true }
+        { withCredentials: true },
       );
 
       toast.success(data.message || "Product status updated");
@@ -426,7 +508,7 @@ const AdminProduct = () => {
       await fetchProducts();
     } catch (error) {
       toast.error(
-        error.response?.data?.message || "Failed to update product status"
+        error.response?.data?.message || "Failed to update product status",
       );
     }
   };
@@ -453,9 +535,7 @@ const AdminProduct = () => {
     <MainLayout>
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <p className="text-xs tracking-[0.2em] text-[#9A7B3F]">
-            CATALOG
-          </p>
+          <p className="text-xs tracking-[0.2em] text-[#9A7B3F]">CATALOG</p>
           <h1 className="mt-1 text-2xl font-semibold text-[#111827]">
             Products
           </h1>
@@ -493,37 +573,27 @@ const AdminProduct = () => {
               <input
                 required
                 value={productData.name}
-                onChange={(e) =>
-                  updateProductField("name", e.target.value)
-                }
+                onChange={(e) => updateProductField("name", e.target.value)}
                 className="w-full border border-gray-200 px-4 py-3 text-sm"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm text-gray-600">
-                Brand
-              </label>
+              <label className="mb-2 block text-sm text-gray-600">Brand</label>
               <input
                 required
                 value={productData.brand}
-                onChange={(e) =>
-                  updateProductField("brand", e.target.value)
-                }
+                onChange={(e) => updateProductField("brand", e.target.value)}
                 className="w-full border border-gray-200 px-4 py-3 text-sm"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm text-gray-600">
-                Gender
-              </label>
+              <label className="mb-2 block text-sm text-gray-600">Gender</label>
               <select
                 required
                 value={productData.gender}
-                onChange={(e) =>
-                  updateProductField("gender", e.target.value)
-                }
+                onChange={(e) => updateProductField("gender", e.target.value)}
                 className="w-full border border-gray-200 px-4 py-3 text-sm"
               >
                 <option value="">Select gender</option>
@@ -591,10 +661,7 @@ const AdminProduct = () => {
             </div>
 
             {variants.map((variant, index) => (
-              <div
-                key={index}
-                className="mb-5 border border-gray-200 p-4"
-              >
+              <div key={index} className="mb-5 border border-gray-200 p-4">
                 <div className="mb-4 flex items-center justify-between">
                   <h4 className="text-sm font-semibold">
                     Variant {index + 1}
@@ -642,7 +709,7 @@ const AdminProduct = () => {
                         updateVariantField(
                           index,
                           "strapMaterial",
-                          e.target.value
+                          e.target.value,
                         )
                       }
                       placeholder="Stainless Steel"
@@ -661,7 +728,7 @@ const AdminProduct = () => {
                         updateVariantField(
                           index,
                           "caseMaterial",
-                          e.target.value
+                          e.target.value,
                         )
                       }
                       placeholder="Titanium"
@@ -677,11 +744,7 @@ const AdminProduct = () => {
                       required
                       value={variant.dialColor}
                       onChange={(e) =>
-                        updateVariantField(
-                          index,
-                          "dialColor",
-                          e.target.value
-                        )
+                        updateVariantField(index, "dialColor", e.target.value)
                       }
                       placeholder="Champagne"
                       className="w-full border border-gray-200 px-3 py-3 text-sm"
@@ -696,11 +759,7 @@ const AdminProduct = () => {
                       required
                       value={variant.strapColor}
                       onChange={(e) =>
-                        updateVariantField(
-                          index,
-                          "strapColor",
-                          e.target.value
-                        )
+                        updateVariantField(index, "strapColor", e.target.value)
                       }
                       placeholder="Gold"
                       className="w-full border border-gray-200 px-3 py-3 text-sm"
@@ -746,9 +805,7 @@ const AdminProduct = () => {
 
                 <div className="mt-5">
                   <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm text-gray-600">
-                      Variant Images
-                    </p>
+                    <p className="text-sm text-gray-600">Variant Images</p>
                     <span className="text-xs text-gray-400">
                       {variant.images.length + variant.imageFiles.length}/3
                     </span>
@@ -768,9 +825,7 @@ const AdminProduct = () => {
 
                         <button
                           type="button"
-                          onClick={() =>
-                            removeSavedImage(index, imageIndex)
-                          }
+                          onClick={() => removeSavedImage(index, imageIndex)}
                           className="absolute right-2 top-2 bg-white p-2 text-red-500 shadow"
                           aria-label="Remove saved image"
                         >
@@ -792,9 +847,7 @@ const AdminProduct = () => {
 
                         <button
                           type="button"
-                          onClick={() =>
-                            removeSelectedImage(index, imageIndex)
-                          }
+                          onClick={() => removeSelectedImage(index, imageIndex)}
                           className="absolute right-2 top-2 bg-white p-2 text-red-500 shadow"
                           aria-label="Remove selected image"
                         >
@@ -807,11 +860,9 @@ const AdminProduct = () => {
                       <label className="flex min-h-32 cursor-pointer flex-col items-center justify-center border border-dashed border-gray-300 text-sm text-gray-500 hover:border-[#9A7B3F]">
                         <FaPlus className="mb-2" />
                         Add Image
-
                         <input
                           type="file"
                           accept="image/jpeg,image/png,image/webp"
-                          multiple
                           className="hidden"
                           onChange={(e) => {
                             addImages(index, e.target.files);
@@ -876,11 +927,7 @@ const AdminProduct = () => {
                     required
                     type="number"
                     min="0.01"
-                    max={
-                      offer.discountType === "percentage"
-                        ? 100
-                        : undefined
-                    }
+                    max={offer.discountType === "percentage" ? 100 : undefined}
                     step="0.01"
                     value={offer.discountValue}
                     onChange={(e) =>
@@ -954,8 +1001,8 @@ const AdminProduct = () => {
               {loading
                 ? "Saving..."
                 : editingId
-                  ? "Update Product"
-                  : "Add Product"}
+                ? "Update Product"
+                : "Add Product"}
             </button>
           </div>
         </form>
@@ -1002,9 +1049,7 @@ const AdminProduct = () => {
       {/* Product list */}
       <div className="border border-gray-200 bg-white">
         <div className="border-b border-gray-200 px-6 py-4">
-          <h2 className="text-sm font-semibold text-[#111827]">
-            Product List
-          </h2>
+          <h2 className="text-sm font-semibold text-[#111827]">Product List</h2>
         </div>
 
         <div className="overflow-x-auto">
@@ -1063,13 +1108,9 @@ const AdminProduct = () => {
                     {product.category}
                   </td>
 
-                  <td className="px-6 py-4 text-sm">
-                    ₹{product.price}
-                  </td>
+                  <td className="px-6 py-4 text-sm">₹{product.price}</td>
 
-                  <td className="px-6 py-4 text-sm">
-                    {product.stock}
-                  </td>
+                  <td className="px-6 py-4 text-sm">{product.stock}</td>
 
                   <td className="px-6 py-4">
                     <button
@@ -1182,13 +1223,86 @@ const AdminProduct = () => {
                 type="button"
                 onClick={handleToggleStatus}
                 className={`px-5 py-2.5 text-sm cursor-pointer text-white ${
-                  statusProduct.isActive
-                    ? "bg-red-600"
-                    : "bg-green-600"
+                  statusProduct.isActive ? "bg-red-600" : "bg-green-600"
                 }`}
               >
                 Confirm
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {cropImage && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-2xl overflow-hidden bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-[#111827]">
+                  Crop Variant Image
+                </h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  Adjust the image before uploading.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeCropModal}
+                disabled={savingCrop}
+                className="text-2xl text-gray-500 hover:text-gray-900 disabled:opacity-50"
+                aria-label="Close crop modal"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="relative h-[320px] bg-gray-900 sm:h-[420px]">
+              <Cropper
+                image={cropImage}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={(_, croppedPixels) => {
+                  setCroppedAreaPixels(croppedPixels);
+                }}
+              />
+            </div>
+
+            <div className="px-5 py-4">
+              <label className="mb-2 block text-sm text-gray-600">Zoom</label>
+
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.1}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-full accent-[#9A7B3F]"
+              />
+
+              <div className="mt-5 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={closeCropModal}
+                  disabled={savingCrop}
+                  className="border border-gray-200 px-5 py-2.5 text-sm disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={saveCroppedImage}
+                  disabled={savingCrop || !croppedAreaPixels}
+                  className="bg-[#111827] px-5 py-2.5 text-sm text-white disabled:opacity-50"
+                >
+                  {savingCrop ? "Cropping..." : "Crop & Save"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

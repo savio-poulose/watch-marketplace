@@ -5,8 +5,8 @@ import Variant from "../../models/variant.model.js";
 import Address from "../../models/address.module.js";
 import Wallet from "../../models/wallet.module.js";
 import WalletTransaction from "../../models/walletTransaction.js";
-import ReturnRequest from "../../models/returnRequest.model.js"
-import Coupon from "../../models/coupon.model.js"
+import ReturnRequest from "../../models/returnRequest.model.js";
+import Coupon from "../../models/coupon.model.js";
 
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);
@@ -14,7 +14,8 @@ const createError = (message, statusCode = 400) => {
   return error;
 };
 
-const money = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
+const money = (value) =>
+  Math.round((value + Number.EPSILON) * 100) / 100;
 
 const generateOrderNumber = () =>
   `OCE-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -44,11 +45,15 @@ const getOwnedAddress = async (addressId, userId) => {
   };
 };
 
-// Replace this with the same shared pricing function used by
-// your cart service so checkout and orders calculate identical offers.
+// IMPORTANT: Integrate your existing product-offer pricing logic here.
+// This currently uses the variant price without additional offer calculation.
 const getCurrentUnitPrice = async (variant) => {
   return Number(variant.price);
 };
+
+// =====================================================
+// CREATE ORDER
+// =====================================================
 
 export const createOrderService = async (userId, payload) => {
   const { addressId, paymentMethod, couponCode } = payload;
@@ -75,7 +80,6 @@ export const createOrderService = async (userId, payload) => {
     throw createError("Your cart contains an invalid variant.", 400);
   }
 
-  // Use a transaction to prevent partial stock updates or orders.
   const session = await mongoose.startSession();
 
   try {
@@ -88,12 +92,17 @@ export const createOrderService = async (userId, payload) => {
       }).session(session);
 
       const variantMap = new Map(
-        variants.map((variant) => [String(variant._id), variant]),
+        variants.map((variant) => [String(variant._id), variant])
       );
 
       const orderItems = [];
+
       let subtotal = 0;
       let offerDiscount = 0;
+
+      // -----------------------------------------------
+      // VALIDATE PRODUCTS AND RESERVE STOCK
+      // -----------------------------------------------
 
       for (const cartItem of cart.items) {
         const variant = variantMap.get(String(cartItem.variantId));
@@ -101,7 +110,7 @@ export const createOrderService = async (userId, payload) => {
         if (!variant) {
           throw createError(
             "A product in your cart is no longer available.",
-            400,
+            400
           );
         }
 
@@ -111,8 +120,6 @@ export const createOrderService = async (userId, payload) => {
           throw createError("Invalid cart quantity.", 400);
         }
 
-        // Atomically reserve stock. A concurrent order cannot
-        // successfully decrement stock below zero.
         const stockUpdate = await Variant.updateOne(
           {
             _id: variant._id,
@@ -122,13 +129,13 @@ export const createOrderService = async (userId, payload) => {
           {
             $inc: { quantity: -quantity },
           },
-          { session },
+          { session }
         );
 
         if (stockUpdate.modifiedCount !== 1) {
           throw createError(
-            `Insufficient stock for variant ${variant._id}. Requested: ${quantity}.`,
-            409,
+            `Insufficient stock for variant ${variant._id}.`,
+            409
           );
         }
 
@@ -139,29 +146,25 @@ export const createOrderService = async (userId, payload) => {
           .lean();
 
         if (!product || product.isActive === false) {
-          throw createError("A product in your cart is unavailable.", 400);
+          throw createError(
+            "A product in your cart is unavailable.",
+            400
+          );
         }
 
         const originalPrice = Number(variant.price);
         const unitPrice = await getCurrentUnitPrice(variant);
 
-        // Offer pricing must be integrated into getCurrentUnitPrice.
         const lineSubtotal = money(unitPrice * quantity);
+
         const lineOfferDiscount = money(
-          Math.max(0, originalPrice - unitPrice) * quantity,
+          Math.max(0, originalPrice - unitPrice) * quantity
         );
 
         subtotal += money(originalPrice * quantity);
         offerDiscount += lineOfferDiscount;
 
         const sku = variant.sku || `HOR-${variant._id}`;
-
-        console.log("Variant data:", {
-          variantId: String(variant._id),
-          sku: variant.sku,
-          productId: String(variant.productId),
-          productName: product.name,
-        });
 
         orderItems.push({
           productId: product._id,
@@ -180,20 +183,139 @@ export const createOrderService = async (userId, payload) => {
       subtotal = money(subtotal);
       offerDiscount = money(offerDiscount);
 
-      // Coupon validation is intentionally not guessed here.
-      // Connect your actual coupon service before accepting couponCode.
-      if (couponCode) {
-        throw createError(
-          "Coupon checkout integration is not configured yet.",
-          501,
+      // -----------------------------------------------
+      // COUPON VALIDATION AND DISCOUNT CALCULATION
+      // -----------------------------------------------
+
+      // Coupon applies after product offers.
+      const amountAfterOffers = money(subtotal - offerDiscount);
+
+      let couponDiscount = 0;
+      let appliedCouponCode = null;
+
+      if (typeof couponCode === "string" && couponCode.trim()) {
+        const normalizedCode = couponCode.trim();
+
+        // Escape special regex characters in the user-supplied code.
+        const escapedCode = normalizedCode.replace(
+          /[.*+?^${}()|[\]\\]/g,
+          "\\$&"
         );
+
+        const now = new Date();
+
+        const coupon = await Coupon.findOne({
+          code: {
+            $regex: `^${escapedCode}$`,
+            $options: "i",
+          },
+          isActive: true,
+          startDate: { $lte: now },
+          endDate: { $gte: now },
+        }).session(session);
+
+        if (!coupon) {
+          throw createError(
+            "Invalid, inactive, or expired coupon.",
+            400
+          );
+        }
+
+        // Check the minimum order amount.
+        const minimumOrderAmount = Number(
+          coupon.minOrderAmount || 0
+        );
+
+        if (amountAfterOffers < minimumOrderAmount) {
+          throw createError(
+            `Minimum order amount for this coupon is ₹${minimumOrderAmount}.`,
+            400
+          );
+        }
+
+        const discountValue = Number(coupon.discountValue);
+
+        if (
+          !Number.isFinite(discountValue) ||
+          discountValue <= 0
+        ) {
+          throw createError(
+            "This coupon has an invalid discount configuration.",
+            400
+          );
+        }
+
+        // Percentage coupon.
+        if (coupon.discountType === "PERCENTAGE") {
+          if (discountValue > 100) {
+            throw createError(
+              "This coupon has an invalid percentage discount.",
+              400
+            );
+          }
+
+          couponDiscount =
+            amountAfterOffers * (discountValue / 100);
+
+          // Enforce the maximum discount when configured.
+          if (
+            coupon.maxDiscount !== undefined &&
+            coupon.maxDiscount !== null
+          ) {
+            const maxDiscount = Number(coupon.maxDiscount);
+
+            if (
+              !Number.isFinite(maxDiscount) ||
+              maxDiscount < 0
+            ) {
+              throw createError(
+                "This coupon has an invalid maximum discount.",
+                400
+              );
+            }
+
+            couponDiscount = Math.min(
+              couponDiscount,
+              maxDiscount
+            );
+          }
+        } else if (coupon.discountType === "FIXED") {
+          // Fixed-value coupon.
+          couponDiscount = discountValue;
+        } else {
+          throw createError(
+            "This coupon has an unsupported discount type.",
+            400
+          );
+        }
+
+        // Never allow the coupon to discount more than
+        // the remaining amount after product offers.
+        couponDiscount = money(
+          Math.min(
+            Math.max(couponDiscount, 0),
+            amountAfterOffers
+          )
+        );
+
+        appliedCouponCode = coupon.code;
       }
 
-      const couponDiscount = 0;
+      // -----------------------------------------------
+      // FINAL ORDER AMOUNT
+      // -----------------------------------------------
+
       const shippingCharge = 0;
+
       const totalAmount = money(
-        subtotal - offerDiscount - couponDiscount + shippingCharge,
+        amountAfterOffers -
+          couponDiscount +
+          shippingCharge
       );
+
+      // -----------------------------------------------
+      // CREATE ORDER
+      // -----------------------------------------------
 
       const [order] = await Order.create(
         [
@@ -207,17 +329,21 @@ export const createOrderService = async (userId, payload) => {
             couponDiscount,
             shippingCharge,
             totalAmount,
-            couponCode: null,
+            couponCode: appliedCouponCode,
             paymentMethod,
             paymentStatus: "PENDING",
             orderStatus: "PLACED",
-            stockReserved: true,  
+            stockReserved: true,
           },
         ],
-        { session },
+        { session }
       );
 
-      const cartDelete = await Cart.deleteOne({ userId }, { session });
+      // Clear the cart only after the order is created.
+      const cartDelete = await Cart.deleteOne(
+        { userId },
+        { session }
+      );
 
       if (cartDelete.deletedCount !== 1) {
         throw createError("Could not clear the cart.", 500);
@@ -232,11 +358,25 @@ export const createOrderService = async (userId, payload) => {
   }
 };
 
+// =====================================================
+// GET USER ORDERS
+// =====================================================
+
 export const getMyOrdersService = async (userId) => {
-  return Order.find({ userId }).sort({ createdAt: -1 }).select("-__v").lean();
+  return Order.find({ userId })
+    .sort({ createdAt: -1 })
+    .select("-__v")
+    .lean();
 };
 
-export const getMyOrderByIdService = async (userId, orderId) => {
+// =====================================================
+// GET SINGLE USER ORDER
+// =====================================================
+
+export const getMyOrderByIdService = async (
+  userId,
+  orderId
+) => {
   if (!mongoose.isValidObjectId(orderId)) {
     throw createError("Invalid order ID.", 400);
   }
@@ -252,6 +392,10 @@ export const getMyOrderByIdService = async (userId, orderId) => {
 
   return order;
 };
+
+// =====================================================
+// CANCEL ORDER
+// =====================================================
 
 export const cancelMyOrderService = async (
   userId,
@@ -283,7 +427,10 @@ export const cancelMyOrderService = async (
       }
 
       if (order.orderStatus === "CANCELLED") {
-        throw createError("This order is already cancelled.", 409);
+        throw createError(
+          "This order is already cancelled.",
+          409
+        );
       }
 
       if (!allowedStatuses.includes(order.orderStatus)) {
@@ -294,7 +441,10 @@ export const cancelMyOrderService = async (
       }
 
       if (order.paymentStatus === "REFUNDED") {
-        throw createError("This order has already been refunded.", 409);
+        throw createError(
+          "This order has already been refunded.",
+          409
+        );
       }
 
       const wasPaid = order.paymentStatus === "PAID";
@@ -318,9 +468,7 @@ export const cancelMyOrderService = async (
         throw createError("Invalid refund amount.", 400);
       }
 
-      // Restore stock only if it was actually deducted/reserved.
-      // COD orders in the existing implementation reserve stock
-      // when the order is created.
+      // Restore stock for cancelled orders when required.
       const shouldRestoreStock =
         order.stockReserved === true ||
         order.paymentMethod === "COD" ||
@@ -345,7 +493,7 @@ export const cancelMyOrderService = async (
         order.stockReserved = false;
       }
 
-      // Credit the wallet only for successfully paid Razorpay orders.
+      // Refund successfully paid Razorpay orders to the wallet.
       if (shouldCreditWallet) {
         const reference = `ORDER_REFUND_${order._id}`;
 
@@ -369,7 +517,7 @@ export const cancelMyOrderService = async (
           );
         }
 
-        // A unique reference prevents duplicate refund credits.
+        // Prevent duplicate refund credits.
         const existingTransaction =
           await WalletTransaction.findOne({
             reference,
@@ -423,9 +571,7 @@ export const cancelMyOrderService = async (
                 amount: refundAmount,
                 balanceAfter: updatedWallet.balance,
                 status: "COMPLETED",
-                description: `Wallet refund for order ${
-                  order.orderNumber
-                }`,
+                description: `Wallet refund for order ${order.orderNumber}`,
                 reference,
               },
             ],
@@ -433,8 +579,6 @@ export const cancelMyOrderService = async (
           );
         }
 
-        // Mark as refunded only within the same transaction
-        // that records the wallet credit.
         order.paymentStatus = "REFUNDED";
       }
 
@@ -457,6 +601,9 @@ export const cancelMyOrderService = async (
   }
 };
 
+// =====================================================
+// REQUEST ORDER RETURN
+// =====================================================
 
 export const requestOrderReturnService = async ({
   orderId,
@@ -472,13 +619,17 @@ export const requestOrderReturnService = async ({
     !mongoose.isValidObjectId(productId) ||
     !mongoose.isValidObjectId(variantId)
   ) {
-    throw createError("Invalid order, product, or variant ID.");
+    throw createError(
+      "Invalid order, product, or variant ID."
+    );
   }
 
   quantity = Number(quantity);
 
   if (!Number.isInteger(quantity) || quantity < 1) {
-    throw createError("Return quantity must be a positive integer.");
+    throw createError(
+      "Return quantity must be a positive integer."
+    );
   }
 
   if (!reason?.trim()) {
@@ -495,7 +646,9 @@ export const requestOrderReturnService = async ({
   }
 
   if (order.orderStatus !== "DELIVERED") {
-    throw createError("Only delivered orders can be returned.");
+    throw createError(
+      "Only delivered orders can be returned."
+    );
   }
 
   const orderItem = order.items.find(
@@ -505,19 +658,31 @@ export const requestOrderReturnService = async ({
   );
 
   if (!orderItem) {
-    throw createError("This product does not belong to the order.");
+    throw createError(
+      "This product does not belong to the order."
+    );
   }
 
   if (quantity > orderItem.quantity) {
-    throw createError("Return quantity exceeds the purchased quantity.");
+    throw createError(
+      "Return quantity exceeds the purchased quantity."
+    );
   }
 
-  // Check previously requested quantities for this item.
+  // Check quantities already requested for return.
   const previousRequests = await ReturnRequest.find({
     orderId,
     productId,
     variantId,
-    status: { $in: ["REQUESTED", "APPROVED", "ITEM_RECEIVED", "REFUND_PENDING", "REFUNDED"] },
+    status: {
+      $in: [
+        "REQUESTED",
+        "APPROVED",
+        "ITEM_RECEIVED",
+        "REFUND_PENDING",
+        "REFUNDED",
+      ],
+    },
   }).lean();
 
   const alreadyRequested = previousRequests.reduce(
@@ -545,7 +710,9 @@ export const requestOrderReturnService = async ({
   return returnRequest;
 };
 
-
+// =====================================================
+// GET USER RETURN REQUESTS
+// =====================================================
 
 export const getUserReturnRequestsService = async ({
   orderId,
