@@ -3,10 +3,14 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAdminAuth } from "../../context/useAdminAuth";
+import { useState } from "react";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
   const { checkAdminAuth } = useAdminAuth();
+
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -71,19 +75,30 @@ const AdminLogin = () => {
             />
           </div>
 
-          <div>
+                    <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Password
             </label>
 
-            <input
-              type="password"
-              name="password"
-              placeholder="Enter your password"
-              required
-              autoComplete="current-password"
-              className="w-full h-11 bg-gray-100 px-3 text-sm outline-none border border-transparent focus:border-[#b79b62]"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Enter your password"
+                required
+                autoComplete="current-password"
+                className="w-full h-11 bg-gray-100 px-3 pr-11 text-sm outline-none border border-transparent focus:border-[#b79b62]"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-gray-900"
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
+            </div>
           </div>
 
           <button
