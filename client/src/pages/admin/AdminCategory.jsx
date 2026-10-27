@@ -133,7 +133,13 @@ const AdminCategory = () => {
       setShowForm(false);
       resetForm();
       setCurrentPage(1);
-      await fetchCategories();
+      
+      try{
+        await fetchCategories();
+      }catch(error){
+        console.log(error+":failed to fetch categories")
+      }
+
     } catch (err) {
       console.error("CATEGORY ERROR:", err);
       toast.error(err.response?.data?.message || "Something went wrong");

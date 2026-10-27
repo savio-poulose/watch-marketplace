@@ -7,6 +7,7 @@ import Wallet from "../../models/wallet.module.js";
 import WalletTransaction from "../../models/walletTransaction.js";
 import ReturnRequest from "../../models/returnRequest.model.js";
 import Coupon from "../../models/coupon.model.js";
+import { getBestOfferPrice } from "../../services/user/offerPricing.service.js";
 
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);
@@ -14,8 +15,7 @@ const createError = (message, statusCode = 400) => {
   return error;
 };
 
-const money = (value) =>
-  Math.round((value + Number.EPSILON) * 100) / 100;
+const money = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
 
 const generateOrderNumber = () =>
   `OCE-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -47,9 +47,9 @@ const getOwnedAddress = async (addressId, userId) => {
 
 // IMPORTANT: Integrate your existing product-offer pricing logic here.
 // This currently uses the variant price without additional offer calculation.
-const getCurrentUnitPrice = async (variant) => {
-  return Number(variant.price);
-};
+// const getCurrentUnitPrice = async (variant) => {
+//   return Number(variant.price);
+// };
 
 // =====================================================
 // CREATE ORDER
@@ -92,7 +92,7 @@ export const createOrderService = async (userId, payload) => {
       }).session(session);
 
       const variantMap = new Map(
-        variants.map((variant) => [String(variant._id), variant])
+        variants.map((variant) => [String(variant._id), variant]),
       );
 
       const orderItems = [];
@@ -110,7 +110,7 @@ export const createOrderService = async (userId, payload) => {
         if (!variant) {
           throw createError(
             "A product in your cart is no longer available.",
-            400
+            400,
           );
         }
 
@@ -129,13 +129,13 @@ export const createOrderService = async (userId, payload) => {
           {
             $inc: { quantity: -quantity },
           },
-          { session }
+          { session },
         );
 
         if (stockUpdate.modifiedCount !== 1) {
           throw createError(
             `Insufficient stock for variant ${variant._id}.`,
-            409
+            409,
           );
         }
 
@@ -146,19 +146,23 @@ export const createOrderService = async (userId, payload) => {
           .lean();
 
         if (!product || product.isActive === false) {
-          throw createError(
-            "A product in your cart is unavailable.",
-            400
-          );
+          throw createError("A product in your cart is unavailable.", 400);
         }
 
         const originalPrice = Number(variant.price);
-        const unitPrice = await getCurrentUnitPrice(variant);
 
+        const pricing = await getBestOfferPrice({
+          productId: product._id,
+          categoryId: product.categoryId,
+          originalPrice,
+          session,
+        });
+
+        const unitPrice = pricing.unitPrice;
         const lineSubtotal = money(unitPrice * quantity);
 
         const lineOfferDiscount = money(
-          Math.max(0, originalPrice - unitPrice) * quantity
+          Math.max(0, originalPrice - unitPrice) * quantity,
         );
 
         subtotal += money(originalPrice * quantity);
@@ -199,7 +203,7 @@ export const createOrderService = async (userId, payload) => {
         // Escape special regex characters in the user-supplied code.
         const escapedCode = normalizedCode.replace(
           /[.*+?^${}()|[\]\\]/g,
-          "\\$&"
+          "\\$&",
         );
 
         const now = new Date();
@@ -215,33 +219,25 @@ export const createOrderService = async (userId, payload) => {
         }).session(session);
 
         if (!coupon) {
-          throw createError(
-            "Invalid, inactive, or expired coupon.",
-            400
-          );
+          throw createError("Invalid, inactive, or expired coupon.", 400);
         }
 
         // Check the minimum order amount.
-        const minimumOrderAmount = Number(
-          coupon.minOrderAmount || 0
-        );
+        const minimumOrderAmount = Number(coupon.minOrderAmount || 0);
 
         if (amountAfterOffers < minimumOrderAmount) {
           throw createError(
             `Minimum order amount for this coupon is ₹${minimumOrderAmount}.`,
-            400
+            400,
           );
         }
 
         const discountValue = Number(coupon.discountValue);
 
-        if (
-          !Number.isFinite(discountValue) ||
-          discountValue <= 0
-        ) {
+        if (!Number.isFinite(discountValue) || discountValue <= 0) {
           throw createError(
             "This coupon has an invalid discount configuration.",
-            400
+            400,
           );
         }
 
@@ -250,34 +246,24 @@ export const createOrderService = async (userId, payload) => {
           if (discountValue > 100) {
             throw createError(
               "This coupon has an invalid percentage discount.",
-              400
+              400,
             );
           }
 
-          couponDiscount =
-            amountAfterOffers * (discountValue / 100);
+          couponDiscount = amountAfterOffers * (discountValue / 100);
 
           // Enforce the maximum discount when configured.
-          if (
-            coupon.maxDiscount !== undefined &&
-            coupon.maxDiscount !== null
-          ) {
+          if (coupon.maxDiscount !== undefined && coupon.maxDiscount !== null) {
             const maxDiscount = Number(coupon.maxDiscount);
 
-            if (
-              !Number.isFinite(maxDiscount) ||
-              maxDiscount < 0
-            ) {
+            if (!Number.isFinite(maxDiscount) || maxDiscount < 0) {
               throw createError(
                 "This coupon has an invalid maximum discount.",
-                400
+                400,
               );
             }
 
-            couponDiscount = Math.min(
-              couponDiscount,
-              maxDiscount
-            );
+            couponDiscount = Math.min(couponDiscount, maxDiscount);
           }
         } else if (coupon.discountType === "FIXED") {
           // Fixed-value coupon.
@@ -285,17 +271,14 @@ export const createOrderService = async (userId, payload) => {
         } else {
           throw createError(
             "This coupon has an unsupported discount type.",
-            400
+            400,
           );
         }
 
         // Never allow the coupon to discount more than
         // the remaining amount after product offers.
         couponDiscount = money(
-          Math.min(
-            Math.max(couponDiscount, 0),
-            amountAfterOffers
-          )
+          Math.min(Math.max(couponDiscount, 0), amountAfterOffers),
         );
 
         appliedCouponCode = coupon.code;
@@ -308,9 +291,7 @@ export const createOrderService = async (userId, payload) => {
       const shippingCharge = 0;
 
       const totalAmount = money(
-        amountAfterOffers -
-          couponDiscount +
-          shippingCharge
+        amountAfterOffers - couponDiscount + shippingCharge,
       );
 
       // -----------------------------------------------
@@ -336,14 +317,11 @@ export const createOrderService = async (userId, payload) => {
             stockReserved: true,
           },
         ],
-        { session }
+        { session },
       );
 
       // Clear the cart only after the order is created.
-      const cartDelete = await Cart.deleteOne(
-        { userId },
-        { session }
-      );
+      const cartDelete = await Cart.deleteOne({ userId }, { session });
 
       if (cartDelete.deletedCount !== 1) {
         throw createError("Could not clear the cart.", 500);
@@ -363,20 +341,14 @@ export const createOrderService = async (userId, payload) => {
 // =====================================================
 
 export const getMyOrdersService = async (userId) => {
-  return Order.find({ userId })
-    .sort({ createdAt: -1 })
-    .select("-__v")
-    .lean();
+  return Order.find({ userId }).sort({ createdAt: -1 }).select("-__v").lean();
 };
 
 // =====================================================
 // GET SINGLE USER ORDER
 // =====================================================
 
-export const getMyOrderByIdService = async (
-  userId,
-  orderId
-) => {
+export const getMyOrderByIdService = async (userId, orderId) => {
   if (!mongoose.isValidObjectId(orderId)) {
     throw createError("Invalid order ID.", 400);
   }
@@ -397,11 +369,7 @@ export const getMyOrderByIdService = async (
 // CANCEL ORDER
 // =====================================================
 
-export const cancelMyOrderService = async (
-  userId,
-  orderId,
-  reason = ""
-) => {
+export const cancelMyOrderService = async (userId, orderId, reason = "") => {
   if (!mongoose.isValidObjectId(orderId)) {
     throw createError("Invalid order ID.", 400);
   }
@@ -427,24 +395,18 @@ export const cancelMyOrderService = async (
       }
 
       if (order.orderStatus === "CANCELLED") {
-        throw createError(
-          "This order is already cancelled.",
-          409
-        );
+        throw createError("This order is already cancelled.", 409);
       }
 
       if (!allowedStatuses.includes(order.orderStatus)) {
         throw createError(
           "This order can no longer be cancelled. Use the return workflow if applicable.",
-          400
+          400,
         );
       }
 
       if (order.paymentStatus === "REFUNDED") {
-        throw createError(
-          "This order has already been refunded.",
-          409
-        );
+        throw createError("This order has already been refunded.", 409);
       }
 
       const wasPaid = order.paymentStatus === "PAID";
@@ -452,12 +414,11 @@ export const cancelMyOrderService = async (
       if (wasPaid && order.paymentMethod !== "RAZORPAY") {
         throw createError(
           "This paid order requires manual refund review.",
-          409
+          409,
         );
       }
 
-      const shouldCreditWallet =
-        order.paymentMethod === "RAZORPAY" && wasPaid;
+      const shouldCreditWallet = order.paymentMethod === "RAZORPAY" && wasPaid;
 
       const refundAmount = money(Number(order.totalAmount));
 
@@ -479,13 +440,13 @@ export const cancelMyOrderService = async (
           const result = await Variant.updateOne(
             { _id: item.variantId },
             { $inc: { quantity: item.quantity } },
-            { session }
+            { session },
           );
 
           if (result.modifiedCount !== 1) {
             throw createError(
               `Could not restore stock for ${item.productName}.`,
-              409
+              409,
             );
           }
         }
@@ -504,7 +465,7 @@ export const cancelMyOrderService = async (
         if (!wallet) {
           const [createdWallet] = await Wallet.create(
             [{ userId: order.userId, balance: 0 }],
-            { session }
+            { session },
           );
 
           wallet = createdWallet;
@@ -513,29 +474,26 @@ export const cancelMyOrderService = async (
         if (!wallet.isActive) {
           throw createError(
             "Your wallet is inactive. Please contact support.",
-            403
+            403,
           );
         }
 
         // Prevent duplicate refund credits.
-        const existingTransaction =
-          await WalletTransaction.findOne({
-            reference,
-          }).session(session);
+        const existingTransaction = await WalletTransaction.findOne({
+          reference,
+        }).session(session);
 
         if (existingTransaction) {
           if (
-            String(existingTransaction.userId) !==
-              String(order.userId) ||
-            String(existingTransaction.orderId) !==
-              String(order._id) ||
+            String(existingTransaction.userId) !== String(order.userId) ||
+            String(existingTransaction.orderId) !== String(order._id) ||
             existingTransaction.type !== "CREDIT" ||
             existingTransaction.status !== "COMPLETED" ||
             Number(existingTransaction.amount) !== refundAmount
           ) {
             throw createError(
               "Refund transaction conflict. Please contact support.",
-              409
+              409,
             );
           }
         } else {
@@ -550,14 +508,11 @@ export const cancelMyOrderService = async (
             {
               new: true,
               session,
-            }
+            },
           );
 
           if (!updatedWallet) {
-            throw createError(
-              "Could not credit your wallet.",
-              500
-            );
+            throw createError("Could not credit your wallet.", 500);
           }
 
           await WalletTransaction.create(
@@ -575,7 +530,7 @@ export const cancelMyOrderService = async (
                 reference,
               },
             ],
-            { session }
+            { session },
           );
         }
 
@@ -584,10 +539,7 @@ export const cancelMyOrderService = async (
 
       order.orderStatus = "CANCELLED";
       order.cancelledAt = new Date();
-      order.cancellationReason = String(reason || "").slice(
-        0,
-        500
-      );
+      order.cancellationReason = String(reason || "").slice(0, 500);
 
       await order.save({ session });
     });
@@ -619,17 +571,13 @@ export const requestOrderReturnService = async ({
     !mongoose.isValidObjectId(productId) ||
     !mongoose.isValidObjectId(variantId)
   ) {
-    throw createError(
-      "Invalid order, product, or variant ID."
-    );
+    throw createError("Invalid order, product, or variant ID.");
   }
 
   quantity = Number(quantity);
 
   if (!Number.isInteger(quantity) || quantity < 1) {
-    throw createError(
-      "Return quantity must be a positive integer."
-    );
+    throw createError("Return quantity must be a positive integer.");
   }
 
   if (!reason?.trim()) {
@@ -646,27 +594,21 @@ export const requestOrderReturnService = async ({
   }
 
   if (order.orderStatus !== "DELIVERED") {
-    throw createError(
-      "Only delivered orders can be returned."
-    );
+    throw createError("Only delivered orders can be returned.");
   }
 
   const orderItem = order.items.find(
     (item) =>
       String(item.productId) === String(productId) &&
-      String(item.variantId) === String(variantId)
+      String(item.variantId) === String(variantId),
   );
 
   if (!orderItem) {
-    throw createError(
-      "This product does not belong to the order."
-    );
+    throw createError("This product does not belong to the order.");
   }
 
   if (quantity > orderItem.quantity) {
-    throw createError(
-      "Return quantity exceeds the purchased quantity."
-    );
+    throw createError("Return quantity exceeds the purchased quantity.");
   }
 
   // Check quantities already requested for return.
@@ -687,12 +629,12 @@ export const requestOrderReturnService = async ({
 
   const alreadyRequested = previousRequests.reduce(
     (total, request) => total + request.quantity,
-    0
+    0,
   );
 
   if (alreadyRequested + quantity > orderItem.quantity) {
     throw createError(
-      "The requested return quantity exceeds the remaining eligible quantity."
+      "The requested return quantity exceeds the remaining eligible quantity.",
     );
   }
 
@@ -714,14 +656,8 @@ export const requestOrderReturnService = async ({
 // GET USER RETURN REQUESTS
 // =====================================================
 
-export const getUserReturnRequestsService = async ({
-  orderId,
-  userId,
-}) => {
-  if (
-    !mongoose.isValidObjectId(orderId) ||
-    !mongoose.isValidObjectId(userId)
-  ) {
+export const getUserReturnRequestsService = async ({ orderId, userId }) => {
+  if (!mongoose.isValidObjectId(orderId) || !mongoose.isValidObjectId(userId)) {
     throw createError("Invalid order ID.", 400);
   }
 
@@ -734,7 +670,5 @@ export const getUserReturnRequestsService = async ({
     throw createError("Order not found.", 404);
   }
 
-  return ReturnRequest.find({ orderId, userId })
-    .sort({ createdAt: -1 })
-    .lean();
+  return ReturnRequest.find({ orderId, userId }).sort({ createdAt: -1 }).lean();
 };

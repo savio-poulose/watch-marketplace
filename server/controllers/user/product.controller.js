@@ -12,7 +12,7 @@ import {
 } from "../../services/user/variant.service.js";
 
 import {
-  getActiveOfferByProductId,
+  getActiveOffersByProductId,
 } from "../../services/user/offer.service.js";
 
 export const getAllProducts = async (req, res) => {
@@ -71,17 +71,20 @@ export const getProductDetails = async (req, res) => {
       });
     }
 
-    const [variants, offer] = await Promise.all([
-      getActiveVariantsByProductId(product._id),
-      getActiveOfferByProductId(product._id),
-    ]);
+    const [variants, offers] = await Promise.all([
+  getActiveVariantsByProductId(product._id),
+  getActiveOffersByProductId(
+    product._id,
+    product.categoryId?._id ?? product.categoryId
+  ),
+]);
 
-    return res.status(200).json({
-      success: true,
-      product,
-      variants,
-      offer,
-    });
+return res.status(200).json({
+  success: true,
+  product,
+  variants,
+  offers,
+});
   } catch (error) {
     console.error("getProductDetails:", error);
 
