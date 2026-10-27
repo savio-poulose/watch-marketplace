@@ -1,4 +1,4 @@
-import axios from "axios";
+import api from "../../api/axios.js";
 import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -24,15 +24,9 @@ const Login = () => {
 
         callback: async (response) => {
           try {
-            const result = await axios.post(
-              "http://localhost:3000/api/user/google-login",
-              {
-                credential: response.credential,
-              },
-              {
-                withCredentials: true,
-              },
-            );
+            const result = await api.post("/user/google-login", {
+              credential: response.credential,
+            });
 
             await checkAuth();
             console.log(result);
@@ -74,13 +68,7 @@ const Login = () => {
     const data = Object.fromEntries(formData);
 
     try {
-      const response = await axios.post(
-        "http://localhost:3000/api/user/login",
-        data,
-        {
-          withCredentials: true,
-        },
-      );
+      const response = await api.post("/user/login", data);
 
       console.log(response.data);
 

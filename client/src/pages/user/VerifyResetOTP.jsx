@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 // import Navbar from "../../components/layout/Navbar";
-import axios from "axios";
+import api from "../../api/axios.js";
 import toast from "react-hot-toast";
 
 const VerifyResetOTP = () => {
@@ -25,13 +25,10 @@ const VerifyResetOTP = () => {
     }
 
     try {
-      const response = await axios.post(
-        "http://localhost:3000/api/user/verify-reset-otp",
-        {
-          email,
-          otp,
-        }
-      );
+      const response = await api.post("/user/verify-reset-otp", {
+        email,
+        otp,
+      });
 
       
       toast.success(response.data.message)

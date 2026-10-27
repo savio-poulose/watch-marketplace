@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../api/axios.js";
 import AdminAuthContext from "./AdminAuthContext.jsx";
 
 const AdminAuthProvider = ({ children }) => {
@@ -8,12 +8,7 @@ const AdminAuthProvider = ({ children }) => {
 
   const checkAdminAuth = async () => {
     try {
-      const response = await axios.get(
-        "http://localhost:3000/api/admin/me",
-        {
-          withCredentials: true,
-        }
-      );
+      const response = await api.get("/admin/me");
 
       setAdmin(response.data.admin);
     } catch (error) {
@@ -30,13 +25,7 @@ const AdminAuthProvider = ({ children }) => {
 
   const logoutAdmin = async () => {
     try {
-      await axios.post(
-        "http://localhost:3000/api/admin/logout",
-        {},
-        {
-          withCredentials: true,
-        }
-      );
+      await api.post("/admin/logout");
     } catch (error) {
       console.log(
         "ADMIN LOGOUT ERROR:",

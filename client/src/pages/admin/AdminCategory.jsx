@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { FaPlus, FaEdit, FaTrash } from "react-icons/fa";
-import axios from "axios";
+import api from "../../api/axios.js";
 import MainLayout from "../../components/admin/MainLayout";
 import toast from "react-hot-toast";
 
-const API = "http://localhost:3000/api/admin/category";
+const API = "/admin/category";
 const CATEGORIES_PER_PAGE = 5;
 
 const emptyOffer = () => ({
@@ -37,9 +37,7 @@ const AdminCategory = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get(API, {
-        withCredentials: true,
-      });
+      const response = await api.get(API);
 
       setCategoryList(response.data.categories || []);
     } catch (err) {
@@ -118,18 +116,14 @@ const AdminCategory = () => {
       }
 
       if (editingCategory) {
-        await axios.put(`${API}/${editingCategory._id}`, formData, {
-          withCredentials: true,
-        });
+        await api.put(`${API}/${editingCategory._id}`, formData);
         toast.success("Category updated successfully");
       } else {
-        await axios.post(API, formData, {
-          withCredentials: true,
-        });
+        await api.post(API, formData);
         toast.success("Category added successfully");
       }
 
-      event.currentTarget.reset();
+      // event.currentTarget.reset();
       setShowForm(false);
       resetForm();
       setCurrentPage(1);
@@ -155,9 +149,7 @@ const AdminCategory = () => {
     if (!confirmed) return;
 
     try {
-      await axios.delete(`${API}/${category._id}`, {
-        withCredentials: true,
-      });
+      await api.delete(`${API}/${category._id}`);
 
       setCategoryList((previous) =>
         previous.filter((item) => item._id !== category._id)

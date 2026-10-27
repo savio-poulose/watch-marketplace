@@ -1,5 +1,4 @@
-// import { useState } from "react";
-import axios from "axios";
+import api from "../../api/axios.js";
 import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
@@ -46,10 +45,7 @@ const Register = () => {
     }
 
     try {
-      const response = await axios.post(
-        "http://localhost:3000/api/user/register",
-        data,
-      );
+      const response = await api.post("/user/register", data);
       console.log(response.data);
       navigate("/user/login");
     } catch (error) {

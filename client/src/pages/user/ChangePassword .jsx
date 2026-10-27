@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Navbar from "../../components/layout/Navbar";
-import axios from "axios";
+import api from "../../api/axios.js";
 import { Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -27,16 +27,10 @@ const handleChangePassword = async () => {
       return;
     }
 
-    const response = await axios.put(
-      "http://localhost:3000/api/user/change-password",
-      {
-        currentPassword,
-        newPassword,
-      },
-      {
-        withCredentials: true,
-      }
-    );
+    const response = await api.put("/user/change-password", {
+      currentPassword,
+      newPassword,
+    });
 
     console.log("Password change successful");
 

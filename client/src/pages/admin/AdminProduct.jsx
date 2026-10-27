@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import axios from "axios";
+import api from "../../api/axios.js";
 
 import toast from "react-hot-toast";
 
@@ -10,9 +10,9 @@ import { FaPlus, FaSearch, FaEdit, FaTrash, FaSpinner } from "react-icons/fa";
 
 import MainLayout from "../../components/admin/MainLayout";
 
-const API = "http://localhost:3000/api/admin/product";
+const API = "/admin/product";
 
-const CATEGORY_API = "http://localhost:3000/api/admin/category";
+const CATEGORY_API = "/admin/category";
 
 const emptyVariant = () => ({
   size: "",
@@ -185,9 +185,7 @@ const AdminProduct = () => {
 
   const fetchProducts = async () => {
     try {
-      const { data } = await axios.get(API, {
-        withCredentials: true,
-      });
+      const { data } = await api.get(API);
 
       setProducts(data.response || []);
     } catch (error) {
@@ -197,9 +195,7 @@ const AdminProduct = () => {
 
   const fetchCategories = async () => {
     try {
-      const { data } = await axios.get(CATEGORY_API, {
-        withCredentials: true,
-      });
+      const { data } = await api.get(CATEGORY_API);
 
       setCategories(data.categories || []);
     } catch (error) {
@@ -488,12 +484,8 @@ const AdminProduct = () => {
       const url = editingId ? `${API}/${editingId}` : API;
 
       const { data } = editingId
-        ? await axios.put(url, formData, {
-            withCredentials: true,
-          })
-        : await axios.post(url, formData, {
-            withCredentials: true,
-          });
+        ? await api.put(url, formData)
+        : await api.post(url, formData);
 
       toast.success(data.message || "Product saved successfully");
 
@@ -513,9 +505,7 @@ const AdminProduct = () => {
     setLoading(true);
 
     try {
-      const { data } = await axios.get(`${API}/${id}`, {
-        withCredentials: true,
-      });
+      const { data } = await api.get(`${API}/${id}`);
 
       const product = data.product;
 
@@ -589,9 +579,7 @@ const AdminProduct = () => {
     if (!deleteId) return;
 
     try {
-      const { data } = await axios.delete(`${API}/${deleteId}`, {
-        withCredentials: true,
-      });
+      const { data } = await api.delete(`${API}/${deleteId}`);
 
       toast.success(data.message || "Product deleted");
 
@@ -607,12 +595,9 @@ const AdminProduct = () => {
     if (!statusProduct) return;
 
     try {
-      const { data } = await axios.patch(
+      const { data } = await api.patch(
         `${API}/status/${statusProduct.id}`,
-
-        {},
-
-        { withCredentials: true },
+        {}
       );
 
       toast.success(data.message || "Product status updated");

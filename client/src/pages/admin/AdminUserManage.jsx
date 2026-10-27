@@ -1,7 +1,7 @@
 import { FaSearch, FaBan, FaCheck } from "react-icons/fa";
 import MainLayout from "../../components/admin/MainLayout";
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../api/axios.js";
 import toast from "react-hot-toast";
 
 const AdminUserManage = () => {
@@ -16,12 +16,7 @@ const AdminUserManage = () => {
       try {
         
 
-        const response = await axios.get(
-          "http://localhost:3000/api/admin/users",
-          {
-            withCredentials:true,
-          },
-        );
+        const response = await api.get("/admin/users");
 
         console.log(response.data.users);
         setUsers(response.data.users);
@@ -42,12 +37,9 @@ const AdminUserManage = () => {
     try {
     
 
-      const response = await axios.patch(
-        `http://localhost:3000/api/admin/users/${selectedUser._id}/block`,
-        {},
-        {
-          withCredentials:true,
-        },
+      const response = await api.patch(
+        `/admin/users/${selectedUser._id}/block`,
+        {}
       );
 
       console.log(response.data);

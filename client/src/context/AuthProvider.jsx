@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../api/axios.js";
 import AuthContext from "./AuthContext.jsx";
 
 const AuthProvider = ({ children }) => {
@@ -8,12 +8,7 @@ const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
-      const response = await axios.get(
-        "http://localhost:3000/api/user/me",
-        {
-          withCredentials: true,
-        }
-      );
+      const response = await api.get("/user/me");
 
       setUser(response.data.user);
     } catch (error) {
@@ -26,13 +21,7 @@ const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await axios.post(
-        "http://localhost:3000/api/user/logout",
-        {},
-        {
-          withCredentials: true,
-        }
-      );
+      await api.post("/user/logout");
     } catch (error) {
       console.log("LOGOUT ERROR:", error.response?.data);
     } finally {

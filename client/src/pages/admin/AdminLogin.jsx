@@ -1,5 +1,5 @@
 
-import axios from "axios";
+import api from "../../api/axios.js";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAdminAuth } from "../../context/useAdminAuth";
@@ -19,13 +19,7 @@ const AdminLogin = () => {
     const data = Object.fromEntries(formData);
 
     try {
-      await axios.post(
-        "http://localhost:3000/api/admin/login",
-        data,
-        {
-          withCredentials: true,
-        }
-      );
+      await api.post("/admin/login", data);
 
       await checkAdminAuth();
 

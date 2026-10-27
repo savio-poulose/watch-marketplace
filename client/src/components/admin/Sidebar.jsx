@@ -12,7 +12,7 @@ import {
   FaWallet
 } from "react-icons/fa";
 import { useAdminAuth } from "../../context/useAdminAuth";
-import axios from "axios"
+import api from "../../api/axios.js";
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const navigate = useNavigate();
@@ -20,13 +20,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
   const handleLogout = async () => {
     try {
-      await axios.post(
-        "http://localhost:3000/api/admin/logout",
-        {},
-        {
-          withCredentials: true,
-        }
-      );
+      await api.post("/admin/logout");
 
       setAdmin(null);
 

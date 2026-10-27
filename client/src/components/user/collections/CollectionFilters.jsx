@@ -1,4 +1,4 @@
-import axios from "axios";
+import api from "../../../api/axios.js";
 import { useEffect, useState } from "react";
 
 const CollectionFilters = ({ filters, onFilterChange }) => {
@@ -15,9 +15,7 @@ const CollectionFilters = ({ filters, onFilterChange }) => {
   useEffect(() => {
     const fetchFilters = async () => {
       try {
-        const { data } = await axios.get(
-          "http://localhost:3000/api/user/products/filters",
-        );
+        const { data } = await api.get("/user/products/filters");
         setOptions(data.filters);
       } catch (err) {
         console.error("Failed to fetch filter options:", err);

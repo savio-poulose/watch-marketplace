@@ -1,6 +1,6 @@
 import { useState } from "react";
 // import Navbar from "../../components/layout/Navbar";
-import axios from "axios";
+import api from "../../api/axios.js";
 import { Eye, EyeOff } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -45,13 +45,10 @@ const ResetPassword = () => {
     }
 
     try {
-      const response = await axios.put(
-        "http://localhost:3000/api/user/reset-password",
-        {
-          email,
-          newPassword,
-        }
-      );
+      const response = await api.put("/user/reset-password", {
+        email,
+        newPassword,
+      });
 
       
       toast.success(response.data.message)

@@ -1,6 +1,6 @@
 import { useState } from "react";
 // import Navbar from "../../components/layout/Navbar";
-import axios from "axios";
+import api from "../../api/axios.js";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
@@ -16,12 +16,9 @@ const ForgetPassword = () => {
     }
 
     try {
-      const response = await axios.post(
-        "http://localhost:3000/api/user/forgot-password",
-        {
-          email,
-        }
-      );
+      const response = await api.post("/user/forgot-password", {
+        email,
+      });
 
       
       toast.success(response.data.message)
