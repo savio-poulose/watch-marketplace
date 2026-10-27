@@ -6,6 +6,7 @@ import Address from "../../models/address.module.js";
 import Wallet from "../../models/wallet.module.js";
 import WalletTransaction from "../../models/walletTransaction.js";
 import ReturnRequest from "../../models/returnRequest.model.js"
+import Coupon from "../../models/coupon.model.js"
 
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);

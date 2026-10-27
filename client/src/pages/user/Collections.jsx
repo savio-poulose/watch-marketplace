@@ -109,28 +109,40 @@ const Collections = () => {
     });
 
     // Sorting
+    
+    // Sorting
     switch (sortBy) {
       case "price-low-high":
         filtered.sort(
-          (a, b) => Number(a.price) - Number(b.price)
+          (a, b) => Number(a.price ?? 0) - Number(b.price ?? 0)
         );
         break;
 
       case "price-high-low":
         filtered.sort(
-          (a, b) => Number(b.price) - Number(a.price)
+          (a, b) => Number(b.price ?? 0) - Number(a.price ?? 0)
+        );
+        break;
+
+      case "newest":
+        filtered.sort(
+          (a, b) =>
+            new Date(b.createdAt || 0).getTime() -
+            new Date(a.createdAt || 0).getTime()
         );
         break;
 
       case "name-a-z":
         filtered.sort((a, b) =>
-          a.name.localeCompare(b.name)
+          (a.name || "").localeCompare(b.name || "")
         );
         break;
 
+      case "featured":
       default:
         break;
     }
+
 
     return filtered;
   }, [products, filters, sortBy]);

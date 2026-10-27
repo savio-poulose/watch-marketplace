@@ -136,7 +136,7 @@ const Login = () => {
                 type={showPassword ? "text" : "password"}
                 name="password"
                 placeholder="Enter your password"
-                autoComplete="new-password"
+                autoComplete="current-password"
                 className="w-full h-11 bg-gray-100 px-3 pr-11 text-sm outline-none border border-transparent focus:border-[#b79b62]"
               />
 
@@ -147,6 +147,16 @@ const Login = () => {
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
+            </div>
+
+            {/* Forgot Password */}
+            <div className="flex justify-end mt-2">
+              <Link
+                to="/user/forget-password"
+                className="text-sm text-gray-500 hover:text-[#9A7B3F] transition"
+              >
+                Forgot password?
+              </Link>
             </div>
           </div>
 
@@ -172,7 +182,7 @@ const Login = () => {
         </form>
 
         {/* register */}
-        <div className="text-center mt-6">
+        <div className="text-center mt-6 flex justify-center gap-27">
           <Link to="/user/register">
             <p className="text-sm text-gray-500 cursor-pointer">
               Dont have an account?

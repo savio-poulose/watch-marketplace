@@ -68,6 +68,9 @@ function App() {
           <Route element={<GuestRoute />}>
             <Route path="/user/register" element={<Register />} />
             <Route path="/user/login" element={<Login />} />
+            <Route path="/user/forget-password" element={<ForgetPassword />} />
+            <Route path="/user/reset-password" element={<ResetPassword />} />
+            <Route path="/user/verify-reset-otp" element={<VerifyResetOTP />} />
           </Route>
 
           <Route element={<GuestAdminRoute />}>
@@ -79,9 +82,9 @@ function App() {
             <Route path="/user/dashboard" element={<Home />} />
             <Route path="/user/profile" element={<Profile />} />
             <Route path="/user/change-password" element={<ChangePassword />} />
-            <Route path="/user/forget-password" element={<ForgetPassword />} />
-            <Route path="/user/verify-reset-otp" element={<VerifyResetOTP />} />
-            <Route path="/user/reset-password" element={<ResetPassword />} />
+            
+            
+            
             <Route path="/user/collections" element={<Collections />} />
             <Route path="/products/:id" element={<ProductDetails />} />
             <Route path="/user/cart" element={<Cart />} />

@@ -25,32 +25,19 @@ const CollectionToolbar = ({
           Sort by
         </label>
 
-        <select
-          id="sort"
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          className="border border-gray-200 bg-white px-4 py-2 text-xs text-gray-700 outline-none focus:border-[#9A7B3F]"
-        >
-          <option value="featured">
-            Featured
-          </option>
-
-          <option value="price-low">
-            Price: Low to High
-          </option>
-
-          <option value="price-high">
-            Price: High to Low
-          </option>
-
-          <option value="newest">
-            Newest
-          </option>
-
-          <option value="rating">
-            Rating
-          </option>
-        </select>
+        
+<select
+  id="sort"
+  value={sortBy}
+  onChange={(e) => setSortBy(e.target.value)}
+  className="border border-gray-200 bg-white px-4 py-2 text-xs text-gray-700 outline-none focus:border-[#9A7B3F]"
+>
+  <option value="featured">Featured</option>
+  <option value="price-low-high">Price: Low to High</option>
+  <option value="price-high-low">Price: High to Low</option>
+  <option value="newest">Newest</option>
+  <option value="name-a-z">Name: A to Z</option>
+</select>
 
       </div>
 
