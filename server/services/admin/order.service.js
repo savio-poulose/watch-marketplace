@@ -33,30 +33,79 @@ export const getAllOrdersService = async ({
   page = 1,
   limit = 10,
   status,
+  payment,
+  search,
 } = {}) => {
   page = Math.max(1, Number(page) || 1);
-  limit = Math.min(50, Math.max(1, Number(limit) || 10));
+  limit = Math.min(100, Math.max(1, Number(limit) || 10));
 
   const filter = {};
 
-  if (status) {
-    if (!ORDER_STATUSES.includes(status)) {
-      throw createError("Invalid order status.", 400);
+  if (status && status !== "ALL") {
+    if (ORDER_STATUSES.includes(status)) {
+      filter.orderStatus = status;
     }
-
-    filter.orderStatus = status;
   }
 
-  const [orders, total] = await Promise.all([
-    Order.find(filter)
-      .populate("userId", "name email")
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean(),
+  if (payment && payment !== "ALL") {
+    if (payment === "COD") {
+      filter.paymentMethod = "COD";
+    } else if (["PENDING", "PAID", "FAILED", "REFUNDED"].includes(payment)) {
+      filter.paymentStatus = payment;
+    }
+  }
 
-    Order.countDocuments(filter),
-  ]);
+  if (search && search.trim()) {
+    const term = search.trim();
+    const searchConditions = [
+      { orderNumber: { $regex: term, $options: "i" } },
+      { "shippingAddress.name": { $regex: term, $options: "i" } },
+      { "shippingAddress.phone": { $regex: term, $options: "i" } },
+    ];
+
+    if (mongoose.isValidObjectId(term)) {
+      searchConditions.push({ _id: term });
+    }
+
+    try {
+      const User = mongoose.model("User");
+      const matchedUsers = await User.find({
+        $or: [
+          { userName: { $regex: term, $options: "i" } },
+          { email: { $regex: term, $options: "i" } },
+        ],
+      })
+        .select("_id")
+        .lean();
+
+      if (matchedUsers.length > 0) {
+        searchConditions.push({
+          userId: { $in: matchedUsers.map((u) => u._id) },
+        });
+      }
+    } catch (userSearchError) {
+      console.error("User search in orders error:", userSearchError);
+    }
+
+    filter.$or = searchConditions;
+  }
+
+  const [orders, total, totalOrdersCount, pendingCount, shippedCount, deliveredCount] =
+    await Promise.all([
+      Order.find(filter)
+        .populate("userId", "userName email profileImage")
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+
+      Order.countDocuments(filter),
+
+      Order.countDocuments({}),
+      Order.countDocuments({ orderStatus: { $in: ["PLACED", "CONFIRMED"] } }),
+      Order.countDocuments({ orderStatus: "SHIPPED" }),
+      Order.countDocuments({ orderStatus: "DELIVERED" }),
+    ]);
 
   return {
     orders,
@@ -64,7 +113,13 @@ export const getAllOrdersService = async ({
       page,
       limit,
       total,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+    stats: {
+      total: totalOrdersCount,
+      pending: pendingCount,
+      shipped: shippedCount,
+      delivered: deliveredCount,
     },
   };
 };
@@ -75,7 +130,7 @@ export const getAdminOrderByIdService = async (orderId) => {
   }
 
   const order = await Order.findById(orderId)
-    .populate("userId", "name email")
+    .populate("userId", "userName email profileImage")
     .lean();
 
   if (!order) {
@@ -160,6 +215,9 @@ export const updateOrderStatusService = async (orderId, nextStatus) => {
   }
 
   order.orderStatus = nextStatus;
+  if (nextStatus === "DELIVERED" && order.paymentMethod === "COD") {
+    order.paymentStatus = "PAID";
+  }
   await order.save();
 
   return order.toObject();

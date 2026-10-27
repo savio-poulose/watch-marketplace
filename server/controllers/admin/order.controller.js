@@ -11,6 +11,8 @@ export const getAllOrders = async (req, res, next) => {
       page: req.query.page,
       limit: req.query.limit,
       status: req.query.status,
+      search: req.query.search,
+      payment: req.query.payment || req.query.paymentStatus,
     });
 
     res.status(200).json({

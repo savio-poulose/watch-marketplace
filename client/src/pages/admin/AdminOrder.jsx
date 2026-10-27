@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import MainLayout from "../../components/admin/MainLayout";
 import api from "../../api/axios.js";
 import toast from "react-hot-toast";
@@ -73,7 +73,13 @@ const getOrdersFromResponse = (data) => {
 const getCustomerName = (order) => {
   const user = order?.userId;
   if (user && typeof user === "object") {
-    return user.name || user.fullName || user.email || "Customer";
+    return (
+      user.userName ||
+      user.name ||
+      user.fullName ||
+      user.email ||
+      "Customer"
+    );
   }
   return order?.customerName || order?.shippingAddress?.name || "Customer";
 };
@@ -94,19 +100,42 @@ const Badge = ({ value, styles }) => (
   </span>
 );
 
+const getPageNumbers = (current, total) => {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  if (current <= 4) {
+    return [1, 2, 3, 4, 5, "...", total];
+  }
+  if (current >= total - 3) {
+    return [1, "...", total - 4, total - 3, total - 2, total - 1, total];
+  }
+  return [1, "...", current - 1, current, current + 1, "...", total];
+};
+
 const AdminOrder = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [paymentFilter, setPaymentFilter] = useState("ALL");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    shipped: 0,
+    delivered: 0,
+  });
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState("");
   const [nextStatus, setNextStatus] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   // Frontend-only overrides. These survive opening/closing the modal and refetching
   // orders during this page session, but intentionally are not saved to MongoDB.
@@ -128,12 +157,52 @@ const AdminOrder = () => {
     [paymentStatusOverrides],
   );
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
-      const response = await api.get("/admin/orders");
-      setOrders(getOrdersFromResponse(response.data));
+      const params = {
+        page: currentPage,
+        limit: pageSize,
+      };
+      if (statusFilter && statusFilter !== "ALL") {
+        params.status = statusFilter;
+      }
+      if (paymentFilter && paymentFilter !== "ALL") {
+        params.payment = paymentFilter;
+      }
+      if (debouncedSearch && debouncedSearch.trim()) {
+        params.search = debouncedSearch.trim();
+      }
+
+      const response = await api.get("/admin/orders", { params });
+      const data = response.data;
+      const orderList = getOrdersFromResponse(data);
+      setOrders(orderList);
+
+      if (data?.pagination) {
+        setTotalPages(data.pagination.totalPages || 1);
+        setTotalOrders(data.pagination.total || 0);
+      } else {
+        setTotalPages(Math.max(1, Math.ceil(orderList.length / pageSize)));
+        setTotalOrders(orderList.length);
+      }
+
+      if (data?.stats) {
+        setStats({
+          total: data.stats.total ?? 0,
+          pending: data.stats.pending ?? 0,
+          shipped: data.stats.shipped ?? 0,
+          delivered: data.stats.delivered ?? 0,
+        });
+      }
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -142,64 +211,31 @@ const AdminOrder = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage, pageSize, statusFilter, paymentFilter, debouncedSearch]);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
 
-  const filteredOrders = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return orders.filter((order) => {
-      const status = String(order.orderStatus || "PLACED").toUpperCase();
-      const paymentStatus = getDisplayPaymentStatus(order);
-      const paymentMethod = String(order.paymentMethod || "").toUpperCase();
-      const matchesSearch =
-        !term ||
-        String(order.orderNumber || "")
-          .toLowerCase()
-          .includes(term) ||
-        getOrderId(order).toLowerCase().includes(term) ||
-        getCustomerName(order).toLowerCase().includes(term) ||
-        getCustomerEmail(order).toLowerCase().includes(term);
-      const matchesStatus = statusFilter === "ALL" || status === statusFilter;
-      const matchesPayment =
-        paymentFilter === "ALL" ||
-        paymentStatus === paymentFilter ||
-        paymentMethod === paymentFilter;
-      return matchesSearch && matchesStatus && matchesPayment;
-    });
-  }, [orders, search, statusFilter, paymentFilter, getDisplayPaymentStatus]);
-
-  useEffect(() => {
+  const handleSearchChange = (event) => {
+    setSearch(event.target.value);
     setCurrentPage(1);
-  }, [search, statusFilter, paymentFilter, pageSize]);
+  };
 
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
-  const safePage = Math.min(currentPage, totalPages);
-  const paginatedOrders = filteredOrders.slice(
-    (safePage - 1) * pageSize,
-    safePage * pageSize,
-  );
+  const handleStatusChange = (event) => {
+    setStatusFilter(event.target.value);
+    setCurrentPage(1);
+  };
 
-  const stats = useMemo(
-    () => ({
-      total: orders.length,
-      pending: orders.filter((order) =>
-        ["PLACED", "CONFIRMED"].includes(
-          String(order.orderStatus || "").toUpperCase(),
-        ),
-      ).length,
-      shipped: orders.filter(
-        (order) => String(order.orderStatus || "").toUpperCase() === "SHIPPED",
-      ).length,
-      delivered: orders.filter(
-        (order) =>
-          String(order.orderStatus || "").toUpperCase() === "DELIVERED",
-      ).length,
-    }),
-    [orders],
-  );
+  const handlePaymentChange = (event) => {
+    setPaymentFilter(event.target.value);
+    setCurrentPage(1);
+  };
+
+  const handlePageSizeChange = (event) => {
+    setPageSize(Number(event.target.value));
+    setCurrentPage(1);
+  };
 
   const openOrderDetails = async (order) => {
     const orderId = getOrderId(order);
@@ -308,9 +344,10 @@ const AdminOrder = () => {
       toast.success(
         nextStatus === "DELIVERED" &&
           String(selectedOrder.paymentMethod || "").toUpperCase() === "COD"
-          ? "Order delivered. Payment marked PAID in this UI preview."
+          ? "Order delivered. Payment marked as Paid."
           : "Order status updated successfully.",
       );
+      fetchOrders();
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -324,66 +361,71 @@ const AdminOrder = () => {
     }
   };
 
-  const updatePaymentStatusUI = (orderId, paymentStatus) => {
-    setPaymentStatusOverrides((previous) => ({
-      ...previous,
-      [orderId]: paymentStatus,
-    }));
-    setOrders((previous) =>
-      previous.map((order) =>
-        getOrderId(order) === orderId ? { ...order, paymentStatus } : order,
-      ),
-    );
-    setSelectedOrder((previous) =>
-      previous && getOrderId(previous) === orderId
-        ? { ...previous, paymentStatus }
-        : previous,
-    );
-    toast.success(
-      `Payment status changed to ${formatStatus(
-        paymentStatus,
-      )} in this UI only.`,
-    );
-  };
+  const exportOrders = async () => {
+    try {
+      setExporting(true);
+      const params = {
+        page: 1,
+        limit: 1000,
+      };
+      if (statusFilter && statusFilter !== "ALL") params.status = statusFilter;
+      if (paymentFilter && paymentFilter !== "ALL") params.payment = paymentFilter;
+      if (debouncedSearch && debouncedSearch.trim()) params.search = debouncedSearch.trim();
 
-  const exportOrders = () => {
-    const headers = [
-      "Order Number",
-      "Customer",
-      "Email",
-      "Date",
-      "Items",
-      "Total",
-      "Payment Method",
-      "Payment Status",
-      "Order Status",
-    ];
-    const escapeCsv = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
-    const rows = filteredOrders.map((order) => [
-      order.orderNumber || getOrderId(order),
-      getCustomerName(order),
-      getCustomerEmail(order),
-      formatDate(order.createdAt),
-      (order.items || []).reduce(
-        (sum, item) => sum + Number(item.quantity || 0),
-        0,
-      ),
-      order.totalAmount,
-      order.paymentMethod,
-      getDisplayPaymentStatus(order),
-      order.orderStatus,
-    ]);
-    const csv = [headers, ...rows]
-      .map((row) => row.map(escapeCsv).join(","))
-      .join("\n");
-    const url = URL.createObjectURL(
-      new Blob([csv], { type: "text/csv;charset=utf-8;" }),
-    );
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "oceanus-orders.csv";
-    link.click();
-    URL.revokeObjectURL(url);
+      let exportList = orders;
+      try {
+        const response = await api.get("/admin/orders", { params });
+        const fetched = getOrdersFromResponse(response.data);
+        if (Array.isArray(fetched) && fetched.length > 0) {
+          exportList = fetched;
+        }
+      } catch (e) {
+        console.error("Export fetch fallback to current orders:", e);
+      }
+
+      const headers = [
+        "Order Number",
+        "Customer",
+        "Email",
+        "Date",
+        "Items",
+        "Total",
+        "Payment Method",
+        "Payment Status",
+        "Order Status",
+      ];
+      const escapeCsv = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+      const rows = exportList.map((order) => [
+        order.orderNumber || getOrderId(order),
+        getCustomerName(order),
+        getCustomerEmail(order),
+        formatDate(order.createdAt),
+        (order.items || []).reduce(
+          (sum, item) => sum + Number(item.quantity || 0),
+          0,
+        ),
+        order.totalAmount,
+        order.paymentMethod,
+        getDisplayPaymentStatus(order),
+        order.orderStatus,
+      ]);
+      const csv = [headers, ...rows]
+        .map((row) => row.map(escapeCsv).join(","))
+        .join("\n");
+      const url = URL.createObjectURL(
+        new Blob([csv], { type: "text/csv;charset=utf-8;" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `oceanus-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success("Orders exported successfully.");
+    } catch (err) {
+      toast.error("Failed to export orders.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -401,17 +443,21 @@ const AdminOrder = () => {
               View customer purchases and manage order fulfilment.
             </p>
           </div>
-          <button
-            onClick={exportOrders}
-            className="border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium hover:border-[#9A7B3F]"
-          >
-            Export CSV
-          </button>
-         <Link 
-         to="/admin/return"
-         className="border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium hover:border-[#9A7B3F]">
-          Returns
-         </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={exportOrders}
+              disabled={exporting}
+              className="border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium hover:border-[#9A7B3F] disabled:opacity-50 transition-colors"
+            >
+              {exporting ? "Exporting..." : "Export CSV"}
+            </button>
+            <Link
+              to="/admin/return"
+              className="border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium hover:border-[#9A7B3F] transition-colors"
+            >
+              Returns
+            </Link>
+          </div>
         </div>
 
         <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -431,13 +477,13 @@ const AdminOrder = () => {
         <div className="mb-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_190px_190px_110px]">
           <input
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={handleSearchChange}
             placeholder="Search order, customer, email..."
             className="border border-gray-300 bg-white px-3 py-3 text-sm outline-none focus:border-[#9A7B3F]"
           />
           <select
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
+            onChange={handleStatusChange}
             className="border border-gray-300 bg-white px-3 py-3 text-sm outline-none focus:border-[#9A7B3F]"
           >
             <option value="ALL">All order statuses</option>
@@ -449,7 +495,7 @@ const AdminOrder = () => {
           </select>
           <select
             value={paymentFilter}
-            onChange={(event) => setPaymentFilter(event.target.value)}
+            onChange={handlePaymentChange}
             className="border border-gray-300 bg-white px-3 py-3 text-sm outline-none focus:border-[#9A7B3F]"
           >
             <option value="ALL">All payment statuses</option>
@@ -461,8 +507,8 @@ const AdminOrder = () => {
           </select>
           <select
             value={pageSize}
-            onChange={(event) => setPageSize(Number(event.target.value))}
-            className="border border-gray-300 bg-white px-3 py-3 text-sm"
+            onChange={handlePageSizeChange}
+            className="border border-gray-300 bg-white px-3 py-3 text-sm cursor-pointer"
           >
             <option value={10}>10 / page</option>
             <option value={20}>20 / page</option>
@@ -499,7 +545,7 @@ const AdminOrder = () => {
                     Loading orders...
                   </td>
                 </tr>
-              ) : paginatedOrders.length === 0 ? (
+              ) : orders.length === 0 ? (
                 <tr>
                   <td
                     colSpan="7"
@@ -509,7 +555,7 @@ const AdminOrder = () => {
                   </td>
                 </tr>
               ) : (
-                paginatedOrders.map((order) => {
+                orders.map((order) => {
                   const paymentStatus = getDisplayPaymentStatus(order);
                   return (
                     <tr key={getOrderId(order)} className="hover:bg-gray-50/70">
@@ -564,27 +610,44 @@ const AdminOrder = () => {
 
         <div className="mt-4 flex flex-col justify-between gap-3 text-sm text-gray-500 sm:flex-row sm:items-center">
           <p>
-            Showing {filteredOrders.length ? (safePage - 1) * pageSize + 1 : 0}–
-            {Math.min(safePage * pageSize, filteredOrders.length)} of{" "}
-            {filteredOrders.length} orders
+            Showing {totalOrders ? (currentPage - 1) * pageSize + 1 : 0}–
+            {Math.min(currentPage * pageSize, totalOrders)} of{" "}
+            {totalOrders} orders
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
-              disabled={safePage <= 1}
+              disabled={currentPage <= 1 || loading}
               onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-              className="border border-gray-300 bg-white px-3 py-2 disabled:opacity-40"
+              className="border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium hover:border-[#9A7B3F] disabled:opacity-40 transition-colors"
             >
               Previous
             </button>
-            <span>
-              Page {safePage} of {totalPages}
-            </span>
+            {getPageNumbers(currentPage, totalPages).map((p, idx) =>
+              p === "..." ? (
+                <span key={`ellipsis-${idx}`} className="px-2 py-1.5 text-gray-400">
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={p}
+                  disabled={loading}
+                  onClick={() => setCurrentPage(p)}
+                  className={`min-w-[36px] px-3 py-1.5 text-sm font-medium border transition-colors ${
+                    currentPage === p
+                      ? "border-[#111827] bg-[#111827] text-white"
+                      : "border-gray-300 bg-white text-gray-700 hover:border-[#9A7B3F]"
+                  }`}
+                >
+                  {p}
+                </button>
+              )
+            )}
             <button
-              disabled={safePage >= totalPages}
+              disabled={currentPage >= totalPages || loading}
               onClick={() =>
                 setCurrentPage((page) => Math.min(totalPages, page + 1))
               }
-              className="border border-gray-300 bg-white px-3 py-2 disabled:opacity-40"
+              className="border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium hover:border-[#9A7B3F] disabled:opacity-40 transition-colors"
             >
               Next
             </button>
@@ -703,8 +766,8 @@ const AdminOrder = () => {
                 <div className="border-t border-gray-200 pt-5">
                   <h3 className="font-semibold">Update order status</h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    Marking a COD order as delivered changes its payment badge
-                    to Paid in this UI only.
+                    Marking a COD order as delivered automatically updates its
+                    payment status to Paid.
                   </p>
                   {["DELIVERED", "CANCELLED", "RETURNED"].includes(
                     String(selectedOrder.orderStatus || "").toUpperCase(),
@@ -736,20 +799,18 @@ const AdminOrder = () => {
                               selectedOrder.orderStatus || "",
                             ).toUpperCase()
                         }
-                        className="bg-[#111827] px-5 py-3 text-sm font-medium text-white hover:bg-[#9A7B3F] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="bg-[#111827] px-5 py-3 text-sm font-medium text-white hover:bg-[#9A7B3F] disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
                       >
                         {updatingId ? "Updating..." : "Save status"}
                       </button>
                     </div>
                   )}
                 </div>
-
-                  
               </div>
               <div className="flex justify-end border-t border-gray-200 px-5 py-4 sm:px-6">
                 <button
                   onClick={() => setSelectedOrder(null)}
-                  className="border border-gray-300 px-5 py-2.5 text-sm font-medium hover:border-[#9A7B3F]"
+                  className="border border-gray-300 px-5 py-2.5 text-sm font-medium hover:border-[#9A7B3F] transition-colors"
                 >
                   Close
                 </button>
