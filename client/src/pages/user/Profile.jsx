@@ -480,21 +480,7 @@ const Profile = () => {
               <Wallet className="h-8 w-8 text-[#9A7B3F]" />
             </button>
 
-            <button
-              type="button"
-              onClick={() => navigate("/user/coupons")}
-              className="flex items-center justify-between border border-gray-200 bg-white p-6 text-left transition hover:border-[#9A7B3F] hover:shadow-sm cursor-pointer"
-            >
-              <div>
-                <h2 className="text-lg font-semibold text-[#111827]">
-                  My Coupons
-                </h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  View available offers and coupons.
-                </p>
-              </div>
-              <TicketPercent className="h-8 w-8 text-[#9A7B3F]" />
-            </button>
+            
           </section>
 
           {/* Account security */}
