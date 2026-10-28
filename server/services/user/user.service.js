@@ -4,27 +4,155 @@ import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 import {uploadToCloudinary} from "../../config/cloudinary.js"
 import PasswordReset from "../../models/passwordReset.model.js";
-import { sendOTPEmail } from "../../utils/sendEmail.js";
+import RegisterOtp from "../../models/registerOtp.model.js";
+import { sendOTPEmail, sendRegisterOTPEmail } from "../../utils/sendEmail.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-export const registerUser = async (userName, email, password) => {
-  const saltRounds = 10;
-
-  const user = await User.findOne({ email: email });
-  console.log(user);
-  if (user) {
-    throw new Error("user already exist ");
+export const initiateRegisterService = async (userName, email, password) => {
+  if (!userName || !email || !password) {
+    throw new Error("All fields are required");
   }
+
+  const trimmedName = userName.trim();
+  const trimmedEmail = email.toLowerCase().trim();
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(trimmedEmail)) {
+    throw new Error("Invalid email address format");
+  }
+
+  const passwordRegex =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+  if (!passwordRegex.test(password)) {
+    throw new Error(
+      "Password must be at least 8 characters and contain uppercase, lowercase, number and special character."
+    );
+  }
+
+  const existingUser = await User.findOne({ email: trimmedEmail });
+  if (existingUser) {
+    throw new Error("User already exists with this email address");
+  }
+
+  const saltRounds = 10;
   const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const hashedOTP = await bcrypt.hash(otp, saltRounds);
+  const otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
+
+  // Upsert pending registration record for this email
+  await RegisterOtp.findOneAndUpdate(
+    { email: trimmedEmail },
+    {
+      userName: trimmedName,
+      email: trimmedEmail,
+      password: hashedPassword,
+      otp: hashedOTP,
+      otpExpiry,
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  console.log(`[REGISTER OTP] Generated OTP for ${trimmedEmail}: ${otp}`);
+
+  try {
+    await sendRegisterOTPEmail(trimmedEmail, otp);
+  } catch (emailErr) {
+    console.error("Failed to send verification email:", emailErr);
+    throw new Error("Failed to send verification email. Please check your email or try again later.");
+  }
+
+  return {
+    email: trimmedEmail,
+    message: "OTP sent successfully to your email",
+  };
+};
+
+export const verifyRegisterOTPService = async (email, otp) => {
+  if (!email || !otp) {
+    throw new Error("Email and OTP are required");
+  }
+
+  const trimmedEmail = email.toLowerCase().trim();
+  const trimmedOTP = otp.toString().trim();
+
+  const existingUser = await User.findOne({ email: trimmedEmail });
+  if (existingUser) {
+    throw new Error("User already exists with this email address");
+  }
+
+  const pending = await RegisterOtp.findOne({ email: trimmedEmail });
+  if (!pending) {
+    throw new Error("Verification session not found or expired. Please register again.");
+  }
+
+  if (pending.otpExpiry < new Date()) {
+    await RegisterOtp.deleteOne({ _id: pending._id });
+    throw new Error("OTP has expired. Please request a new code.");
+  }
+
+  const isOTPValid = await bcrypt.compare(trimmedOTP, pending.otp);
+  if (!isOTPValid) {
+    throw new Error("Invalid verification code. Please check and try again.");
+  }
+
   const newUser = await User.create({
-    userName: userName,
-    email: email,
-    password: hashedPassword,
+    userName: pending.userName,
+    email: pending.email,
+    password: pending.password,
   });
 
-  return newUser;
+  await RegisterOtp.deleteOne({ _id: pending._id });
+
+  return {
+    user: newUser,
+    message: "Registration successful!",
+  };
 };
+
+export const resendRegisterOTPService = async (email) => {
+  if (!email) {
+    throw new Error("Email is required");
+  }
+
+  const trimmedEmail = email.toLowerCase().trim();
+
+  const existingUser = await User.findOne({ email: trimmedEmail });
+  if (existingUser) {
+    throw new Error("User is already registered. Please sign in.");
+  }
+
+  const pending = await RegisterOtp.findOne({ email: trimmedEmail });
+  if (!pending) {
+    throw new Error("No pending registration found for this email. Please register again.");
+  }
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const hashedOTP = await bcrypt.hash(otp, 10);
+  const otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
+
+  pending.otp = hashedOTP;
+  pending.otpExpiry = otpExpiry;
+  await pending.save();
+
+  console.log(`[REGISTER OTP RESEND] New OTP for ${trimmedEmail}: ${otp}`);
+
+  try {
+    await sendRegisterOTPEmail(trimmedEmail, otp);
+  } catch (emailErr) {
+    console.error("Failed to resend verification email:", emailErr);
+    throw new Error("Failed to send verification email. Please try again later.");
+  }
+
+  return {
+    email: trimmedEmail,
+    message: "New verification code sent successfully",
+  };
+};
+
+export const registerUser = initiateRegisterService;
 
 export const LoginUser = async (email, password) => {
   const user = await User.findOne({ email: email });

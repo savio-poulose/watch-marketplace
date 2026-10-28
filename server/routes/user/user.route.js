@@ -2,6 +2,8 @@ import express from "express";
 const router = express.Router();
 import {
   userRegister,
+  verifyRegisterOTP,
+  resendRegisterOTP,
   userLogin,
   getProfile,
   googleLogin,
@@ -18,6 +20,10 @@ import { authMiddleware } from "../../middlewares/auth.middleware.js";
 import upload from "../../middlewares/upload.middleware.js";
 
 router.post("/register", userRegister);
+router.post("/verify-otp", verifyRegisterOTP);
+router.post("/verify-register-otp", verifyRegisterOTP);
+router.post("/resend-register-otp", resendRegisterOTP);
+router.post("/resend-otp", resendRegisterOTP);
 
 router.post("/login", userLogin);
 

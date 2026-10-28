@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
 import Register from "./pages/user/Register.jsx";
+import VerifyRegisterOTP from "./pages/user/VerifyRegisterOTP.jsx";
 import Home from "./pages/user/Home.jsx";
 import Login from "./pages/user/Login.jsx";
 import AdminLogin from "./pages/admin/AdminLogin.jsx";
@@ -68,6 +69,8 @@ function App() {
           {/* Guest Routes */}
           <Route element={<GuestRoute />}>
             <Route path="/user/register" element={<Register />} />
+            <Route path="/user/verify-otp" element={<VerifyRegisterOTP />} />
+            <Route path="/user/verify-register-otp" element={<VerifyRegisterOTP />} />
             <Route path="/user/login" element={<Login />} />
             <Route path="/user/forget-password" element={<ForgetPassword />} />
             <Route path="/user/reset-password" element={<ResetPassword />} />

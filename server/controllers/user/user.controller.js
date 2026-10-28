@@ -4,6 +4,9 @@ import User from "../../models/user.model.js";
 
 import {
   registerUser,
+  initiateRegisterService,
+  verifyRegisterOTPService,
+  resendRegisterOTPService,
   LoginUser,
   googleLoginUser,
   profileGet,
@@ -18,15 +21,49 @@ import {
 export const userRegister = async (req, res) => {
   try {
     const { userName, email, password } = req.body;
-    // console.log("userRegister controller req.body"+userName+email+password)
-    const user = await registerUser(userName, email, password);
-    console.log(user);
-    res.status(201).json({
-      message: "user registerd succesfully",
-      user,
+    const result = await initiateRegisterService(userName, email, password);
+    res.status(200).json({
+      success: true,
+      message: result.message || "OTP sent to your email. Please verify to complete registration.",
+      email: result.email,
     });
   } catch (err) {
     res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+export const verifyRegisterOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const result = await verifyRegisterOTPService(email, otp);
+    res.status(201).json({
+      success: true,
+      message: result.message || "User registered successfully",
+      user: result.user,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+export const resendRegisterOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const result = await resendRegisterOTPService(email);
+    res.status(200).json({
+      success: true,
+      message: result.message || "New OTP sent successfully",
+      email: result.email,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
       message: err.message,
     });
   }

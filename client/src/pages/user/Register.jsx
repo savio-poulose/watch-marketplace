@@ -9,53 +9,66 @@ const Register = () => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event) {
-    console.log("handlesubmit");
     event.preventDefault();
-    //    console.log(event.target)
     const formData = new FormData(event.target);
-    console.log(formData);
-
     const data = Object.fromEntries(formData);
 
-    // console.log(data);
     const passwordRegex =
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    const userName = data.userName.trim();
-    if (userName === "") {
-      toast.error("enter username")
+    const userName = (data.userName || "").trim();
+    if (!userName) {
+      toast.error("Please enter your name");
       return;
     }
 
-    if (data.password === "") {
-      toast.error("password cant be empty")
+    const email = (data.email || "").trim().toLowerCase();
+    if (!email || !emailRegex.test(email)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    if (!data.password) {
+      toast.error("Password cannot be empty");
       return;
     }
 
     if (!passwordRegex.test(data.password)) {
-      toast.error("Password must be at least 8 characters and contain uppercase, lowercase, number and special character.")
+      toast.error("Password must be at least 8 characters and contain uppercase, lowercase, number and special character.");
       return;
     }
 
     if (data.password !== data.confirmPassword) {
-      toast.error("password doesnt match confirm password")
+      toast.error("Password does not match confirm password");
       return;
     }
 
     try {
-      const response = await api.post("/user/register", data);
-      console.log(response.data);
-      navigate("/user/login");
-    } catch (error) {
-      console.log(error.message);
+      setLoading(true);
+      const response = await api.post("/user/register", {
+        userName,
+        email,
+        password: data.password,
+      });
 
-      if (error.response) {
+      toast.success(response.data?.message || "Verification code sent to your email!");
+      sessionStorage.setItem("pending_register_email", email);
+
+      navigate("/user/verify-otp", {
+        state: { email },
+      });
+    } catch (error) {
+      if (error.response?.data?.message) {
         toast.error(error.response.data.message);
       } else {
-        toast.error("Something went wrong");
+        toast.error("Something went wrong. Please try again.");
       }
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -163,9 +176,17 @@ const Register = () => {
           {/* Register Button */}
           <button
             type="submit"
-            className="w-full h-11 bg-gray-900 text-white text-sm font-medium tracking-wider cursor-pointer hover:bg-gray-800 transition"
+            disabled={loading}
+            className="w-full h-11 bg-gray-900 text-white text-sm font-medium tracking-wider cursor-pointer hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            CREATE ACCOUNT
+            {loading ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                CREATING ACCOUNT...
+              </>
+            ) : (
+              "CREATE ACCOUNT"
+            )}
           </button>
         </form>
 
