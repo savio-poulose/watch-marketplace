@@ -110,7 +110,7 @@ export const categoryAdd = async (data, file) => {
   }
 
   const existingCategory = await Category.findOne({
-    name: { $regex: `^${name.trim()}$`, $options: "i" },
+    name: { $regex: `^${data.name.trim()}$`, $options: "i" },
   });
 
   if (existingCategory) {
