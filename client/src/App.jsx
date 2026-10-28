@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 import Register from "./pages/user/Register.jsx";
 import VerifyRegisterOTP from "./pages/user/VerifyRegisterOTP.jsx";
 import Home from "./pages/user/Home.jsx";
+import LandingPage from "./pages/user/LandingPage.jsx";
 import Login from "./pages/user/Login.jsx";
 import AdminLogin from "./pages/admin/AdminLogin.jsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
@@ -36,6 +37,8 @@ import AdminWallet from "./pages/admin/AdminWallet.jsx";
 import SalesReport from "./pages/admin/SalesReport.jsx";
 import AdminReturns from "./pages/admin/AdminReturns.jsx";
 import AdminReview from "./pages/admin/AdminReview.jsx";
+import Contact from "./pages/user/Contact.jsx"
+import About from "./pages/user/About.jsx"
 
 function App() {
   return (
@@ -66,6 +69,12 @@ function App() {
 
       <BrowserRouter>
         <Routes>
+          {/* Public Landing Page */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/landing" element={<LandingPage />} />
+          <Route path="/user/contact" element={<Contact />} />
+          <Route path="/user/about" element={<About />} />
+
           {/* Guest Routes */}
           <Route element={<GuestRoute />}>
             <Route path="/user/register" element={<Register />} />
