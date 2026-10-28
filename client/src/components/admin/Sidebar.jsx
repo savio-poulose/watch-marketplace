@@ -6,10 +6,12 @@ import {
   FaShoppingBag,
   FaUsers,
   FaCog,
+  FaDollarSign,
   FaSignOutAlt,
   FaTimes,
   FaTicketAlt ,
-  FaWallet
+  FaWallet,
+  FaStar
 } from "react-icons/fa";
 import { useAdminAuth } from "../../context/useAdminAuth";
 import api from "../../api/axios.js";
@@ -206,8 +208,23 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                 }`
               }
             >
-              <FaTicketAlt  className="text-xs" />
+              <FaDollarSign  className="text-xs" />
               Sales Reports 
+            </NavLink>
+
+            <NavLink
+              to="/admin/reviews"
+              onClick={handleNavClick}
+              className={({ isActive }) =>
+                `w-full flex items-center gap-3 px-3 py-3 text-sm transition ${
+                  isActive
+                    ? "bg-white text-[#111827]"
+                    : "text-gray-300 hover:bg-gray-800"
+                }`
+              }
+            >
+              <FaStar  className="text-xs" />
+              Reviews
             </NavLink>
 
           </div>

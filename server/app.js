@@ -21,6 +21,8 @@ import adminWalletRouter from "./routes/admin/adminWallet.route.js"
 import salesReportRouter from "./routes/admin/salesReport.route.js"
 import adminReturnRouter from "./routes/admin/return.route.js";
 import adminDashboardRouter from './routes/admin/dashboard.route.js'
+import userReviewRouter from "./routes/user/review.route.js";
+import adminReviewRouter from "./routes/admin/review.route.js";
 
 
 import cors from "cors"
@@ -54,6 +56,7 @@ app.use("/api/admin/wallets", adminWalletRouter);
 app.use("/api/admin/reports/sales",salesReportRouter)
 app.use("/api/admin/returns", adminReturnRouter);
 app.use("/api/admin/dashboard",adminDashboardRouter)
+app.use("/api/admin/reviews", adminReviewRouter);
 
 app.use("/api/user/products",userProductRouter)
 app.use("/api/user/cart",cartRouter)
@@ -63,6 +66,18 @@ app.use("/api/user/payment",paymentRouter)
 app.use("/api/user/coupon", userCouponRouter);
 app.use("/api/user/wishlist",wishlistRouter)
 app.use("/api/user/wallet", walletRouter);
+app.use("/api/user/reviews", userReviewRouter);
+
+// Global Error Handler Middleware
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+  console.error("SERVER ERROR:", err);
+  res.status(statusCode).json({
+    success: false,
+    message,
+  });
+});
 
 
 

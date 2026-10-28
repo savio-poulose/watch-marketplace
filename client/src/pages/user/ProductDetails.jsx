@@ -754,7 +754,7 @@ const ProductDetails = () => {
           </section>
         </div>
 
-        <ReviewsSection />
+        <ReviewsSection productId={product?._id || id} productName={product?.name} />
       </main>
 
       <Footer />
