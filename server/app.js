@@ -27,17 +27,30 @@ import adminReviewRouter from "./routes/admin/review.route.js";
 
 import cors from "cors"
 
+dotenv.config();
+
 const app = express();
 
-dotenv.config()
 
+app.set("trust proxy", 1);
 
-app.use(cors(
-    {
-    origin: "http://localhost:5173",
+const allowedOrigins = [
+  process.env.CLIENT_URL?.replace(/\/$/, ""),
+  "http://localhost:5173",
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      
+      if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ""))) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
     credentials: true,
-  }
-))
+  })
+);
 app.use(express.urlencoded({extended:true}))
 app.use(express.json()) 
 app.use(cookieParser())
@@ -85,9 +98,9 @@ app.use((err, req, res, next) => {
 
 
 
-const port = process.env.PORT;
+const port = process.env.PORT || 5000;
 
-app.listen(port,()=>{
-    console.log(`server running in port ${port}...`)
-    dbConnect()
-})
+app.listen(port, () => {
+  console.log(`server running in port ${port}...`);
+  dbConnect();
+});
