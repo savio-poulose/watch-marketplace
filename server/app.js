@@ -38,6 +38,10 @@ const allowedOrigins = [
   process.env.CLIENT_URL?.replace(/\/$/, ""),
   "http://localhost:5173",
   "http://127.0.0.1:5173",
+  "http://13.63.201.199",
+  "http://16.4.37.1",
+  "http://15.252.215.119",
+   "https://oceanus.saviopoulose.in",
 ].filter(Boolean);
 
 app.use(
