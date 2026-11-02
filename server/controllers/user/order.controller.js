@@ -1,3 +1,4 @@
+import { generateInvoicePDF } from "../../services/user/invoice.service.js";
 
 import {
   createOrderService,
@@ -106,6 +107,24 @@ export const getUserReturnRequests = async (req, res, next) => {
       success: true,
       returns,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+export const downloadOrderInvoice = async (req, res, next) => {
+  try {
+    const userId = req.user.id || req.user._id;
+    const { orderId } = req.params;
+
+    const { doc, order } = await generateInvoicePDF(orderId, userId);
+
+    const filename = "Invoice-" + (order.invoiceNumber || order.orderNumber) + ".pdf";
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'attachment; filename="' + filename + '"');
+
+    doc.pipe(res);
+    doc.end();
   } catch (error) {
     next(error);
   }

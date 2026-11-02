@@ -35,6 +35,26 @@ const getPopulatedCart = async (userId) => {
 
   if (!cart) return null;
 
+  // Auto-heal: filter out any items where the variant or product was deleted or is null
+  const initialItemCount = cart.items.length;
+  cart.items = cart.items.filter(
+    (item) => item.variantId && item.variantId._id && item.variantId.productId
+  );
+
+  if (cart.items.length !== initialItemCount) {
+    await Cart.updateOne(
+      { _id: cart._id },
+      {
+        $set: {
+          items: cart.items.map((i) => ({
+            variantId: i.variantId._id || i.variantId,
+            quantity: i.quantity,
+          })),
+        },
+      }
+    );
+  }
+
   const cartData = cart.toObject();
   const now = new Date();
 
@@ -219,8 +239,13 @@ export const addItemToCartService = async ({
   validateId(userId, "user ID");
   validateId(variantId, "variant ID");
 
-  if (!Number.isSafeInteger(quantity) || quantity < 1) {
-    throw createError("Quantity must be a positive integer.", 400);
+  // If quantity is updated to 0, automatically remove the item from cart
+  if (quantity === 0) {
+    return removeCartItemService({ userId, variantId });
+  }
+
+  if (!Number.isSafeInteger(quantity) || quantity < 0) {
+    throw createError("Quantity must be a non-negative integer.", 400);
   }
 
   const variant = await Variant.findById(variantId);
@@ -250,6 +275,7 @@ export const addItemToCartService = async ({
 
   const existingItem = cart.items.find(
     (item) =>
+      item.variantId &&
       item.variantId.toString() === variantId.toString()
   );
 
@@ -310,8 +336,13 @@ export const updateCartItemService = async ({
   validateId(userId, "user ID");
   validateId(variantId, "variant ID");
 
-  if (!Number.isSafeInteger(quantity) || quantity < 1) {
-    throw createError("Quantity must be a positive integer.", 400);
+  // If quantity is updated to 0, automatically remove the item from cart
+  if (quantity === 0) {
+    return removeCartItemService({ userId, variantId });
+  }
+
+  if (!Number.isSafeInteger(quantity) || quantity < 0) {
+    throw createError("Quantity must be a non-negative integer.", 400);
   }
 
   const variant = await Variant.findById(variantId);
@@ -326,9 +357,16 @@ export const updateCartItemService = async ({
     throw createError("Product is unavailable.", 404);
   }
 
+  if (variant.quantity <= 0) {
+    throw createError(
+      "This item is currently out of stock. Please remove it from your cart.",
+      400
+    );
+  }
+
   if (quantity > variant.quantity) {
     throw createError(
-      `Only ${variant.quantity} item(s) are available.`,
+      `Only ${variant.quantity} item(s) are available in stock.`,
       400
     );
   }
@@ -341,6 +379,7 @@ export const updateCartItemService = async ({
 
   const item = cart.items.find(
     (entry) =>
+      entry.variantId &&
       entry.variantId.toString() === variantId.toString()
   );
 
@@ -370,16 +409,11 @@ export const removeCartItemService = async ({
     throw createError("Cart not found.", 404);
   }
 
-  const originalLength = cart.items.length;
-
   cart.items = cart.items.filter(
     (item) =>
+      item.variantId &&
       item.variantId.toString() !== variantId.toString()
   );
-
-  if (cart.items.length === originalLength) {
-    throw createError("Item not found in cart.", 404);
-  }
 
   await cart.save();
 

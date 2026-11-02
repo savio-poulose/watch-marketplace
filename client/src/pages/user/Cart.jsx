@@ -68,9 +68,10 @@ const Cart = () => {
     return (
       variant?._id ||
       item.variantId?._id ||
-      item.variantId ||
+      (typeof item.variantId === "string" ? item.variantId : null) ||
       item.variant?._id ||
-      item.variant
+      (typeof item.variant === "string" ? item.variant : null) ||
+      item._id
     );
   };
 
@@ -188,15 +189,25 @@ const Cart = () => {
 
   const updateQuantity = async (item, change) => {
     const variantId = getVariantId(item);
-    const newQuantity = Number(item.quantity || 1) + change;
+    const currentQty = Number(item.quantity || 1);
+    const newQuantity = currentQty + change;
     const stock = getStock(item);
 
-    if (!variantId) {
-      setError("Unable to identify this product variant.");
+    // If decreasing to 0 or below, remove the item directly
+    if (newQuantity <= 0) {
+      await removeItem(item);
       return;
     }
 
-    if (newQuantity < 1) return;
+    if (!variantId) {
+      await fetchCart();
+      return;
+    }
+
+    if (stock <= 0) {
+      setError("This item is currently out of stock. Please remove it from your cart.");
+      return;
+    }
 
     if (newQuantity > stock) {
       setError(
@@ -230,25 +241,16 @@ const Cart = () => {
   const removeItem = async (item) => {
     const variantId = getVariantId(item);
 
-    if (!variantId) {
-      setError("Unable to identify this product variant.");
-      return;
-    }
-
     try {
       setError("");
-      setRemovingItem(String(variantId));
-
-      await api.delete(`/user/cart/items/${variantId}`);
-
-      setCart((previousCart) =>
-        previousCart.filter(
-          (cartItem) =>
-            String(getVariantId(cartItem)) !== String(variantId)
-        )
-      );
+      if (variantId) {
+        setRemovingItem(String(variantId));
+        await api.delete(`/user/cart/items/${variantId}`);
+      }
+      await fetchCart();
     } catch (err) {
       console.error("Failed to remove cart item:", err);
+      await fetchCart();
       setError(
         err.response?.data?.message ||
           "Unable to remove this item."
@@ -282,6 +284,10 @@ const Cart = () => {
   );
 
   const hasOfferSavings = offerSavings > 0;
+
+  const hasOutOfStockItems = cart.some(
+    (item) => getStock(item) <= 0 || Number(item.quantity || 0) > getStock(item)
+  );
 
   if (loading) {
     return (
@@ -491,6 +497,17 @@ const Cart = () => {
                         </div>
                       )}
 
+                      {/* Stock Warning Badge */}
+                      {stock <= 0 ? (
+                        <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-sm bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                          <span>Out of Stock</span>
+                        </div>
+                      ) : quantity > stock ? (
+                        <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-sm bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                          <span>Only {stock} available</span>
+                        </div>
+                      ) : null}
+
                       {/* Price */}
                       <div className="mt-4">
                         <div className="flex flex-wrap items-center gap-2">
@@ -524,11 +541,11 @@ const Cart = () => {
                               type="button"
                               onClick={() => updateQuantity(item, -1)}
                               disabled={
-                                quantity <= 1 ||
                                 isUpdating ||
                                 isRemoving
                               }
                               aria-label="Decrease quantity"
+                              title={quantity <= 1 ? "Remove item from cart" : "Decrease quantity"}
                               className="p-2.5 text-gray-600 transition hover:text-[#9A7B3F] disabled:cursor-not-allowed disabled:opacity-30"
                             >
                               <FaMinus className="text-xs" />
@@ -663,12 +680,28 @@ const Cart = () => {
 
               <button
                 type="button"
-                onClick={() => navigate("/user/checkout")}
-                className="mt-6 cursor-pointer flex w-full items-center justify-center gap-3 rounded-md bg-[#111827] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#806532]"
+                onClick={() => {
+                  if (hasOutOfStockItems) {
+                    setError("Please remove or adjust out of stock items in your cart before checkout.");
+                    return;
+                  }
+                  navigate("/user/checkout");
+                }}
+                disabled={hasOutOfStockItems}
+                className={`mt-6 flex w-full items-center justify-center gap-3 rounded-md px-5 py-3.5 text-sm font-semibold transition ${
+                  hasOutOfStockItems
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-[#111827] text-white hover:bg-[#806532] cursor-pointer"
+                }`}
               >
                 Proceed to Checkout
                 <FaArrowRight />
               </button>
+              {hasOutOfStockItems && (
+                <p className="mt-2 text-center text-xs font-medium text-red-600">
+                  Some items in your cart are currently out of stock. Please remove them to proceed.
+                </p>
+              )}
 
               <div className="mt-5 flex items-start gap-3 border-t border-gray-100 pt-5">
                 <FaCheckCircle className="mt-0.5 shrink-0 text-[#9A7B3F]" />

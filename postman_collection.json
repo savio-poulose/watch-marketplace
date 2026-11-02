@@ -1,0 +1,3275 @@
+{
+  "info": {
+    "_postman_id": "8c94e82b-6893-4a37-b4d0-watch-store-api-v1",
+    "name": "WatchStore E-Commerce API",
+    "description": "Complete API collection for WatchStore E-Commerce backend application. Contains all Admin and Customer/User endpoints, auth flows, product & variant management, cart, orders, coupons, wallet, reviews, returns, and Razorpay integration.\n\n### Authentication Setup:\n- **User Authentication**: Handled via JWT stored in cookie `accessToken` or passed in `Cookie: accessToken={{accessToken}}`.\n- **Admin Authentication**: Handled via JWT stored in cookie `adminAccessToken` or passed in `Cookie: adminAccessToken={{adminAccessToken}}`.\n- Login endpoints include automated Postman test scripts that parse response cookies and update `accessToken` / `adminAccessToken` collection variables automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string",
+      "description": "Backend server base URL"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string",
+      "description": "JWT access token for authenticated Customer / User endpoints"
+    },
+    {
+      "key": "adminAccessToken",
+      "value": "",
+      "type": "string",
+      "description": "JWT access token for authenticated Admin endpoints"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Admin APIs",
+      "description": "Administrative endpoints for managing catalog, orders, returns, coupons, customer wallets, reviews, users, and reports.",
+      "item": [
+        {
+          "name": "Admin Auth",
+          "item": [
+            {
+              "name": "Admin Login",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const cookie = pm.cookies.get('adminAccessToken');",
+                      "if (cookie) {",
+                      "    pm.collectionVariables.set('adminAccessToken', cookie);",
+                      "    console.log('adminAccessToken saved to collection variables.');",
+                      "}",
+                      "pm.test('Status code is 200', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin@watchstore.com\",\n  \"password\": \"adminPassword123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "login"
+                  ]
+                },
+                "description": "Authenticates an admin user. Returns HTTP-only `adminAccessToken` cookie."
+              }
+            },
+            {
+              "name": "Get Current Admin Profile",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "me"
+                  ]
+                },
+                "description": "Retrieves the currently authenticated admin session information."
+              }
+            },
+            {
+              "name": "Admin Logout",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('adminAccessToken', '');",
+                      "pm.test('Status code is 200', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/logout",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "logout"
+                  ]
+                },
+                "description": "Logs out the admin and clears the `adminAccessToken` cookie."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Dashboard",
+          "item": [
+            {
+              "name": "Get Dashboard Statistics",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/dashboard?period=30days",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "dashboard"
+                  ],
+                  "query": [
+                    {
+                      "key": "period",
+                      "value": "30days",
+                      "description": "Dashboard timeframe: '7days', '30days', or '12months'"
+                    }
+                  ]
+                },
+                "description": "Fetches overview metrics, sales volume, orders count, revenue charts, and category performance."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Product Management",
+          "item": [
+            {
+              "name": "Get All Products (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/product",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "product"
+                  ]
+                },
+                "description": "Fetches all products including inactive ones, with aggregate prices and variant stock counts."
+              }
+            },
+            {
+              "name": "Get Product by ID (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/product/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "product",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "671fb246197fa3456789abcd",
+                      "description": "MongoDB Product ID"
+                    }
+                  ]
+                },
+                "description": "Returns detailed product information along with all variants and active promotional offer."
+              }
+            },
+            {
+              "name": "Add New Product",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "name",
+                      "value": "Royal Oak Chronograph",
+                      "type": "text"
+                    },
+                    {
+                      "key": "brand",
+                      "value": "Audemars Piguet",
+                      "type": "text"
+                    },
+                    {
+                      "key": "gender",
+                      "value": "Men",
+                      "type": "text",
+                      "description": "Men | Women | Unisex"
+                    },
+                    {
+                      "key": "categoryId",
+                      "value": "671fb246197fa3456789category",
+                      "type": "text"
+                    },
+                    {
+                      "key": "description",
+                      "value": "Stainless steel case, glareproofed sapphire crystal and caseback, screw-locked crown.",
+                      "type": "text"
+                    },
+                    {
+                      "key": "variants",
+                      "value": "[{\"size\":\"41mm\",\"strapMaterial\":\"Steel\",\"caseMaterial\":\"Stainless Steel\",\"dialColor\":\"Blue\",\"strapColor\":\"Silver\",\"price\":24500,\"quantity\":10,\"images\":[\"https://res.cloudinary.com/demo/image/upload/sample.jpg\"]}]",
+                      "type": "text",
+                      "description": "JSON array of variants"
+                    },
+                    {
+                      "key": "offer",
+                      "value": "{\"isActive\":true,\"discountType\":\"percentage\",\"discountValue\":10,\"startDate\":\"2026-11-01T00:00:00.000Z\",\"endDate\":\"2026-12-31T23:59:59.000Z\"}",
+                      "type": "text",
+                      "description": "Optional product offer JSON object"
+                    },
+                    {
+                      "key": "variantImages_0",
+                      "type": "file",
+                      "src": "",
+                      "description": "Up to 3 images for variant at index 0"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/product",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "product"
+                  ]
+                },
+                "description": "Creates a new product with variants and optional offer via multipart/form-data."
+              }
+            },
+            {
+              "name": "Update Product",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "name",
+                      "value": "Royal Oak Chronograph Updated",
+                      "type": "text"
+                    },
+                    {
+                      "key": "brand",
+                      "value": "Audemars Piguet",
+                      "type": "text"
+                    },
+                    {
+                      "key": "gender",
+                      "value": "Men",
+                      "type": "text"
+                    },
+                    {
+                      "key": "categoryId",
+                      "value": "671fb246197fa3456789category",
+                      "type": "text"
+                    },
+                    {
+                      "key": "description",
+                      "value": "Updated product description text.",
+                      "type": "text"
+                    },
+                    {
+                      "key": "variants",
+                      "value": "[{\"size\":\"41mm\",\"strapMaterial\":\"Steel\",\"caseMaterial\":\"Stainless Steel\",\"dialColor\":\"Blue\",\"strapColor\":\"Silver\",\"price\":26000,\"quantity\":12,\"images\":[\"https://res.cloudinary.com/demo/image/upload/sample.jpg\"]}]",
+                      "type": "text"
+                    },
+                    {
+                      "key": "offer",
+                      "value": "{\"isActive\":false}",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/product/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "product",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "671fb246197fa3456789abcd",
+                      "description": "MongoDB Product ID"
+                    }
+                  ]
+                },
+                "description": "Updates existing product details, variants, and promotional offer."
+              }
+            },
+            {
+              "name": "Toggle Product Active Status",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/product/status/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "product",
+                    "status",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "671fb246197fa3456789abcd",
+                      "description": "MongoDB Product ID"
+                    }
+                  ]
+                },
+                "description": "Toggles product `isActive` status between active and listed/unlisted."
+              }
+            },
+            {
+              "name": "Delete Product",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/product/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "product",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "671fb246197fa3456789abcd",
+                      "description": "MongoDB Product ID"
+                    }
+                  ]
+                },
+                "description": "Permanently removes a product, its variants, and associated product offers."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Category Management",
+          "item": [
+            {
+              "name": "Get All Categories (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/category",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "category"
+                  ]
+                },
+                "description": "Retrieves all categories along with attached category-level discount offers."
+              }
+            },
+            {
+              "name": "Add Category",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "name",
+                      "value": "Automatic Watches",
+                      "type": "text"
+                    },
+                    {
+                      "key": "description",
+                      "value": "Mechanical automatic self-winding wrist watches",
+                      "type": "text"
+                    },
+                    {
+                      "key": "image",
+                      "type": "file",
+                      "src": "",
+                      "description": "Category banner/icon image file (required)"
+                    },
+                    {
+                      "key": "offerIsActive",
+                      "value": "true",
+                      "type": "text",
+                      "description": "Optional offer toggle"
+                    },
+                    {
+                      "key": "offerDiscountType",
+                      "value": "percentage",
+                      "type": "text",
+                      "description": "percentage | fixed"
+                    },
+                    {
+                      "key": "offerDiscountValue",
+                      "value": "15",
+                      "type": "text"
+                    },
+                    {
+                      "key": "offerStartDate",
+                      "value": "2026-11-01T00:00:00.000Z",
+                      "type": "text"
+                    },
+                    {
+                      "key": "offerEndDate",
+                      "value": "2026-12-31T23:59:59.000Z",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/category",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "category"
+                  ]
+                },
+                "description": "Creates a new watch category with optional category-level discount offer."
+              }
+            },
+            {
+              "name": "Edit Category",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "name",
+                      "value": "Luxury Automatic Watches",
+                      "type": "text"
+                    },
+                    {
+                      "key": "description",
+                      "value": "Updated category description",
+                      "type": "text"
+                    },
+                    {
+                      "key": "image",
+                      "type": "file",
+                      "src": "",
+                      "description": "Upload new image or pass existing image URL in body"
+                    },
+                    {
+                      "key": "offerIsActive",
+                      "value": "false",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/category/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "category",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "671fb246197fa3456789category",
+                      "description": "MongoDB Category ID"
+                    }
+                  ]
+                },
+                "description": "Updates category name, description, image, or attached category offer."
+              }
+            },
+            {
+              "name": "Delete Category",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/category/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "category",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "671fb246197fa3456789category",
+                      "description": "MongoDB Category ID"
+                    }
+                  ]
+                },
+                "description": "Deletes category and removes its associated category offer."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Order Management",
+          "item": [
+            {
+              "name": "Get All Orders (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/orders?page=1&limit=10&status=&search=&payment=",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "orders"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "status",
+                      "value": "",
+                      "description": "PENDING | CONFIRMED | SHIPPED | DELIVERED | CANCELLED | RETURN_REQUESTED | RETURNED"
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "Search by order number or customer name"
+                    },
+                    {
+                      "key": "payment",
+                      "value": "",
+                      "description": "Filter by payment status: PENDING | PAID | FAILED | REFUNDED"
+                    }
+                  ]
+                },
+                "description": "Lists orders across all customers with pagination, status filters, and search."
+              }
+            },
+            {
+              "name": "Get Order Details (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/orders/:orderId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "orders",
+                    ":orderId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "orderId",
+                      "value": "671fb246197fa3456789order",
+                      "description": "MongoDB Order ID"
+                    }
+                  ]
+                },
+                "description": "Retrieves complete order information including customer, items, price breakdown, and shipping address."
+              }
+            },
+            {
+              "name": "Update Order Status",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orderStatus\": \"SHIPPED\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/orders/:orderId/status",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "orders",
+                    ":orderId",
+                    "status"
+                  ],
+                  "variable": [
+                    {
+                      "key": "orderId",
+                      "value": "671fb246197fa3456789order",
+                      "description": "MongoDB Order ID"
+                    }
+                  ]
+                },
+                "description": "Updates order lifecycle status (e.g. CONFIRMED -> SHIPPED -> DELIVERED or CANCELLED)."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Return Requests",
+          "item": [
+            {
+              "name": "Get All Return Requests",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/returns?page=1&limit=10&status=REQUESTED",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "returns"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "status",
+                      "value": "REQUESTED",
+                      "description": "REQUESTED | APPROVED | REJECTED | ITEM_RECEIVED | REFUND_PENDING | REFUNDED"
+                    }
+                  ]
+                },
+                "description": "Lists product return requests with customer and order details."
+              }
+            },
+            {
+              "name": "Get Return Request by ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/returns/:returnId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "returns",
+                    ":returnId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "returnId",
+                      "value": "671fb246197fa3456789return",
+                      "description": "MongoDB ReturnRequest ID"
+                    }
+                  ]
+                },
+                "description": "Fetches details of a specific return request."
+              }
+            },
+            {
+              "name": "Review Return Request (Approve / Reject)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"APPROVED\",\n  \"rejectionReason\": \"\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/returns/:returnId/review",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "returns",
+                    ":returnId",
+                    "review"
+                  ],
+                  "variable": [
+                    {
+                      "key": "returnId",
+                      "value": "671fb246197fa3456789return",
+                      "description": "MongoDB ReturnRequest ID"
+                    }
+                  ]
+                },
+                "description": "Sets status to 'APPROVED' or 'REJECTED' (rejectionReason is mandatory if REJECTED)."
+              }
+            },
+            {
+              "name": "Update Return Processing Status",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"ITEM_RECEIVED\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/returns/:returnId/status",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "returns",
+                    ":returnId",
+                    "status"
+                  ],
+                  "variable": [
+                    {
+                      "key": "returnId",
+                      "value": "671fb246197fa3456789return",
+                      "description": "MongoDB ReturnRequest ID"
+                    }
+                  ]
+                },
+                "description": "Progresses return through 'ITEM_RECEIVED' -> 'REFUND_PENDING' -> 'REFUNDED' (which credits the customer's wallet)."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Coupon Management",
+          "item": [
+            {
+              "name": "Get All Coupons (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/coupons",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "coupons"
+                  ]
+                },
+                "description": "Fetches all coupons configured in the system."
+              }
+            },
+            {
+              "name": "Get Coupon by ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/coupons/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "coupons",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "671fb246197fa3456789coupon",
+                      "description": "MongoDB Coupon ID"
+                    }
+                  ]
+                },
+                "description": "Fetches coupon parameters and limits by ID."
+              }
+            },
+            {
+              "name": "Create Coupon",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"code\": \"WINTER30\",\n  \"discountType\": \"PERCENTAGE\",\n  \"discountValue\": 30,\n  \"minOrderAmount\": 3000,\n  \"maxDiscount\": 1000,\n  \"startDate\": \"2026-11-01T00:00:00.000Z\",\n  \"endDate\": \"2026-12-31T23:59:59.000Z\",\n  \"usageLimit\": 50,\n  \"perUserLimit\": 1,\n  \"isActive\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/coupons",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "coupons"
+                  ]
+                },
+                "description": "Creates a new coupon code with usage restrictions and discount type."
+              }
+            },
+            {
+              "name": "Update Coupon",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"discountValue\": 35,\n  \"maxDiscount\": 1200,\n  \"endDate\": \"2026-12-31T23:59:59.000Z\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/coupons/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "coupons",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "671fb246197fa3456789coupon",
+                      "description": "MongoDB Coupon ID"
+                    }
+                  ]
+                },
+                "description": "Updates an existing coupon's fields."
+              }
+            },
+            {
+              "name": "Toggle Coupon Status",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"isActive\": false\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/coupons/:id/status",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "coupons",
+                    ":id",
+                    "status"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "671fb246197fa3456789coupon",
+                      "description": "MongoDB Coupon ID"
+                    }
+                  ]
+                },
+                "description": "Enables or disables a coupon instantly."
+              }
+            },
+            {
+              "name": "Delete Coupon",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/coupons/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "coupons",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "671fb246197fa3456789coupon",
+                      "description": "MongoDB Coupon ID"
+                    }
+                  ]
+                },
+                "description": "Deletes a coupon from the system."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Customer Wallets (Admin)",
+          "item": [
+            {
+              "name": "Get Wallets Summary",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/wallets/summary",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "wallets",
+                    "summary"
+                  ]
+                },
+                "description": "Gets global statistics: total customer balance, active wallets, total credits/debits, and completed order revenue."
+              }
+            },
+            {
+              "name": "Get All Customer Wallets",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/wallets?page=1&limit=10&status=ACTIVE&search=",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "wallets"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "status",
+                      "value": "ACTIVE",
+                      "description": "ACTIVE | INACTIVE"
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "Customer name or email"
+                    }
+                  ]
+                },
+                "description": "Lists customer wallets with current balances and account state."
+              }
+            },
+            {
+              "name": "Get All Wallet Transactions",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/wallets/transactions?page=1&limit=10&type=&status=COMPLETED&source=&userId=&from=&to=",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "wallets",
+                    "transactions"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "type",
+                      "value": "",
+                      "description": "CREDIT | DEBIT"
+                    },
+                    {
+                      "key": "status",
+                      "value": "COMPLETED",
+                      "description": "PENDING | COMPLETED | FAILED"
+                    },
+                    {
+                      "key": "source",
+                      "value": "",
+                      "description": "ADMIN_CREDIT | REFUND | ORDER_PAYMENT"
+                    },
+                    {
+                      "key": "userId",
+                      "value": "",
+                      "description": "Filter for a specific customer"
+                    },
+                    {
+                      "key": "from",
+                      "value": "",
+                      "description": "ISO start date"
+                    },
+                    {
+                      "key": "to",
+                      "value": "",
+                      "description": "ISO end date"
+                    }
+                  ]
+                },
+                "description": "Audits all credit and debit wallet transactions across the platform."
+              }
+            },
+            {
+              "name": "Credit Customer Wallet (Admin Action)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "admin-credit-unique-key-001",
+                    "description": "Mandatory 8-150 char idempotency key"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 500,\n  \"reason\": \"Compensation for shipment delay\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/wallets/:userId/credit",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "wallets",
+                    ":userId",
+                    "credit"
+                  ],
+                  "variable": [
+                    {
+                      "key": "userId",
+                      "value": "671fb246197fa3456789user",
+                      "description": "MongoDB Customer User ID"
+                    }
+                  ]
+                },
+                "description": "Directly credits funds to a customer's wallet. Requires an `Idempotency-Key` header to prevent double credits."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sales Reports",
+          "item": [
+            {
+              "name": "Generate Sales Report",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/reports/sales?startDate=2026-10-01&endDate=2026-10-31",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "reports",
+                    "sales"
+                  ],
+                  "query": [
+                    {
+                      "key": "startDate",
+                      "value": "2026-10-01",
+                      "description": "Start date (YYYY-MM-DD)"
+                    },
+                    {
+                      "key": "endDate",
+                      "value": "2026-10-31",
+                      "description": "End date (YYYY-MM-DD)"
+                    }
+                  ]
+                },
+                "description": "Aggregates delivered sales revenue, discounts, coupons, and net profit over the given timeframe."
+              }
+            }
+          ]
+        },
+        {
+          "name": "User Management (Admin)",
+          "item": [
+            {
+              "name": "Get All Users",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/users",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "users"
+                  ]
+                },
+                "description": "Lists all registered customer accounts."
+              }
+            },
+            {
+              "name": "Toggle Block / Unblock User",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/users/:id/block",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "users",
+                    ":id",
+                    "block"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "671fb246197fa3456789user",
+                      "description": "MongoDB Customer User ID"
+                    }
+                  ]
+                },
+                "description": "Toggles the `isBlocked` flag of a customer. Blocked users are immediately forbidden from login or API calls."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Review Moderation (Admin)",
+          "item": [
+            {
+              "name": "Get All Reviews (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/reviews?page=1&limit=10&rating=&status=&search=",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "reviews"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "rating",
+                      "value": "",
+                      "description": "Filter by 1-5 stars"
+                    },
+                    {
+                      "key": "status",
+                      "value": "",
+                      "description": "APPROVED | PENDING | REJECTED"
+                    },
+                    {
+                      "key": "search",
+                      "value": ""
+                    }
+                  ]
+                },
+                "description": "Lists customer reviews for all products."
+              }
+            },
+            {
+              "name": "Toggle Review Status",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"APPROVED\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/reviews/:reviewId/status",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "reviews",
+                    ":reviewId",
+                    "status"
+                  ],
+                  "variable": [
+                    {
+                      "key": "reviewId",
+                      "value": "671fb246197fa3456789review",
+                      "description": "MongoDB Review ID"
+                    }
+                  ]
+                },
+                "description": "Sets review approval status (APPROVED, PENDING, or REJECTED)."
+              }
+            },
+            {
+              "name": "Delete Review (Admin)",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminAccessToken={{adminAccessToken}}",
+                    "type": "text",
+                    "description": "Admin session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/reviews/:reviewId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "reviews",
+                    ":reviewId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "reviewId",
+                      "value": "671fb246197fa3456789review",
+                      "description": "MongoDB Review ID"
+                    }
+                  ]
+                },
+                "description": "Deletes a review."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Customer (User) APIs",
+      "description": "Customer-facing endpoints for authentication, profile, browsing catalog, cart, address book, checkout, orders, wallet, wishlist, reviews, and payments.",
+      "item": [
+        {
+          "name": "Authentication & Account",
+          "item": [
+            {
+              "name": "Register - Step 1: Initiate (Send OTP)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userName\": \"John Doe\",\n  \"email\": \"customer@example.com\",\n  \"password\": \"Password123!\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "register"
+                  ]
+                },
+                "description": "Initiates user registration and dispatches an OTP to the email address."
+              }
+            },
+            {
+              "name": "Register - Step 2: Verify OTP & Create User",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"customer@example.com\",\n  \"otp\": \"123456\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/verify-otp",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "verify-otp"
+                  ]
+                },
+                "description": "Verifies email OTP and finalizes user account creation."
+              }
+            },
+            {
+              "name": "Register - Resend OTP",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"customer@example.com\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/resend-otp",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "resend-otp"
+                  ]
+                },
+                "description": "Resends a new registration OTP code to the email."
+              }
+            },
+            {
+              "name": "Customer Login",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const cookie = pm.cookies.get('accessToken');",
+                      "if (cookie) {",
+                      "    pm.collectionVariables.set('accessToken', cookie);",
+                      "    console.log('accessToken saved to collection variables.');",
+                      "}",
+                      "pm.test('Status code is 200', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"customer@example.com\",\n  \"password\": \"Password123!\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "login"
+                  ]
+                },
+                "description": "Authenticates customer credentials and sets the `accessToken` cookie."
+              }
+            },
+            {
+              "name": "Google Login",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"credential\": \"GOOGLE_OAUTH_ID_TOKEN\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/google-login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "google-login"
+                  ]
+                },
+                "description": "Authenticates or registers user via Google One-Tap / OAuth credential token."
+              }
+            },
+            {
+              "name": "Get Current Session (Me)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "me"
+                  ]
+                },
+                "description": "Retrieves decoded user session data from current JWT cookie."
+              }
+            },
+            {
+              "name": "Get User Profile",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/profile",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "profile"
+                  ]
+                },
+                "description": "Fetches user profile details including name, email, profile photo, and registration date."
+              }
+            },
+            {
+              "name": "Update User Name",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userName\": \"Johnathan Doe\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/profile/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "profile",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "671fb246197fa3456789user",
+                      "description": "Customer User ID"
+                    }
+                  ]
+                },
+                "description": "Updates user account display name."
+              }
+            },
+            {
+              "name": "Update Profile Photo",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "profileImage",
+                      "type": "file",
+                      "src": "",
+                      "description": "Image file to upload to Cloudinary"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/profile/:id/photo",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "profile",
+                    ":id",
+                    "photo"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "671fb246197fa3456789user",
+                      "description": "Customer User ID"
+                    }
+                  ]
+                },
+                "description": "Uploads a new profile picture and saves the Cloudinary URL."
+              }
+            },
+            {
+              "name": "Change Password",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currentPassword\": \"Password123!\",\n  \"newPassword\": \"BrandNewPassword456!\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/change-password",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "change-password"
+                  ]
+                },
+                "description": "Changes password when the customer is already logged in."
+              }
+            },
+            {
+              "name": "Forgot Password - Request OTP",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"customer@example.com\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/forgot-password",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "forgot-password"
+                  ]
+                },
+                "description": "Sends a 6-digit password reset OTP to the user's email."
+              }
+            },
+            {
+              "name": "Forgot Password - Verify OTP",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"customer@example.com\",\n  \"otp\": \"123456\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/verify-reset-otp",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "verify-reset-otp"
+                  ]
+                },
+                "description": "Verifies the reset OTP."
+              }
+            },
+            {
+              "name": "Forgot Password - Reset Password",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"customer@example.com\",\n  \"newPassword\": \"BrandNewPassword456!\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/reset-password",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "reset-password"
+                  ]
+                },
+                "description": "Sets a new password after successful OTP verification."
+              }
+            },
+            {
+              "name": "Customer Logout",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('accessToken', '');",
+                      "pm.test('Status code is 200', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/logout",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "logout"
+                  ]
+                },
+                "description": "Logs out customer and clears the `accessToken` session cookie."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Product Catalog",
+          "item": [
+            {
+              "name": "Get All Active Products",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/products",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "products"
+                  ]
+                },
+                "description": "Fetches active watches available for purchase in store."
+              }
+            },
+            {
+              "name": "Get Collection Filters",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/products/filters",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "products",
+                    "filters"
+                  ]
+                },
+                "description": "Returns distinct categories, brands, price boundaries, dial colors, strap materials, and case materials."
+              }
+            },
+            {
+              "name": "Get Product Details by ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/products/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "products",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "671fb246197fa3456789abcd",
+                      "description": "MongoDB Product ID"
+                    }
+                  ]
+                },
+                "description": "Fetches complete product details, all active variants, stock status, and active product/category offers."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Shopping Cart",
+          "item": [
+            {
+              "name": "Get User Cart",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/cart",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "cart"
+                  ]
+                },
+                "description": "Retrieves the user's active shopping cart with line items, variant details, pricing, and quantities."
+              }
+            },
+            {
+              "name": "Add Item to Cart",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"variantId\": \"671fb246197fa3456789variant\",\n  \"quantity\": 1\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/cart",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "cart"
+                  ]
+                },
+                "description": "Adds a specific product variant to the cart."
+              }
+            },
+            {
+              "name": "Update Cart Item Quantity",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"quantity\": 2\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/cart/items/:variantId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "cart",
+                    "items",
+                    ":variantId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "variantId",
+                      "value": "671fb246197fa3456789variant",
+                      "description": "MongoDB Variant ID"
+                    }
+                  ]
+                },
+                "description": "Updates quantity of a specific item in the cart."
+              }
+            },
+            {
+              "name": "Remove Item from Cart",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/cart/items/:variantId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "cart",
+                    "items",
+                    ":variantId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "variantId",
+                      "value": "671fb246197fa3456789variant",
+                      "description": "MongoDB Variant ID"
+                    }
+                  ]
+                },
+                "description": "Deletes a variant line item from the cart."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Address Book",
+          "item": [
+            {
+              "name": "Get User Addresses",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/address",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "address"
+                  ]
+                },
+                "description": "Retrieves all saved shipping addresses for the customer."
+              }
+            },
+            {
+              "name": "Get Address by ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/address/:addressId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "address",
+                    ":addressId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "addressId",
+                      "value": "671fb246197fa3456789addr",
+                      "description": "MongoDB Address ID"
+                    }
+                  ]
+                },
+                "description": "Retrieves a specific address."
+              }
+            },
+            {
+              "name": "Add New Address",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"John Doe\",\n  \"phone\": \"9876543210\",\n  \"addressLine1\": \"Flat 4B, Silver Heights\",\n  \"addressLine2\": \"Marine Drive\",\n  \"city\": \"Kochi\",\n  \"state\": \"Kerala\",\n  \"pincode\": \"682031\",\n  \"addressType\": \"Home\",\n  \"isDefault\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/address",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "address"
+                  ]
+                },
+                "description": "Saves a new shipping address. Phone must be 10 digits starting with 6-9, and pincode must be 6 digits."
+              }
+            },
+            {
+              "name": "Update Address",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"John Doe\",\n  \"phone\": \"9876543210\",\n  \"addressLine1\": \"Flat 4B, Silver Heights\",\n  \"addressLine2\": \"Marine Drive Road\",\n  \"city\": \"Kochi\",\n  \"state\": \"Kerala\",\n  \"pincode\": \"682031\",\n  \"addressType\": \"Work\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/address/:addressId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "address",
+                    ":addressId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "addressId",
+                      "value": "671fb246197fa3456789addr",
+                      "description": "MongoDB Address ID"
+                    }
+                  ]
+                },
+                "description": "Updates an existing shipping address."
+              }
+            },
+            {
+              "name": "Set Address as Default",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/address/:addressId/default",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "address",
+                    ":addressId",
+                    "default"
+                  ],
+                  "variable": [
+                    {
+                      "key": "addressId",
+                      "value": "671fb246197fa3456789addr",
+                      "description": "MongoDB Address ID"
+                    }
+                  ]
+                },
+                "description": "Marks the chosen address as the default shipping address."
+              }
+            },
+            {
+              "name": "Delete Address",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/address/:addressId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "address",
+                    ":addressId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "addressId",
+                      "value": "671fb246197fa3456789addr",
+                      "description": "MongoDB Address ID"
+                    }
+                  ]
+                },
+                "description": "Deletes an address from the address book."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Orders & Checkout",
+          "item": [
+            {
+              "name": "Create Order (COD / Standard)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"addressId\": \"671fb246197fa3456789addr\",\n  \"paymentMethod\": \"COD\",\n  \"couponCode\": \"WINTER30\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/order",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "order"
+                  ]
+                },
+                "description": "Places an order from the user's cart using Cash on Delivery (COD) or Razorpay."
+              }
+            },
+            {
+              "name": "Get My Orders",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/order",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "order"
+                  ]
+                },
+                "description": "Fetches all past orders placed by the customer."
+              }
+            },
+            {
+              "name": "Get Order by ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/order/:orderId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "order",
+                    ":orderId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "orderId",
+                      "value": "671fb246197fa3456789order",
+                      "description": "MongoDB Order ID"
+                    }
+                  ]
+                },
+                "description": "Returns detailed view of an order with shipping address, price items, and live tracking status."
+              }
+            },
+            {
+              "name": "Cancel My Order",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Ordered by mistake\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/order/:orderId/cancel",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "order",
+                    ":orderId",
+                    "cancel"
+                  ],
+                  "variable": [
+                    {
+                      "key": "orderId",
+                      "value": "671fb246197fa3456789order",
+                      "description": "MongoDB Order ID"
+                    }
+                  ]
+                },
+                "description": "Cancels an order before it is shipped. If already paid, the refund is automatically credited back to user wallet."
+              }
+            },
+            {
+              "name": "Request Item Return",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"productId\": \"671fb246197fa3456789abcd\",\n  \"variantId\": \"671fb246197fa3456789variant\",\n  \"quantity\": 1,\n  \"reason\": \"Defective dial glass on arrival\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/order/:orderId/return",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "order",
+                    ":orderId",
+                    "return"
+                  ],
+                  "variable": [
+                    {
+                      "key": "orderId",
+                      "value": "671fb246197fa3456789order",
+                      "description": "MongoDB Order ID"
+                    }
+                  ]
+                },
+                "description": "Submits a return request for a delivered order item."
+              }
+            },
+            {
+              "name": "Get Order Return Requests",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/order/:orderId/returns",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "order",
+                    ":orderId",
+                    "returns"
+                  ],
+                  "variable": [
+                    {
+                      "key": "orderId",
+                      "value": "671fb246197fa3456789order",
+                      "description": "MongoDB Order ID"
+                    }
+                  ]
+                },
+                "description": "Retrieves all return requests filed for a given order."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payments (Razorpay & Wallet)",
+          "item": [
+            {
+              "name": "Create Payment Order",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"addressId\": \"671fb246197fa3456789addr\",\n  \"couponCode\": \"WINTER30\",\n  \"useWallet\": false\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/payment/create-order",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "payment",
+                    "create-order"
+                  ]
+                },
+                "description": "Creates a pending internal order and a Razorpay payment order. If `useWallet` covers the total, no Razorpay order is created and order is confirmed immediately."
+              }
+            },
+            {
+              "name": "Verify Payment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orderId\": \"671fb246197fa3456789order\",\n  \"razorpay_order_id\": \"order_QWERTYUIOP1234\",\n  \"razorpay_payment_id\": \"pay_ASDFGHJKL5678\",\n  \"razorpay_signature\": \"9b34...cryptographic_signature...\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/payment/verify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "payment",
+                    "verify"
+                  ]
+                },
+                "description": "Verifies the HMAC-SHA256 signature from Razorpay checkout. Deducts inventory stock and clears cart on success."
+              }
+            },
+            {
+              "name": "Mark Payment as Failed",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orderId\": \"671fb246197fa3456789order\",\n  \"reason\": \"Payment cancelled or rejected by issuing bank\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/payment/fail",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "payment",
+                    "fail"
+                  ]
+                },
+                "description": "Notifies server when user abandons or experiences payment gateway failure."
+              }
+            },
+            {
+              "name": "Retry Payment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/payment/retry/:orderId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "payment",
+                    "retry",
+                    ":orderId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "orderId",
+                      "value": "671fb246197fa3456789order",
+                      "description": "MongoDB Order ID"
+                    }
+                  ]
+                },
+                "description": "Re-creates a fresh Razorpay order for an order in 'PAYMENT_PENDING' status."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Coupons",
+          "item": [
+            {
+              "name": "Apply Coupon",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"code\": \"WINTER30\",\n  \"subtotal\": 5000\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/coupon/apply",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "coupon",
+                    "apply"
+                  ]
+                },
+                "description": "Checks coupon validity, date range, minimum cart amount, and calculates discount amount."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Wishlist",
+          "item": [
+            {
+              "name": "Get Wishlist",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/wishlist",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "wishlist"
+                  ]
+                },
+                "description": "Fetches all bookmarked products in customer's wishlist."
+              }
+            },
+            {
+              "name": "Add to Wishlist",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"productId\": \"671fb246197fa3456789abcd\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/wishlist",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "wishlist"
+                  ]
+                },
+                "description": "Adds a watch to user's wishlist."
+              }
+            },
+            {
+              "name": "Check Wishlist Status for Product",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/wishlist/:productId/status",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "wishlist",
+                    ":productId",
+                    "status"
+                  ],
+                  "variable": [
+                    {
+                      "key": "productId",
+                      "value": "671fb246197fa3456789abcd",
+                      "description": "MongoDB Product ID"
+                    }
+                  ]
+                },
+                "description": "Checks whether a product is currently in the wishlist (returns `isFavorite: true/false`)."
+              }
+            },
+            {
+              "name": "Remove from Wishlist",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/wishlist/:productId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "wishlist",
+                    ":productId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "productId",
+                      "value": "671fb246197fa3456789abcd",
+                      "description": "MongoDB Product ID"
+                    }
+                  ]
+                },
+                "description": "Removes a product from the wishlist."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Customer Wallet",
+          "item": [
+            {
+              "name": "Get My Wallet Balance",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/wallet",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "wallet"
+                  ]
+                },
+                "description": "Retrieves user's current wallet balance and active status."
+              }
+            },
+            {
+              "name": "Get My Wallet Transactions",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/wallet/transactions?page=1&limit=10",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "wallet",
+                    "transactions"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                },
+                "description": "Retrieves paginated history of credits and debits on user's wallet."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reviews & Ratings",
+          "item": [
+            {
+              "name": "Get Product Reviews",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/reviews/product/:productId?page=1&limit=10&sort=recent",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "reviews",
+                    "product",
+                    ":productId"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "sort",
+                      "value": "recent",
+                      "description": "recent | highest | lowest"
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "key": "productId",
+                      "value": "671fb246197fa3456789abcd",
+                      "description": "MongoDB Product ID"
+                    }
+                  ]
+                },
+                "description": "Fetches approved customer reviews and overall rating summary for a product."
+              }
+            },
+            {
+              "name": "Check Review Eligibility",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/reviews/product/:productId/eligibility",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "reviews",
+                    "product",
+                    ":productId",
+                    "eligibility"
+                  ],
+                  "variable": [
+                    {
+                      "key": "productId",
+                      "value": "671fb246197fa3456789abcd",
+                      "description": "MongoDB Product ID"
+                    }
+                  ]
+                },
+                "description": "Checks whether user has purchased the item and is eligible to post a verified review."
+              }
+            },
+            {
+              "name": "Submit Product Review",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"productId\": \"671fb246197fa3456789abcd\",\n  \"orderId\": \"671fb246197fa3456789order\",\n  \"rating\": 5,\n  \"title\": \"Exquisite craftsmanship!\",\n  \"comment\": \"The mechanical movement is buttery smooth and timekeeping is impeccable.\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/reviews",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "reviews"
+                  ]
+                },
+                "description": "Submits or updates a rating and review for a purchased product."
+              }
+            },
+            {
+              "name": "Delete My Review",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "accessToken={{accessToken}}",
+                    "type": "text",
+                    "description": "User session cookie"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/reviews/:reviewId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "reviews",
+                    ":reviewId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "reviewId",
+                      "value": "671fb246197fa3456789review",
+                      "description": "MongoDB Review ID"
+                    }
+                  ]
+                },
+                "description": "Deletes a review written by the authenticated user."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

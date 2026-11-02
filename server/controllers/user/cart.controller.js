@@ -79,14 +79,19 @@ export const updateCartItem = async (req, res) => {
       });
     }
 
+    const parsedQuantity = Number(quantity);
+
     const cart = await updateCartItemService({
       userId,
       variantId,
-      quantity,
+      quantity: parsedQuantity,
     });
 
     return res.status(200).json({
-      message: "Cart quantity updated successfully.",
+      message:
+        parsedQuantity === 0
+          ? "Item removed from cart successfully."
+          : "Cart quantity updated successfully.",
       cart,
     });
   } catch (error) {

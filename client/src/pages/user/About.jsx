@@ -61,7 +61,7 @@ const About = () => {
           </p>
 
           <Link
-            to="/collections"
+            to="/user/collections"
             className="mt-10 inline-flex items-center gap-3 bg-[#C5A46D] px-7 py-4 text-sm font-semibold text-[#111827] transition hover:bg-white"
           >
             Explore our collection
@@ -206,7 +206,7 @@ const About = () => {
           </p>
 
           <Link
-            to="/collections"
+            to="/user/collections"
             className="mt-9 inline-flex items-center gap-3 bg-[#C5A46D] px-7 py-4 text-sm font-semibold text-[#111827] transition hover:bg-white"
           >
             Shop watches

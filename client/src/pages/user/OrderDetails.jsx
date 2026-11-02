@@ -5,6 +5,9 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import api from "../../api/axios.js";
 
 import Navbar from "../../components/layout/Navbar.jsx";
+import { Download, Printer } from "lucide-react";
+import toast from "react-hot-toast";
+import InvoiceModal from "../../components/user/order/InvoiceModal.jsx";
 
 
 
@@ -201,6 +204,35 @@ const OrderDetails = () => {
   const [actionError, setActionError] = useState("");
 
   const [actionSuccess, setActionSuccess] = useState("");
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+
+  const handleDownloadInvoice = async () => {
+    if (!order?._id) return;
+    try {
+      setDownloadingInvoice(true);
+      const response = await api.get(`/user/order/${order._id}/invoice`, {
+        responseType: "blob",
+      });
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const filename = `Invoice-${order.invoiceNumber || order.orderNumber || "order"}.pdf`;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success("Invoice downloaded successfully!");
+    } catch (err) {
+      console.error("Failed to download invoice:", err);
+      toast.error(err.response?.data?.message || "Failed to download invoice. Please try again.");
+    } finally {
+      setDownloadingInvoice(false);
+    }
+  };
+
 
 
 
@@ -832,7 +864,27 @@ const OrderDetails = () => {
 
 
 
-          <span
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => setShowInvoiceModal(true)}
+              className="inline-flex items-center gap-2 border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-[#111827] shadow-xs transition hover:border-[#9A7B3F] hover:text-[#9A7B3F]"
+            >
+              <Printer className="h-4 w-4" />
+              <span>Print Invoice</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDownloadInvoice}
+              disabled={downloadingInvoice}
+              className="inline-flex items-center gap-2 border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-[#111827] shadow-xs transition hover:border-[#9A7B3F] hover:text-[#9A7B3F] disabled:opacity-50"
+            >
+              <Download className="h-4 w-4" />
+              <span>{downloadingInvoice ? "Generating PDF..." : "Download Invoice"}</span>
+            </button>
+
+            <span
 
             className={`inline-flex w-fit items-center gap-2 border px-4 py-2 text-sm font-medium ${statusStyle}`}
 
@@ -843,6 +895,7 @@ const OrderDetails = () => {
             {formatStatus(status)}
 
           </span>
+          </div>
 
         </div>
 
@@ -1624,7 +1677,7 @@ const OrderDetails = () => {
 
           <Link
 
-            to="/user/products"
+            to="/user/collections"
 
             className="inline-flex items-center justify-center bg-[#111827] px-6 py-3 text-sm font-medium text-white transition hover:bg-[#9A7B3F]"
 
@@ -1636,6 +1689,13 @@ const OrderDetails = () => {
 
         </div>
 
+        <InvoiceModal
+        isOpen={showInvoiceModal}
+        onClose={() => setShowInvoiceModal(false)}
+        order={order}
+        onDownload={handleDownloadInvoice}
+        downloading={downloadingInvoice}
+      />
       </main>
 
     </div>

@@ -298,10 +298,12 @@ export const createOrderService = async (userId, payload) => {
       // CREATE ORDER
       // -----------------------------------------------
 
-      const [order] = await Order.create(
-        [
-          {
-            orderNumber: generateOrderNumber(),
+      const genOrderNum = generateOrderNumber();
+      const [order] = await Order.create([
+        {
+          orderNumber: genOrderNum,
+          invoiceNumber: "INV-" + genOrderNum.replace(/^(OCE-|ORD-)/, ""),
+          invoiceDate: new Date(),
             userId,
             items: orderItems,
             shippingAddress: address,

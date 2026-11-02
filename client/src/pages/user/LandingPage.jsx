@@ -96,7 +96,7 @@ const LandingPage = () => {
               </div>
 
               <Link
-                to="/about"
+                to="/user/about"
                 className="mt-8 inline-flex items-center gap-3 border-b border-[#9A7B3F] pb-2 text-sm font-semibold transition hover:text-[#9A7B3F]"
               >
                 Discover our story

@@ -114,6 +114,13 @@ const OrderSuccess = () => {
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link
+            to={`/user/order/${order._id}`}
+            className="rounded-lg border border-[#111827] px-6 py-3 font-medium text-[#111827] transition hover:bg-gray-100"
+          >
+            View Order & Invoice
+          </Link>
+
+          <Link
             to="/user/orders"
             className="rounded-lg bg-[#111827] px-6 py-3 text-white"
           >

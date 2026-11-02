@@ -899,7 +899,13 @@ const MyOrders = () => {
                       >
 
                         View Details
-
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/user/order/${orderId}`)}
+                        className="border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-[#111827] transition hover:border-[#9A7B3F] hover:text-[#9A7B3F]"
+                      >
+                        Invoice
                       </button>
 
                       {canCancelOrder(order) && (

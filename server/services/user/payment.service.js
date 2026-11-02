@@ -328,6 +328,8 @@ export const createPaymentOrderService = async (userId, payload) => {
     paymentStatus: amountDue > 0 ? "PENDING" : "PAID",
     orderStatus: amountDue > 0 ? "PAYMENT_PENDING" : "CONFIRMED",
     stockReserved: false,
+    invoiceNumber: "INV-" + orderNumber.replace(/^(OCE-|ORD-)/, ""),
+    invoiceDate: new Date(),
   };
 
   // CASE 1: Wallet covers the full order. No Razorpay order is created.
@@ -715,6 +717,12 @@ export const verifyPaymentService = async (userId, payload) => {
       freshOrder.razorpayPaymentId = razorpay_payment_id;
       freshOrder.razorpaySignature = razorpay_signature;
       freshOrder.orderStatus = "CONFIRMED";
+      if (!freshOrder.invoiceNumber) {
+        freshOrder.invoiceNumber = "INV-" + freshOrder.orderNumber.replace(/^(OCE-|ORD-)/, "");
+      }
+      if (!freshOrder.invoiceDate) {
+        freshOrder.invoiceDate = new Date();
+      }
       freshOrder.stockReserved = true;
 
       await freshOrder.save({ session });
