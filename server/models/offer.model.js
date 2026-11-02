@@ -6,6 +6,11 @@ const offerSchema = new mongoose.Schema(
       type: String,
       enum: ["product", "category"],
       required: true,
+      default: function () {
+        if (this.productId && !this.categoryId) return "product";
+        if (this.categoryId && !this.productId) return "category";
+        return undefined;
+      },
     },
 
     productId: {
@@ -65,6 +70,14 @@ const offerSchema = new mongoose.Schema(
 );
 
 offerSchema.pre("validate", function () {
+  if (!this.offerType) {
+    if (this.productId && !this.categoryId) {
+      this.offerType = "product";
+    } else if (this.categoryId && !this.productId) {
+      this.offerType = "category";
+    }
+  }
+
   if (this.offerType === "product") {
     if (!this.productId || this.categoryId) {
       this.invalidate("productId", "A product offer must have only productId.");

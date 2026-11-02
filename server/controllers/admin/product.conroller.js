@@ -90,6 +90,7 @@ const validateOffer = (offer) => {
   }
 
   return {
+    offerType: "product",
     discountType: offer.discountType,
     discountValue,
     startDate,
@@ -213,10 +214,15 @@ const saveOffer = async (productId, offer) => {
   const existingOffer = await offerGetByProductId(productId);
 
   if (existingOffer) {
-    await offerUpdate(productId, validOffer);
+    await offerUpdate(productId, {
+      ...validOffer,
+      offerType: "product",
+      productId,
+    });
   } else {
     await offerAdd({
       ...validOffer,
+      offerType: "product",
       productId,
     });
   }
