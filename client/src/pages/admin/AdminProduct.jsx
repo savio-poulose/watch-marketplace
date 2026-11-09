@@ -35,6 +35,7 @@ const emptyVariant = () => ({
 });
 
 const emptyOffer = () => ({
+  offerType: "product",
   isActive: false,
 
   discountType: "percentage",
@@ -552,6 +553,7 @@ const AdminProduct = () => {
       setOffer(
         savedOffer
           ? {
+              offerType: "product",
               isActive: savedOffer.isActive || false,
 
               discountType: savedOffer.discountType || "percentage",
