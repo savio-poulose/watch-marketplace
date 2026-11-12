@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../models/user.model.js"; // Adjust this path to your actual User model
 
-export const authMiddleware = async (req, res, next) => {
+export const  authMiddleware = async (req, res, next) => {
   try {
     const token = req.cookies?.accessToken;
 
