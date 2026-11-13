@@ -61,7 +61,7 @@ app.use(express.json())
 app.use(cookieParser())
 
 
-app.use("/api/user/", userRouter);
+
 
 
 app.use("/api/admin/product", productRouter);
@@ -76,6 +76,8 @@ app.use("/api/admin/returns", adminReturnRouter);
 app.use("/api/admin/dashboard",adminDashboardRouter)
 app.use("/api/admin/reviews", adminReviewRouter);
 
+
+app.use("/api/user/", userRouter);
 app.use("/api/user/products",userProductRouter)
 app.use("/api/user/cart",cartRouter)
 app.use("/api/user/address",addressRouter)

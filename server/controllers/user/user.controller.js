@@ -174,7 +174,33 @@ export const updateProfile = async (req, res) => {
   try {
     const { userName } = req.body;
 
+    if (!userName || typeof userName !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Name is required",
+      });
+    }
+
+    const trimmedName = userName.trim();
+
+    if (trimmedName.length < 2 || trimmedName.length > 50) {
+      return res.status(400).json({
+        success: false,
+        message: "Name must be between 2 and 50 characters",
+      });
+    }
+
+
     const id = req.params.id;
+
+     const nameRegex = /^[\p{L}\p{M}]+(?:[ '-][\p{L}\p{M}]+)*$/u;
+
+    if (!nameRegex.test(trimmedName)) {
+      return res.status(400).json({
+        success: false,
+        message: "Name can only contain letters, spaces, hyphens and apostrophes",
+      });
+    }
 
     const user = await ProfileUpdate(id, userName);
 
