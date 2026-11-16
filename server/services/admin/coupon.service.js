@@ -22,6 +22,12 @@ const validateCouponData = (data, partial = false) => {
     "isActive",
   ];
 
+  if (!/^[A-Z0-9_-]{3,40}$/.test(data.code)) {
+  throw createError(
+    "Coupon code must be 3-40 characters and contain only letters, numbers, hyphens or underscores."
+  );
+}
+
   for (const key of Object.keys(data)) {
     if (!allowedFields.includes(key)) {
       throw createError(`Field '${key}' cannot be modified.`);
@@ -79,9 +85,9 @@ const validateCouponData = (data, partial = false) => {
       throw createError("Minimum order amount cannot be negative.");
     }
 
-    if (field === "maxDiscount" && value < 0) {
-      throw createError("Maximum discount cannot be negative.");
-    }
+    if (field === "maxDiscount" && value <= 0) {
+  throw createError("Maximum discount must be greater than zero.");
+}
 
     if (
       ["usageLimit", "perUserLimit"].includes(field) &&
@@ -93,9 +99,14 @@ const validateCouponData = (data, partial = false) => {
     data[field] = value;
   }
 
-  if (data.discountType === "FIXED") {
-    data.maxDiscount = null;
-  }
+  if (
+  data.discountType === "FIXED" &&
+  Number(data.discountValue) > Number(data.minOrderAmount ?? 0)
+) {
+  throw createError(
+    "Fixed discount cannot exceed the minimum order amount."
+  );
+}
 
   for (const field of ["startDate", "endDate"]) {
     if (!partial || data[field] !== undefined) {
@@ -144,7 +155,7 @@ export const couponGetById = async (id) => {
 
 export const couponCreate = async (payload) => {
   const data = validateCouponData({ ...payload });
-
+  // console.log(data)
   try {
     return await Coupon.create(data);
   } catch (error) {
@@ -160,6 +171,7 @@ export const couponCreate = async (payload) => {
   }
 };
 
+
 export const couponUpdate = async (id, payload) => {
   if (!mongoose.isValidObjectId(id)) {
     throw createError("Invalid coupon ID.", 400);
@@ -171,37 +183,43 @@ export const couponUpdate = async (id, payload) => {
     throw createError("Coupon not found.", 404);
   }
 
-  // Never allow admin edits to reset redemption history.
-  const data = validateCouponData({ ...payload }, true);
+  // Combine existing coupon data with the new data.
+  // This ensures validation checks the complete coupon.
+  const mergedData = {
+    code: existing.code,
+    discountType: existing.discountType,
+    discountValue: existing.discountValue,
+    minOrderAmount: existing.minOrderAmount,
+    maxDiscount: existing.maxDiscount,
+    startDate: existing.startDate,
+    endDate: existing.endDate,
+    usageLimit: existing.usageLimit,
+    perUserLimit: existing.perUserLimit,
+    isActive: existing.isActive,
+    ...payload,
+  };
 
+  // Validate the complete coupon data.
+  const validatedData = validateCouponData(mergedData);
+
+  // Do not allow usage limit below existing redemptions.
   if (
-    data.discountType === undefined &&
-    data.discountValue !== undefined
+    validatedData.usageLimit != null &&
+    validatedData.usageLimit < existing.usedCount
   ) {
-    data.discountType = existing.discountType;
-  }
-
-  if (
-    data.discountType === "PERCENTAGE" &&
-    data.discountValue !== undefined &&
-    data.discountValue > 100
-  ) {
-    throw createError("Percentage discount cannot exceed 100%.");
-  }
-
-  // Validate resulting date range, including unchanged values.
-  const startDate = data.startDate ?? existing.startDate;
-  const endDate = data.endDate ?? existing.endDate;
-
-  if (endDate < startDate) {
-    throw createError("End date must be on or after the start date.");
+    throw createError(
+      "Usage limit cannot be less than coupons already redeemed."
+    );
   }
 
   try {
     const updated = await Coupon.findByIdAndUpdate(
       id,
-      { $set: data },
-      { returnDocument: "after", runValidators: true }
+      { $set: validatedData },
+      {
+        returnDocument: "after",
+        runValidators: true,
+      }
     );
 
     return updated;
@@ -210,9 +228,14 @@ export const couponUpdate = async (id, payload) => {
       throw createError("Coupon code already exists.", 409);
     }
 
+    if (error.name === "ValidationError") {
+      throw createError(error.message, 400);
+    }
+
     throw error;
   }
 };
+
 
 export const couponUpdateStatus = async (id, isActive) => {
   if (!mongoose.isValidObjectId(id)) {
