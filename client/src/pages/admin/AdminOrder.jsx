@@ -15,6 +15,13 @@ const ORDER_STATUSES = [
   "RETURNED",
 ];
 
+const IMMEDIATE_NEXT_STATUS = {
+  PLACED: "CONFIRMED",
+  CONFIRMED: "PROCESSING",
+  PROCESSING: "SHIPPED",
+  SHIPPED: "DELIVERED",
+};
+
 const STATUS_STYLES = {
   PLACED: "bg-amber-50 text-amber-700 border-amber-200",
   CONFIRMED: "bg-blue-50 text-blue-700 border-blue-200",
@@ -245,7 +252,8 @@ const AdminOrder = () => {
     }
 
     setSelectedOrder(order);
-    setNextStatus(String(order.orderStatus || "PLACED").toUpperCase());
+    const initialStatus = String(order.orderStatus || "PLACED").toUpperCase();
+    setNextStatus(IMMEDIATE_NEXT_STATUS[initialStatus] || "");
     setDetailsLoading(true);
     setError("");
 
@@ -263,9 +271,10 @@ const AdminOrder = () => {
             ...detailedOrder,
           }),
         });
-        setNextStatus(
-          String(detailedOrder.orderStatus || "PLACED").toUpperCase(),
-        );
+        const detailedStatus = String(
+          detailedOrder.orderStatus || order.orderStatus || "PLACED",
+        ).toUpperCase();
+        setNextStatus(IMMEDIATE_NEXT_STATUS[detailedStatus] || "");
       }
     } catch (err) {
       setError(
@@ -276,18 +285,19 @@ const AdminOrder = () => {
     }
   };
 
-  const updateOrderStatus = async () => {
+  const updateOrderStatus = async (statusToApply) => {
     if (!selectedOrder) return;
     const orderId = getOrderId(selectedOrder);
     const currentStatus = String(
       selectedOrder.orderStatus || "PLACED",
     ).toUpperCase();
+    const targetStatus = statusToApply || nextStatus;
 
-    if (!ORDER_STATUSES.includes(nextStatus)) {
-      setError("Select a valid order status.");
+    if (!targetStatus) {
+      setError("No valid next status available.");
       return;
     }
-    if (nextStatus === currentStatus) {
+    if (targetStatus === currentStatus) {
       setError("Select a different status.");
       return;
     }
@@ -302,19 +312,19 @@ const AdminOrder = () => {
       setUpdatingId(orderId);
       setError("");
       const response = await api.patch(`/admin/orders/${orderId}/status`, {
-        orderStatus: nextStatus,
+        orderStatus: targetStatus,
       });
       const updatedOrder =
         response.data?.order || response.data?.data?.order || {};
       const nextPaymentStatus =
-        nextStatus === "DELIVERED" &&
+        targetStatus === "DELIVERED" &&
         String(selectedOrder.paymentMethod || "").toUpperCase() === "COD"
           ? "PAID"
           : getDisplayPaymentStatus(selectedOrder);
 
       // Store the UI-only payment override so the table and modal agree.
       if (
-        nextStatus === "DELIVERED" &&
+        targetStatus === "DELIVERED" &&
         String(selectedOrder.paymentMethod || "").toUpperCase() === "COD"
       ) {
         setPaymentStatusOverrides((previous) => ({
@@ -323,13 +333,17 @@ const AdminOrder = () => {
         }));
       }
 
+      const newStatus = targetStatus;
+      const followingNext = IMMEDIATE_NEXT_STATUS[newStatus] || "";
+      setNextStatus(followingNext);
+
       setOrders((previous) =>
         previous.map((order) =>
           getOrderId(order) === orderId
             ? {
                 ...order,
                 ...updatedOrder,
-                orderStatus: nextStatus,
+                orderStatus: newStatus,
                 paymentStatus: nextPaymentStatus,
               }
             : order,
@@ -338,14 +352,14 @@ const AdminOrder = () => {
       setSelectedOrder((previous) => ({
         ...previous,
         ...updatedOrder,
-        orderStatus: nextStatus,
+        orderStatus: newStatus,
         paymentStatus: nextPaymentStatus,
       }));
       toast.success(
-        nextStatus === "DELIVERED" &&
+        targetStatus === "DELIVERED" &&
           String(selectedOrder.paymentMethod || "").toUpperCase() === "COD"
           ? "Order delivered. Payment marked as Paid."
-          : "Order status updated successfully.",
+          : `Order status updated to ${formatStatus(targetStatus)}.`,
       );
       fetchOrders();
     } catch (err) {
@@ -355,6 +369,67 @@ const AdminOrder = () => {
       );
       toast.error(
         err.response?.data?.message || "Unable to update order status.",
+      );
+    } finally {
+      setUpdatingId("");
+    }
+  };
+
+  const handleCancelOrder = async () => {
+    if (!selectedOrder) return;
+    const orderId = getOrderId(selectedOrder);
+    const currentStatus = String(
+      selectedOrder.orderStatus || "PLACED",
+    ).toUpperCase();
+
+    if (!["PLACED", "CONFIRMED", "PROCESSING"].includes(currentStatus)) {
+      setError("This order cannot be cancelled.");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Are you sure you want to cancel order ${selectedOrder.orderNumber || orderId}? This will restore product stock.`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setUpdatingId(orderId);
+      setError("");
+      const response = await api.patch(`/admin/orders/${orderId}/status`, {
+        orderStatus: "CANCELLED",
+      });
+      const updatedOrder =
+        response.data?.order || response.data?.data?.order || {};
+
+      setOrders((previous) =>
+        previous.map((order) =>
+          getOrderId(order) === orderId
+            ? {
+                ...order,
+                ...updatedOrder,
+                orderStatus: "CANCELLED",
+              }
+            : order,
+        ),
+      );
+      setSelectedOrder((previous) => ({
+        ...previous,
+        ...updatedOrder,
+        orderStatus: "CANCELLED",
+      }));
+      setNextStatus("");
+      toast.success("Order cancelled successfully.");
+      fetchOrders();
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Unable to cancel order. Check your admin API.",
+      );
+      toast.error(
+        err.response?.data?.message || "Unable to cancel order.",
       );
     } finally {
       setUpdatingId("");
@@ -766,45 +841,57 @@ const AdminOrder = () => {
                 <div className="border-t border-gray-200 pt-5">
                   <h3 className="font-semibold">Update order status</h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    Marking a COD order as delivered automatically updates its
-                    payment status to Paid.
+                    Order status advances sequentially: Placed &rarr; Confirmed &rarr; Processing &rarr; Shipped &rarr; Delivered.
                   </p>
-                  {["DELIVERED", "CANCELLED", "RETURNED"].includes(
-                    String(selectedOrder.orderStatus || "").toUpperCase(),
-                  ) ? (
-                    <p className="mt-3 text-sm text-gray-600">
-                      This order is in a terminal status. Use a dedicated
-                      return/refund workflow if required.
-                    </p>
-                  ) : (
-                    <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                      <select
-                        value={nextStatus}
-                        onChange={(event) => setNextStatus(event.target.value)}
-                        className="flex-1 border border-gray-300 bg-white px-3 py-3 text-sm outline-none focus:border-[#9A7B3F]"
-                      >
-                        {ORDER_STATUSES.map((status) => (
-                          <option key={status} value={status}>
-                            {formatStatus(status)}
+                  {(() => {
+                    const currentStatus = String(
+                      selectedOrder.orderStatus || "PLACED",
+                    ).toUpperCase();
+                    const immediateNext = IMMEDIATE_NEXT_STATUS[currentStatus];
+
+                    if (!immediateNext) {
+                      return (
+                        <p className="mt-3 text-sm text-gray-600">
+                          This order is in a terminal status ({formatStatus(currentStatus)}). Use a dedicated
+                          return/refund workflow if required.
+                        </p>
+                      );
+                    }
+
+                    return (
+                      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <select
+                          value={nextStatus || immediateNext}
+                          onChange={(event) => setNextStatus(event.target.value)}
+                          className="flex-1 border border-gray-300 bg-white px-3 py-3 text-sm outline-none focus:border-[#9A7B3F]"
+                        >
+                          <option value={immediateNext}>
+                            {formatStatus(immediateNext)}
                           </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={updateOrderStatus}
-                        disabled={
-                          Boolean(updatingId) ||
-                          nextStatus ===
-                            String(
-                              selectedOrder.orderStatus || "",
-                            ).toUpperCase()
-                        }
-                        className="bg-[#111827] px-5 py-3 text-sm font-medium text-white hover:bg-[#9A7B3F] disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
-                      >
-                        {updatingId ? "Updating..." : "Save status"}
-                      </button>
-                    </div>
-                  )}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => updateOrderStatus(nextStatus || immediateNext)}
+                          disabled={Boolean(updatingId)}
+                          className="bg-[#111827] px-5 py-3 text-sm font-medium text-white hover:bg-[#9A7B3F] disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                        >
+                          {updatingId
+                            ? "Updating..."
+                            : `Update to ${formatStatus(immediateNext)}`}
+                        </button>
+                        {["PLACED", "CONFIRMED", "PROCESSING"].includes(currentStatus) && (
+                          <button
+                            type="button"
+                            onClick={handleCancelOrder}
+                            disabled={Boolean(updatingId)}
+                            className="border border-red-300 px-5 py-3 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                          >
+                            Cancel order
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
               <div className="flex justify-end border-t border-gray-200 px-5 py-4 sm:px-6">
