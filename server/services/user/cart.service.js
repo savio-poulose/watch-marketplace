@@ -6,6 +6,8 @@ import Variant from "../../models/variant.model.js";
 import Product from "../../models/product.model.js";
 import Offer from "../../models/offer.model.js";
 
+const MAX_CART_QUANTITY = 50;
+
 const createError = (message, statusCode) => {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -288,6 +290,16 @@ export const addItemToCartService = async ({
       `Only ${variant.quantity} item(s) are available.`,
       400
     );
+  }
+
+  const currentTotal = cart.items.reduce((acc,curr)=>{
+    return acc+curr
+  },0)
+
+  const newTotal = currentTotal +quantity
+
+  if(newTotal > MAX_CART_QUANTITY){
+    throw createError("Maximum Quantity is 50 ",400)
   }
 
   if (existingItem) {
