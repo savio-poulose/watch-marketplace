@@ -292,15 +292,16 @@ export const addItemToCartService = async ({
     );
   }
 
-  const currentTotal = cart.items.reduce((acc,curr)=>{
-    return acc+curr
-  },0)
+  const currentTotal = cart.items.reduce(
+  (acc, curr) => acc + curr.quantity,
+  0
+);
 
-  const newTotal = currentTotal +quantity
+const newTotal = currentTotal + quantity;
 
-  if(newTotal > MAX_CART_QUANTITY){
-    throw createError("Maximum Quantity is 50 ",400)
-  }
+if (newTotal > MAX_CART_QUANTITY) {
+  throw createError("Maximum cart quantity is 50.", 400);
+}
 
   if (existingItem) {
     existingItem.quantity = newQuantity;
