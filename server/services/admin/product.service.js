@@ -1,4 +1,5 @@
 import Product from "../../models/product.model.js"
+import Wishlist from "../../models/wishlist.model.js"
 
 export const productAdd = async (data) =>{
     const product = await Product.create(data)
@@ -31,9 +32,8 @@ export const productUpdate = async (id, data) => {
 };
 
 export const ProductDelete = async(id)=>{
-    
+    await Wishlist.deleteMany({ productId: id });
     return await Product.deleteOne({_id:id})
-    
 }
 
 

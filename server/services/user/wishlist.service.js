@@ -77,7 +77,23 @@ export const checkWishlistService = async (userId, productId) => {
 export const getWishlistService = async (userId) => {
   validateObjectId(userId, "user ID");
 
-  return Wishlist.find({ userId })
+  const items = await Wishlist.find({ userId })
     .populate("productId")
     .sort({ createdAt: -1 });
+
+  // Auto-heal: filter out and clean up any entries where the product was deleted
+  const orphanedIds = [];
+  const validItems = items.filter((item) => {
+    if (!item.productId || typeof item.productId !== "object" || !item.productId._id) {
+      orphanedIds.push(item._id);
+      return false;
+    }
+    return true;
+  });
+
+  if (orphanedIds.length > 0) {
+    await Wishlist.deleteMany({ _id: { $in: orphanedIds } });
+  }
+
+  return validItems;
 };

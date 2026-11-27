@@ -20,6 +20,7 @@ import Navbar from "../../components/layout/Navbar.jsx";
 import Footer from "../../components/common/Footer.jsx";
 import ReviewsSection from "../../components/user/collections/ReviewsSection.jsx";
 import toast from "react-hot-toast";
+import { emitCartUpdated, emitWishlistUpdated } from "../../utils/cartWishlistEvents.js";
 
 const formatPrice = (price) => `₹${Number(price || 0).toLocaleString("en-IN")}`;
 
@@ -236,6 +237,7 @@ const ProductDetails = () => {
 
       const message = response.data.message || "Item added to your bag.";
 
+      emitCartUpdated();
       toast.success(message);
       setCartMessage(message);
       navigate("/user/cart");
@@ -261,6 +263,7 @@ const ProductDetails = () => {
         await api.delete(`/user/wishlist/${product._id}`);
 
         setIsFavorite(false);
+        emitWishlistUpdated();
         toast.success("Removed from wishlist");
       } else {
         const response = await api.post("/user/wishlist", {
@@ -268,6 +271,7 @@ const ProductDetails = () => {
         });
 
         setIsFavorite(true);
+        emitWishlistUpdated();
         toast.success(response.data.message || "Added to wishlist");
       }
     } catch (error) {

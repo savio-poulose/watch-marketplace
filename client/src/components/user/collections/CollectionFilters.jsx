@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 
 const CollectionFilters = ({ filters, onFilterChange }) => {
   const [options, setOptions] = useState({
+    categories: [],
     brands: [],
     dialShades: [],
     strapMaterials: [],
@@ -16,7 +17,7 @@ const CollectionFilters = ({ filters, onFilterChange }) => {
     const fetchFilters = async () => {
       try {
         const { data } = await api.get("/user/products/filters");
-        setOptions(data.filters);
+        setOptions(data.filters || {});
       } catch (err) {
         console.error("Failed to fetch filter options:", err);
         setError("Unable to load filters.");
@@ -48,10 +49,11 @@ const CollectionFilters = ({ filters, onFilterChange }) => {
 
   const resetFilters = () => {
     const resetValues = {
+      categories: [],
       brands: [],
       dialShade: [],
       strapMaterial: [],
-      priceRange: [0, 100000],
+      priceRange: [0, 10000000],
     };
 
     setDraftFilters(resetValues);
@@ -88,7 +90,7 @@ const CollectionFilters = ({ filters, onFilterChange }) => {
           <button
             type="button"
             onClick={resetFilters}
-            className="text-[10px] uppercase tracking-wider text-gray-400 hover:text-black"
+            className="text-[10px] uppercase tracking-wider text-gray-400 hover:text-black cursor-pointer"
           >
             Reset
           </button>
@@ -96,8 +98,21 @@ const CollectionFilters = ({ filters, onFilterChange }) => {
 
         {error && <p className="px-5 pt-4 text-xs text-red-600">{error}</p>}
 
+        {options.categories?.length > 0 && (
+          <FilterSection title="Categories">
+            {options.categories.map((category) => (
+              <FilterCheckbox
+                key={category}
+                label={category}
+                checked={(draftFilters.categories || []).includes(category)}
+                onChange={() => handleCheckbox("categories", category)}
+              />
+            ))}
+          </FilterSection>
+        )}
+
         <FilterSection title="Brands">
-          {options.brands.map((brand) => (
+          {options.brands?.map((brand) => (
             <FilterCheckbox
               key={brand}
               label={brand}
@@ -137,7 +152,7 @@ const CollectionFilters = ({ filters, onFilterChange }) => {
         </FilterSection>
 
         <FilterSection title="Dial Shade">
-          {options.dialShades.map((shade) => (
+          {options.dialShades?.map((shade) => (
             <FilterCheckbox
               key={shade}
               label={shade}
@@ -148,7 +163,7 @@ const CollectionFilters = ({ filters, onFilterChange }) => {
         </FilterSection>
 
         <FilterSection title="Strap Material">
-          {options.strapMaterials.map((material) => (
+          {options.strapMaterials?.map((material) => (
             <FilterCheckbox
               key={material}
               label={material}

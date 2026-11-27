@@ -14,6 +14,7 @@ import {
 import api from "../../api/axios.js";
 import Navbar from "../../components/layout/Navbar.jsx";
 import Footer from "../../components/common/Footer.jsx";
+import { emitCartUpdated } from "../../utils/cartWishlistEvents.js";
 
 const formatPrice = (price) =>
   `₹${Number(price || 0).toLocaleString("en-IN", {
@@ -172,6 +173,11 @@ const Cart = () => {
         : data.items ?? data.cartItems ?? [];
 
       setCart(items);
+      const newCount = items.reduce(
+        (total, itm) => total + Number(itm?.quantity || 0),
+        0
+      );
+      emitCartUpdated(newCount);
     } catch (err) {
       console.error("Failed to fetch cart:", err);
       setError(

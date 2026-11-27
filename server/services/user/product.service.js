@@ -1,7 +1,7 @@
-
 import Product from "../../models/product.model.js";
 import Variant from "../../models/variant.model.js";
 import Offer from "../../models/offer.model.js";
+import Category from "../../models/category.model.js";
 
 const money = (value) =>
   Math.round((Number(value) + Number.EPSILON) * 100) / 100;
@@ -26,14 +26,22 @@ const discountFor = (offer, price) => {
 };
 
 export const productsGetAll = async () => {
-  const products = await Product.find({ isActive: true }).lean();
+  const products = await Product.find({ isActive: true })
+    .populate("categoryId", "name isActive")
+    .lean();
 
   if (!products.length) return [];
 
   const productIds = products.map((product) => product._id);
   const categoryIds = [
     ...new Set(
-      products.map((product) => product.categoryId?.toString()).filter(Boolean)
+      products
+        .map((product) =>
+          product.categoryId?._id
+            ? product.categoryId._id.toString()
+            : product.categoryId?.toString()
+        )
+        .filter(Boolean)
     ),
   ];
 
@@ -84,9 +92,12 @@ export const productsGetAll = async () => {
 
   return products.map((product) => {
     const productId = String(product._id);
-    const categoryId = product.categoryId
+    const categoryId = product.categoryId?._id
+      ? String(product.categoryId._id)
+      : product.categoryId
       ? String(product.categoryId)
       : null;
+    const categoryName = product.categoryId?.name || "";
 
     const productVariants = variants
       .filter((variant) => String(variant.productId) === productId)
@@ -113,6 +124,10 @@ export const productsGetAll = async () => {
       id: product._id,
       name: product.name,
       brand: product.brand,
+      gender: product.gender || "",
+      categoryId: categoryId || "",
+      category: categoryName,
+      categoryName,
       image:
         defaultVariant?.images?.[0] ||
         product.images?.[0] ||
@@ -142,13 +157,18 @@ export const productsGetAll = async () => {
 };
 
 export const getCollectionFilters = async () => {
-  const [brands, dialShades, strapMaterials] = await Promise.all([
+  const [brands, dialShades, strapMaterials, categories] = await Promise.all([
     Product.distinct("brand", { isActive: true }),
     Variant.distinct("dialColor", { isActive: true }),
     Variant.distinct("strapMaterial", { isActive: true }),
+    Category.find({ isActive: { $ne: false } })
+      .select("name")
+      .sort({ name: 1 })
+      .lean(),
   ]);
 
   return {
+    categories: categories.map((cat) => cat.name).filter(Boolean),
     brands: brands.filter(Boolean).sort(),
     dialShades: dialShades.filter(Boolean).sort(),
     strapMaterials: strapMaterials.filter(Boolean).sort(),

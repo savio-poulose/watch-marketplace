@@ -13,6 +13,7 @@ import toast from "react-hot-toast";
 import api from "../../api/axios.js";
 import Navbar from "../../components/layout/Navbar.jsx";
 import Footer from "../../components/common/Footer.jsx";
+import { emitCartUpdated, emitWishlistUpdated } from "../../utils/cartWishlistEvents.js";
 
 const formatPrice = (price) =>
   `₹${Number(price || 0).toLocaleString("en-IN")}`;
@@ -28,8 +29,12 @@ const Wishlist = () => {
       setLoading(true);
 
       const response = await api.get("/user/wishlist");
-
-      setWishlist(response.data.wishlist || []);
+      const rawList = response.data.wishlist || [];
+      const list = rawList.filter(
+        (item) => item?.productId && typeof item.productId === "object"
+      );
+      setWishlist(list);
+      emitWishlistUpdated(list.length);
     } catch (error) {
       toast.error(
         error.response?.data?.message ||
@@ -50,11 +55,13 @@ const Wishlist = () => {
 
       await api.delete(`/user/wishlist/${productId}`);
 
-      setWishlist((current) =>
-        current.filter(
+      setWishlist((current) => {
+        const updated = current.filter(
           (item) => String(item.productId?._id) !== String(productId)
-        )
-      );
+        );
+        emitWishlistUpdated(updated.length);
+        return updated;
+      });
 
       toast.success("Removed from wishlist");
     } catch (error) {
@@ -92,11 +99,14 @@ const Wishlist = () => {
       // Remove from wishlist only after the cart request succeeds.
       await api.delete(`/user/wishlist/${productId}`);
 
-      setWishlist((current) =>
-        current.filter(
+      setWishlist((current) => {
+        const updated = current.filter(
           (item) => String(item.productId?._id) !== String(productId)
-        )
-      );
+        );
+        emitWishlistUpdated(updated.length);
+        return updated;
+      });
+      emitCartUpdated();
 
       toast.success("Added to bag and removed from wishlist");
     } catch (error) {

@@ -2,6 +2,7 @@ import logo from "../../assets/images/logo.png";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "../../context/useAuth";
+import { useCartWishlist } from "../../context/useCartWishlist";
 import toast from "react-hot-toast";
 
 import {
@@ -15,6 +16,7 @@ import {
 
 const Navbar = () => {
   const { user } = useAuth();
+  const { cartCount, wishlistCount } = useCartWishlist();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -97,6 +99,11 @@ const Navbar = () => {
             title="Wishlist"
           >
             <HiOutlineHeart className="h-5 w-5" />
+            {wishlistCount > 0 && (
+              <span className="absolute -top-2 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#9A7B3F] px-1 text-[10px] font-bold text-white shadow-sm ring-1 ring-white">
+                {wishlistCount > 99 ? "99+" : wishlistCount}
+              </span>
+            )}
           </button>
 
           {/* CART */}
@@ -112,6 +119,11 @@ const Navbar = () => {
             title="Cart"
           >
             <HiOutlineShoppingBag className="h-5 w-5" />
+            {cartCount > 0 && (
+              <span className="absolute -top-2 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#9A7B3F] px-1 text-[10px] font-bold text-white shadow-sm ring-1 ring-white">
+                {cartCount > 99 ? "99+" : cartCount}
+              </span>
+            )}
           </button>
 
           {/* USER / LOGIN */}
@@ -137,18 +149,61 @@ const Navbar = () => {
           )}
         </div>
 
-        {/* MOBILE MENU BUTTON */}
-        <button
-          type="button"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="text-2xl text-gray-700 md:hidden cursor-pointer"
-        >
-          {mobileMenuOpen ? (
-            <HiXMark className="h-6 w-6" />
-          ) : (
-            <HiOutlineBars3 className="h-6 w-6" />
-          )}
-        </button>
+        {/* MOBILE HEADER ACTIONS */}
+        <div className="flex items-center gap-4 md:hidden">
+          {/* MOBILE WISHLIST */}
+          <button
+            type="button"
+            onClick={() =>
+              handleProtectedAction(
+                "/user/wishlist",
+                "Please log in to view your wishlist"
+              )
+            }
+            className="relative cursor-pointer text-gray-700 hover:text-[#9A7B3F]"
+            title="Wishlist"
+          >
+            <HiOutlineHeart className="h-5 w-5" />
+            {wishlistCount > 0 && (
+              <span className="absolute -top-2 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#9A7B3F] px-1 text-[10px] font-bold text-white shadow-sm ring-1 ring-white">
+                {wishlistCount > 99 ? "99+" : wishlistCount}
+              </span>
+            )}
+          </button>
+
+          {/* MOBILE CART */}
+          <button
+            type="button"
+            onClick={() =>
+              handleProtectedAction(
+                "/user/cart",
+                "Please log in to view your cart"
+              )
+            }
+            className="relative cursor-pointer text-gray-700 hover:text-[#9A7B3F]"
+            title="Cart"
+          >
+            <HiOutlineShoppingBag className="h-5 w-5" />
+            {cartCount > 0 && (
+              <span className="absolute -top-2 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#9A7B3F] px-1 text-[10px] font-bold text-white shadow-sm ring-1 ring-white">
+                {cartCount > 99 ? "99+" : cartCount}
+              </span>
+            )}
+          </button>
+
+          {/* MOBILE MENU BUTTON */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="text-2xl text-gray-700 cursor-pointer"
+          >
+            {mobileMenuOpen ? (
+              <HiXMark className="h-6 w-6" />
+            ) : (
+              <HiOutlineBars3 className="h-6 w-6" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* CATEGORY NAVIGATION (DESKTOP) */}
@@ -311,9 +366,16 @@ const Navbar = () => {
                   setMobileMenuOpen(false);
                   handleProtectedAction("/user/wishlist", "Please log in to view your wishlist");
                 }}
-                className="flex items-center gap-1.5 py-1 text-gray-700 hover:text-[#9A7B3F]"
+                className="flex items-center gap-2 py-1 text-gray-700 hover:text-[#9A7B3F]"
               >
-                <HiOutlineHeart className="h-5 w-5" />
+                <div className="relative inline-flex items-center justify-center">
+                  <HiOutlineHeart className="h-5 w-5" />
+                  {wishlistCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[#9A7B3F] px-1 text-[9px] font-bold text-white shadow-sm ring-1 ring-white">
+                      {wishlistCount > 99 ? "99+" : wishlistCount}
+                    </span>
+                  )}
+                </div>
                 <span>Wishlist</span>
               </button>
               <button
@@ -322,9 +384,16 @@ const Navbar = () => {
                   setMobileMenuOpen(false);
                   handleProtectedAction("/user/cart", "Please log in to view your cart");
                 }}
-                className="flex items-center gap-1.5 py-1 text-gray-700 hover:text-[#9A7B3F]"
+                className="flex items-center gap-2 py-1 text-gray-700 hover:text-[#9A7B3F]"
               >
-                <HiOutlineShoppingBag className="h-5 w-5" />
+                <div className="relative inline-flex items-center justify-center">
+                  <HiOutlineShoppingBag className="h-5 w-5" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[#9A7B3F] px-1 text-[9px] font-bold text-white shadow-sm ring-1 ring-white">
+                      {cartCount > 99 ? "99+" : cartCount}
+                    </span>
+                  )}
+                </div>
                 <span>Cart</span>
               </button>
               {user ? (

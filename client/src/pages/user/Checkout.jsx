@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import api from "../../api/axios.js";
 
 import loadRazorpay from "../../utils/loadRazorpay.js";
+import { emitCartUpdated } from "../../utils/cartWishlistEvents.js";
 
 const SHIPPING_FEE = 0;
 
@@ -506,6 +507,7 @@ const Checkout = () => {
 
       // Wallet covered the entire order; Razorpay is not needed.
       if (paymentOrder?.paymentRequired === false) {
+        emitCartUpdated(0);
         navigate(`/user/order-success/${paymentOrder.orderId}`, {
           replace: true,
         });
@@ -519,6 +521,7 @@ const Checkout = () => {
       ) {
         if (!paymentOrder?.orderId)
           throw new Error("The server did not return a valid wallet order.");
+        emitCartUpdated(0);
         navigate(`/user/order-success/${paymentOrder.orderId}`, {
           replace: true,
         });
@@ -570,6 +573,7 @@ const Checkout = () => {
             );
 
             if (verification.data?.success) {
+              emitCartUpdated(0);
               navigate(
                 `/user/order-success/${paymentOrder.orderId}`,
 
@@ -738,6 +742,7 @@ const Checkout = () => {
         throw new Error("The server did not return a valid order.");
       }
 
+      emitCartUpdated(0);
       navigate(`/user/order-success/${order._id}`, {
         replace: true,
       });
